@@ -1153,7 +1153,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
   atualizarContador();
   atualizarProgresso();
 </script>
-
 <!-- ============================================================
      VENKO IA – Auto Preenchimento por Foto (Groq)
      Cole este bloco inteiro ANTES de </body> no seu index.html
@@ -1351,7 +1350,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
             'Authorization': 'Bearer ' + GROQ_KEY
           },
           body: JSON.stringify({
-            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
             messages: [{
               role: 'user',
               content: [
@@ -1361,7 +1360,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
                 },
                 {
                   type: 'text',
-                  text: 'Voce e um especialista em OCR de documentos brasileiros. Analise CUIDADOSAMENTE esta imagem, mesmo que esteja rotacionada, inclinada ou com baixa qualidade. Identifique todos os textos visiveis e extraia os dados. O documento pode ser RG, CNH, CPF ou similar. Retorne SOMENTE um objeto JSON puro, sem markdown, sem explicacoes, sem texto extra. Campos obrigatorios (deixe vazio "" apenas se realmente nao encontrar apos analise cuidadosa): {"nome_completo":"nome completo da pessoa","cpf":"CPF no formato 000.000.000-00","rg":"numero do RG ou DNI","data_nascimento":"data no formato DD/MM/AAAA","celular":"","nome_mae":"nome completo da mae na filicao","email":"","cep":"","cidade":"cidade de naturalidade ou endereco","rua":"","numero":"","complemento":"","bairro":""}. IMPORTANTE: No RG brasileiro o campo FILIACAO contem pai e mae - extraia a mae. O DNI ou numero do RG aparece como sequencia numerica. Data de nascimento aparece como DATA NASCIMENTO ou NASC. Retorne APENAS o JSON.'
+                  text: 'Voce e um especialista em OCR de documentos de identidade brasileiros. Analise TODA a imagem com muito cuidado, mesmo que esteja rotacionada, inclinada ou com reflexo. Leia TODOS os textos visiveis no documento. O documento pode ser RG, CNH, CPF, RNE ou qualquer outro documento de identificacao brasileiro. Extraia os seguintes dados pessoais e retorne SOMENTE um JSON puro sem markdown sem explicacoes sem texto extra: {"nome_completo":"nome completo da pessoa titular do documento","cpf":"CPF encontrado em qualquer lugar do documento no formato 000.000.000-00, pode aparecer como CPF ou junto ao RG","rg":"numero do RG ou DNI ou numero de registro","data_nascimento":"data de nascimento no formato DD/MM/AAAA","celular":"telefone se houver","nome_mae":"nome completo da mae encontrado no campo FILIACAO ou MAE","email":""}. REGRAS IMPORTANTES: 1) No RG o campo FILIACAO tem dois nomes - o primeiro e o pai o segundo e a mae - extraia a mae. 2) O CPF pode aparecer como sequencia 000.000.000-00 em qualquer parte do documento. 3) DNI e RG sao a mesma coisa. 4) Data de nascimento pode aparecer como DATA NASC ou NASCIMENTO ou NASC. 5) Leia o documento inteiro frente e verso se houver. 6) Deixe vazio apenas se realmente nao encontrar o dado. Retorne APENAS o JSON.'
                 }
               ]
             }],
@@ -1386,13 +1385,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
           rg:            'RG',
           celular:       'Celular',
           nome_mae:      'Nome da Mãe',
-          email:         'E-mail',
-          cep:           'CEP',
-          cidade:        'Cidade',
-          rua:           'Rua / Logradouro',
-          numero:        'Número',
-          complemento:   'Complemento',
-          bairro:        'Bairro'
+          email:         'E-mail'
         };
 
         Object.keys(MAP).forEach(function(key) {
@@ -1438,3 +1431,4 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
 })();
 </script>
 <!-- FIM DO BLOCO VENKO IA -->
+
