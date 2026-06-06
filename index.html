@@ -1153,8 +1153,8 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
   atualizarContador();
   atualizarProgresso();
 </script>
- <!-- ============================================================
-     VENKO IA – Auto Preenchimento por Foto (Gemini)
+<!-- ============================================================
+     VENKO IA – Auto Preenchimento por Foto (Groq)
      Cole este bloco inteiro ANTES de </body> no seu index.html
      ============================================================ -->
 
@@ -1170,11 +1170,9 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     </div>
     <p id="vk-ai-sub">Escolha como enviar o documento</p>
 
-    <!-- Botões de escolha -->
     <div id="vk-ai-escolha">
       <input type="file" id="vk-ai-camera" accept="image/*" capture="environment" multiple>
       <input type="file" id="vk-ai-galeria" accept="image/*" multiple>
-
       <label for="vk-ai-camera" class="vk-btn-escolha">📷 Tirar foto</label>
       <label for="vk-ai-galeria" class="vk-btn-escolha">🖼️ Escolher da galeria</label>
     </div>
@@ -1294,8 +1292,8 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
 
 <script>
 (function() {
-  var GEMINI_KEY = 'AQ.Ab8RN6IJGg-9vxLl6Wa63zaJ118RLxpOESw-apUQyVOgf_aFVg';
-  var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY;
+  var GROQ_KEY = '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';
+  var GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
   var arquivos = [];
 
@@ -1309,7 +1307,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
         var p = new Promise(function(resolve) {
           var r = new FileReader();
           r.onload = function(e) {
-            arquivos.push({ b64: e.target.result.split(',')[1], mtype: file.type, nome: file.name });
+            arquivos.push({ b64: e.target.result, mtype: file.type, nome: file.name });
             var img = document.createElement('img');
             img.src = e.target.result;
             previews.appendChild(img);
@@ -1338,7 +1336,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     var btn = document.getElementById('vk-ai-ok');
     var st  = document.getElementById('vk-ai-status');
     btn.disabled = true;
-
     var totalCampos = 0;
 
     for (var i = 0; i < arquivos.length; i++) {
@@ -1346,17 +1343,29 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
       st.innerHTML = '<span style="color:#e67e22">⏳ Analisando ' + (i+1) + '/' + arquivos.length + '…</span>';
 
       try {
-        var res = await fetch(GEMINI_URL, {
+        var res = await fetch(GROQ_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + GROQ_KEY
+          },
           body: JSON.stringify({
-            contents: [{
-              parts: [
-                { inline_data: { mime_type: arq.mtype, data: arq.b64 } },
-                { text: 'Analise este documento brasileiro (RG, CNH, CPF ou similar) e retorne SOMENTE um objeto JSON puro, sem markdown, sem explicacoes. Campos (deixe vazio "" se nao encontrar): {"nome_completo":"","cpf":"","rg":"","data_nascimento":"","celular":"","nome_mae":"","email":"","cep":"","cidade":"","rua":"","numero":"","complemento":"","bairro":""}. Formatos: CPF 000.000.000-00, data DD/MM/AAAA, CEP 00000-000.' }
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            messages: [{
+              role: 'user',
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: { url: arq.b64 }
+                },
+                {
+                  type: 'text',
+                  text: 'Analise este documento brasileiro (RG, CNH, CPF ou similar) e retorne SOMENTE um objeto JSON puro, sem markdown, sem explicacoes. Campos (deixe vazio "" se nao encontrar): {"nome_completo":"","cpf":"","rg":"","data_nascimento":"","celular":"","nome_mae":"","email":"","cep":"","cidade":"","rua":"","numero":"","complemento":"","bairro":""}. Formatos: CPF 000.000.000-00, data DD/MM/AAAA, CEP 00000-000.'
+                }
               ]
             }],
-            generationConfig: { temperature: 0 }
+            temperature: 0,
+            max_tokens: 500
           })
         });
 
@@ -1366,7 +1375,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
         }
 
         var data = await res.json();
-        var txt = data.candidates[0].content.parts[0].text || '';
+        var txt = data.choices[0].message.content || '';
         var clean = txt.replace(/```json|```/g, '').trim();
         var parsed = JSON.parse(clean);
 
@@ -1408,7 +1417,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
           }
         }
 
-        // Marcar imagem como processada
         var imgs = document.getElementById('vk-ai-previews').querySelectorAll('img');
         if (imgs[i]) imgs[i].classList.add('ativa');
 
