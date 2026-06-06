@@ -1153,7 +1153,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
   atualizarContador();
   atualizarProgresso();
 </script>
-  <!-- ============================================================
+ <!-- ============================================================
      VENKO IA – Auto Preenchimento por Foto (Gemini)
      Cole este bloco inteiro ANTES de </body> no seu index.html
      ============================================================ -->
@@ -1170,19 +1170,16 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     </div>
     <p id="vk-ai-sub">Escolha como enviar o documento</p>
 
-    <!-- Botões de seleção -->
-    <div id="vk-ai-actions">
-      <input type="file" id="vk-ai-camera" accept="image/*" capture="environment" multiple style="display:none">
-      <input type="file" id="vk-ai-gallery" accept="image/*" multiple style="display:none">
+    <!-- Botões de escolha -->
+    <div id="vk-ai-escolha">
+      <input type="file" id="vk-ai-camera" accept="image/*" capture="environment" multiple>
+      <input type="file" id="vk-ai-galeria" accept="image/*" multiple>
 
-      <label for="vk-ai-camera" class="vk-btn-sel">📷 Tirar foto</label>
-      <label for="vk-ai-gallery" class="vk-btn-sel" style="background:#f0f0f0;color:#333;">🖼️ Escolher da galeria</label>
+      <label for="vk-ai-camera" class="vk-btn-escolha">📷 Tirar foto</label>
+      <label for="vk-ai-galeria" class="vk-btn-escolha">🖼️ Escolher da galeria</label>
     </div>
 
-    <div id="vk-ai-preview" style="display:none">
-      <div id="vk-ai-thumbs"></div>
-      <p id="vk-ai-count" style="font-size:12px;color:#888;margin:4px 0 8px"></p>
-    </div>
+    <div id="vk-ai-previews"></div>
 
     <button id="vk-ai-ok" style="display:none" onclick="vkExtract()">
       ✨ Extrair e Preencher Ficha
@@ -1224,9 +1221,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     border-radius: 16px;
     padding: 24px;
     width: 100%;
-    max-width: 380px;
+    max-width: 400px;
     text-align: center;
     box-shadow: 0 8px 40px rgba(0,0,0,.3);
+    max-height: 90vh;
+    overflow-y: auto;
   }
   #vk-ai-header {
     display: flex;
@@ -1244,35 +1243,37 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     cursor: pointer;
     color: #888;
   }
-  #vk-ai-sub { color: #666; font-size: 13px; margin-bottom: 12px; }
-  #vk-ai-actions { display: flex; gap: 10px; margin-bottom: 12px; }
-  .vk-btn-sel {
+  #vk-ai-sub { color: #666; font-size: 13px; margin-bottom: 14px; }
+  #vk-ai-camera, #vk-ai-galeria { display: none; }
+  #vk-ai-escolha { display: flex; gap: 10px; margin-bottom: 12px; }
+  .vk-btn-escolha {
     flex: 1;
     display: block;
-    background: #C0392B;
-    color: #fff;
+    border: 2px dashed #C0392B;
     border-radius: 10px;
-    padding: 12px 8px;
+    padding: 14px 8px;
     cursor: pointer;
+    color: #C0392B;
     font-weight: 600;
     font-size: 13px;
-    transition: opacity .2s;
+    transition: background .2s;
   }
-  .vk-btn-sel:hover { opacity: .85; }
-  #vk-ai-thumbs {
+  .vk-btn-escolha:hover { background: #fff5f5; }
+  #vk-ai-previews {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
     justify-content: center;
-    margin-bottom: 6px;
+    margin-bottom: 12px;
   }
-  #vk-ai-thumbs img {
-    width: 72px;
-    height: 72px;
+  #vk-ai-previews img {
+    width: 80px;
+    height: 80px;
     object-fit: cover;
     border-radius: 8px;
-    border: 1px solid #eee;
+    border: 2px solid #eee;
   }
+  #vk-ai-previews img.ativa { border-color: #27ae60; }
   #vk-ai-ok {
     width: 100%;
     padding: 13px;
@@ -1296,127 +1297,134 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
   var GEMINI_KEY = 'AQ.Ab8RN6IJGg-9vxLl6Wa63zaJ118RLxpOESw-apUQyVOgf_aFVg';
   var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY;
 
-  var files = [];
+  var arquivos = [];
 
-  function handleFiles(list) {
-    files = Array.from(list);
-    if (!files.length) return;
-
-    var thumbs = document.getElementById('vk-ai-thumbs');
-    var count  = document.getElementById('vk-ai-count');
-    thumbs.innerHTML = '';
-
-    files.forEach(function(f) {
-      var r = new FileReader();
-      r.onload = function(e) {
-        var img = document.createElement('img');
-        img.src = e.target.result;
-        thumbs.appendChild(img);
-      };
-      r.readAsDataURL(f);
-    });
-
-    count.textContent = files.length + ' foto(s) selecionada(s)';
-    document.getElementById('vk-ai-preview').style.display = 'block';
-    document.getElementById('vk-ai-ok').style.display = 'block';
-    document.getElementById('vk-ai-status').textContent = '';
-  }
-
-  document.getElementById('vk-ai-camera').onchange  = function() { handleFiles(this.files); };
-  document.getElementById('vk-ai-gallery').onchange = function() { handleFiles(this.files); };
-
-  function toBase64(file) {
-    return new Promise(function(resolve) {
-      var r = new FileReader();
-      r.onload = function(e) { resolve({ b64: e.target.result.split(',')[1], mime: file.type }); };
-      r.readAsDataURL(file);
-    });
-  }
-
-  async function callGemini(b64, mime) {
-    var res = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: mime, data: b64 } },
-            { text: 'Analise este documento brasileiro (RG, CNH, CPF ou similar) e retorne SOMENTE um objeto JSON puro, sem markdown, sem explicacoes. Campos (deixe vazio "" se nao encontrar): {"nome_completo":"","cpf":"","rg":"","data_nascimento":"","celular":"","nome_mae":"","email":"","cep":"","cidade":"","rua":"","numero":"","complemento":"","bairro":""}. Formatos: CPF 000.000.000-00, data DD/MM/AAAA, CEP 00000-000.' }
-          ]
-        }],
-        generationConfig: { temperature: 0 }
-      })
-    });
-    if (!res.ok) { var e = await res.json(); throw new Error('Erro ' + res.status + ': ' + (e.error && e.error.message || JSON.stringify(e))); }
-    var data = await res.json();
-    var txt = data.candidates[0].content.parts[0].text || '';
-    return JSON.parse(txt.replace(/```json|```/g, '').trim());
-  }
-
-  function setField(placeholder, value) {
-    var el = document.querySelector('[placeholder="' + placeholder + '"]');
-    if (el && value) {
-      el.value = value;
-      el.dispatchEvent(new Event('input',  { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      return true;
+  function processarArquivos(fileList) {
+    arquivos = [];
+    var previews = document.getElementById('vk-ai-previews');
+    previews.innerHTML = '';
+    var promises = [];
+    for (var i = 0; i < fileList.length; i++) {
+      (function(file) {
+        var p = new Promise(function(resolve) {
+          var r = new FileReader();
+          r.onload = function(e) {
+            arquivos.push({ b64: e.target.result.split(',')[1], mtype: file.type, nome: file.name });
+            var img = document.createElement('img');
+            img.src = e.target.result;
+            previews.appendChild(img);
+            resolve();
+          };
+          r.readAsDataURL(file);
+        });
+        promises.push(p);
+      })(fileList[i]);
     }
-    return false;
+    Promise.all(promises).then(function() {
+      document.getElementById('vk-ai-ok').style.display = 'block';
+      document.getElementById('vk-ai-status').textContent = arquivos.length + ' arquivo(s) selecionado(s)';
+    });
   }
+
+  document.getElementById('vk-ai-camera').onchange = function() {
+    if (this.files.length) processarArquivos(this.files);
+  };
+  document.getElementById('vk-ai-galeria').onchange = function() {
+    if (this.files.length) processarArquivos(this.files);
+  };
 
   window.vkExtract = async function() {
-    if (!files.length) return;
+    if (!arquivos.length) return;
     var btn = document.getElementById('vk-ai-ok');
     var st  = document.getElementById('vk-ai-status');
     btn.disabled = true;
 
-    var merged = { nome_completo:'', cpf:'', rg:'', data_nascimento:'', celular:'', nome_mae:'', email:'', cep:'', cidade:'', rua:'', numero:'', complemento:'', bairro:'' };
+    var totalCampos = 0;
 
-    for (var i = 0; i < files.length; i++) {
-      st.innerHTML = '<span style="color:#e67e22">⏳ Analisando foto ' + (i+1) + ' de ' + files.length + '…</span>';
+    for (var i = 0; i < arquivos.length; i++) {
+      var arq = arquivos[i];
+      st.innerHTML = '<span style="color:#e67e22">⏳ Analisando ' + (i+1) + '/' + arquivos.length + '…</span>';
+
       try {
-        var enc    = await toBase64(files[i]);
-        var parsed = await callGemini(enc.b64, enc.mime);
-        Object.keys(merged).forEach(function(k) { if (!merged[k] && parsed[k]) merged[k] = parsed[k]; });
-      } catch(e) {
-        st.innerHTML = '<span style="color:#e74c3c">❌ Foto ' + (i+1) + ': ' + e.message + '</span>';
+        var res = await fetch(GEMINI_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { inline_data: { mime_type: arq.mtype, data: arq.b64 } },
+                { text: 'Analise este documento brasileiro (RG, CNH, CPF ou similar) e retorne SOMENTE um objeto JSON puro, sem markdown, sem explicacoes. Campos (deixe vazio "" se nao encontrar): {"nome_completo":"","cpf":"","rg":"","data_nascimento":"","celular":"","nome_mae":"","email":"","cep":"","cidade":"","rua":"","numero":"","complemento":"","bairro":""}. Formatos: CPF 000.000.000-00, data DD/MM/AAAA, CEP 00000-000.' }
+              ]
+            }],
+            generationConfig: { temperature: 0 }
+          })
+        });
+
+        if (!res.ok) {
+          var errData = await res.json();
+          throw new Error('Erro ' + res.status + ': ' + (errData.error && errData.error.message ? errData.error.message : JSON.stringify(errData)));
+        }
+
+        var data = await res.json();
+        var txt = data.candidates[0].content.parts[0].text || '';
+        var clean = txt.replace(/```json|```/g, '').trim();
+        var parsed = JSON.parse(clean);
+
+        var MAP = {
+          nome_completo: 'Nome Completo',
+          cpf:           'CPF',
+          rg:            'RG',
+          celular:       'Celular',
+          nome_mae:      'Nome da Mãe',
+          email:         'E-mail',
+          cep:           'CEP',
+          cidade:        'Cidade',
+          rua:           'Rua / Logradouro',
+          numero:        'Número',
+          complemento:   'Complemento',
+          bairro:        'Bairro'
+        };
+
+        Object.keys(MAP).forEach(function(key) {
+          if (!parsed[key]) return;
+          var el = document.querySelector('[placeholder="' + MAP[key] + '"]');
+          if (el && !el.value) {
+            el.value = parsed[key];
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            totalCampos++;
+          }
+        });
+
+        if (parsed.data_nascimento) {
+          var dateEl = document.querySelector('input[type="date"]');
+          if (dateEl && !dateEl.value) {
+            var parts = parsed.data_nascimento.split('/');
+            var iso = parts.length === 3 ? parts[2] + '-' + parts[1] + '-' + parts[0] : parsed.data_nascimento;
+            dateEl.value = iso;
+            dateEl.dispatchEvent(new Event('input', { bubbles: true }));
+            dateEl.dispatchEvent(new Event('change', { bubbles: true }));
+            totalCampos++;
+          }
+        }
+
+        // Marcar imagem como processada
+        var imgs = document.getElementById('vk-ai-previews').querySelectorAll('img');
+        if (imgs[i]) imgs[i].classList.add('ativa');
+
+      } catch(err) {
+        console.error(err);
+        st.innerHTML = '<span style="color:#e74c3c">❌ ' + err.message + '</span>';
         btn.disabled = false;
         return;
       }
     }
 
-    var MAP = {
-      nome_completo: 'Nome Completo',
-      cpf:           'CPF',
-      rg:            'RG',
-      celular:       'Celular',
-      nome_mae:      'Nome da Mãe',
-      email:         'E-mail',
-      cep:           'CEP',
-      cidade:        'Cidade',
-      rua:           'Rua / Logradouro',
-      numero:        'Número',
-      complemento:   'Complemento',
-      bairro:        'Bairro'
-    };
-
-    var n = 0;
-    Object.keys(MAP).forEach(function(k) { if (setField(MAP[k], merged[k])) n++; });
-
-    if (merged.data_nascimento) {
-      var dateEl = document.querySelector('input[type="date"]');
-      if (dateEl) {
-        var p = merged.data_nascimento.split('/');
-        dateEl.value = p.length === 3 ? p[2]+'-'+p[1]+'-'+p[0] : merged.data_nascimento;
-        dateEl.dispatchEvent(new Event('input',  { bubbles: true }));
-        dateEl.dispatchEvent(new Event('change', { bubbles: true }));
-        n++;
-      }
-    }
-
-    st.innerHTML = '<span style="color:#27ae60">✅ ' + n + ' campo(s) preenchido(s)!</span>';
+    st.innerHTML = '<span style="color:#27ae60">✅ ' + totalCampos + ' campo(s) preenchido(s)!</span>';
     btn.disabled = false;
-    setTimeout(function() { document.getElementById('vk-ai-modal').style.display = 'none'; }, 1800);
+    setTimeout(function() {
+      document.getElementById('vk-ai-modal').style.display = 'none';
+    }, 2000);
   };
 })();
 </script>
