@@ -1153,6 +1153,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
   atualizarContador();
   atualizarProgresso();
 </script>
+
 <!-- ============================================================
      VENKO IA – Auto Preenchimento por Foto (Groq)
      Cole este bloco inteiro ANTES de </body> no seu index.html
@@ -1360,7 +1361,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
                 },
                 {
                   type: 'text',
-                  text: 'Analise este documento brasileiro (RG, CNH, CPF ou similar) e retorne SOMENTE um objeto JSON puro, sem markdown, sem explicacoes. Campos (deixe vazio "" se nao encontrar): {"nome_completo":"","cpf":"","rg":"","data_nascimento":"","celular":"","nome_mae":"","email":"","cep":"","cidade":"","rua":"","numero":"","complemento":"","bairro":""}. Formatos: CPF 000.000.000-00, data DD/MM/AAAA, CEP 00000-000.'
+                  text: 'Voce e um especialista em OCR de documentos brasileiros. Analise CUIDADOSAMENTE esta imagem, mesmo que esteja rotacionada, inclinada ou com baixa qualidade. Identifique todos os textos visiveis e extraia os dados. O documento pode ser RG, CNH, CPF ou similar. Retorne SOMENTE um objeto JSON puro, sem markdown, sem explicacoes, sem texto extra. Campos obrigatorios (deixe vazio "" apenas se realmente nao encontrar apos analise cuidadosa): {"nome_completo":"nome completo da pessoa","cpf":"CPF no formato 000.000.000-00","rg":"numero do RG ou DNI","data_nascimento":"data no formato DD/MM/AAAA","celular":"","nome_mae":"nome completo da mae na filicao","email":"","cep":"","cidade":"cidade de naturalidade ou endereco","rua":"","numero":"","complemento":"","bairro":""}. IMPORTANTE: No RG brasileiro o campo FILIACAO contem pai e mae - extraia a mae. O DNI ou numero do RG aparece como sequencia numerica. Data de nascimento aparece como DATA NASCIMENTO ou NASC. Retorne APENAS o JSON.'
                 }
               ]
             }],
