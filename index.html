@@ -1169,7 +1169,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
       <button onclick="document.getElementById('vk-ai-modal').style.display='none'">✕</button>
     </div>
     <p id="vk-ai-sub">Envie uma foto do RG, CNH ou CPF do cliente</p>
-    <input type="file" id="vk-ai-file" accept="image/*" capture="environment">
+    <input type="file" id="vk-ai-file" accept="image/*">
     <label for="vk-ai-file" id="vk-ai-label">📷 Tirar foto ou escolher da galeria</label>
     <div id="vk-ai-preview" style="display:none">
       <img id="vk-ai-img" alt="preview">
@@ -1277,7 +1277,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
 
 <script>
 (function() {
-  var GEMINI_KEY = 'AQ.Ab8RN6INX09ictb1u4uLPvVEXr6Wq7jJYmz6gAcF_Fkz3RIDow';
+  var GEMINI_KEY = 'AQ.Ab8RN6IJGg-9vxLl6Wa63zaJ118RLxpOESw-apUQyVOgf_aFVg';
   var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY;
 
   var b64 = null, mtype = null;
@@ -1311,17 +1311,18 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
         body: JSON.stringify({
           contents: [{
             parts: [
-              {
-                inline_data: { mime_type: mtype, data: b64 }
-              },
-              {
-                text: 'Analise este documento brasileiro (RG, CNH, CPF ou similar) e retorne SOMENTE um objeto JSON puro, sem markdown, sem explicações. Campos (deixe vazio "" se não encontrar): {"nome_completo":"","cpf":"","rg":"","data_nascimento":"","celular":"","nome_mae":"","email":"","cep":"","cidade":"","rua":"","numero":"","complemento":"","bairro":""}. Formatos: CPF 000.000.000-00, data DD/MM/AAAA, CEP 00000-000.'
-              }
+              { inline_data: { mime_type: mtype, data: b64 } },
+              { text: 'Analise este documento brasileiro (RG, CNH, CPF ou similar) e retorne SOMENTE um objeto JSON puro, sem markdown, sem explicacoes. Campos (deixe vazio "" se nao encontrar): {"nome_completo":"","cpf":"","rg":"","data_nascimento":"","celular":"","nome_mae":"","email":"","cep":"","cidade":"","rua":"","numero":"","complemento":"","bairro":""}. Formatos: CPF 000.000.000-00, data DD/MM/AAAA, CEP 00000-000.' }
             ]
           }],
           generationConfig: { temperature: 0 }
         })
       });
+
+      if (!res.ok) {
+        var errData = await res.json();
+        throw new Error('API erro ' + res.status + ': ' + JSON.stringify(errData));
+      }
 
       var data = await res.json();
       var txt = data.candidates[0].content.parts[0].text || '';
@@ -1375,12 +1376,10 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
 
     } catch(err) {
       console.error(err);
-      st.innerHTML = '<span style="color:#e74c3c">❌ Erro ao processar. Tente novamente com foto mais nítida.</span>';
+      st.innerHTML = '<span style="color:#e74c3c">❌ ' + err.message + '</span>';
       btn.disabled = false;
     }
   };
 })();
 </script>
 <!-- FIM DO BLOCO VENKO IA -->
-</body>
-</html>
