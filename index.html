@@ -1212,7 +1212,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
             temperature: 0, max_tokens: 500
           })
         });
-        if (!res.ok) { var errData = await res.json(); throw new Error('Erro ' + res.status + ': ' + (errData.error?.message || JSON.stringify(errData))); }
+        if (!res.ok) { var errData = await res.json(); throw new Error('Erro ' + res.status + ': ' + ((errData.error && errData.error.message) ? errData.error.message : JSON.stringify(errData))); }
         var data = await res.json();
         var txt = data.choices[0].message.content || '';
         var parsed = parsearJSON(txt);
