@@ -387,25 +387,7 @@
   }
   .voz-wrapper input,
   .voz-wrapper textarea { flex: 1; min-width: 0; }
-  .voz-balao {
-    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
-    background: #1e293b; color: #f1f5f9;
-    border-radius: 10px; padding: 10px 12px;
-    font-size: 0.88rem; z-index: 9999;
-    box-shadow: 0 4px 18px rgba(0,0,0,0.35);
-    display: flex; flex-direction: column; gap: 8px;
-  }
-  .voz-balao-label { font-size: 0.72rem; color: #94a3b8; }
-  .voz-balao-resultado { font-weight: 600; word-break: break-word; }
-  .voz-balao-acoes { display: flex; gap: 8px; }
-  .voz-balao-acoes button {
-    flex: 1; padding: 7px 0; border: none; border-radius: 7px;
-    cursor: pointer; font-size: 0.82rem; font-weight: 700;
-    transition: opacity 0.2s;
-  }
-  .voz-balao-acoes button:hover { opacity: 0.85; }
-  .voz-btn-confirmar { background: #16a34a; color: white; }
-  .voz-btn-repetir   { background: #334155; color: #f1f5f9; }
+
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1265,7 +1247,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
 </script>
 <!-- FIM VENKO IA -->
 
-<!-- ===== PREENCHIMENTO POR VOZ COM CONFIRMAÇÃO ===== -->
+<!-- ===== PREENCHIMENTO POR VOZ ===== -->
 <script>
 (function () {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1281,65 +1263,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
 
   let recAtivo = null;
 
-  function fecharBaloes() {
-    document.querySelectorAll('.voz-balao').forEach(b => b.remove());
-  }
-
-  function mostrarBalao(wrapper, input, texto, btn) {
-    fecharBaloes();
-    const balao = document.createElement('div');
-    balao.className = 'voz-balao';
-
-    const label = document.createElement('div');
-    label.className = 'voz-balao-label';
-    label.textContent = '🎙 Você disse:';
-
-    const resultado = document.createElement('div');
-    resultado.className = 'voz-balao-resultado';
-    resultado.textContent = '"' + texto + '"';
-
-    const acoes = document.createElement('div');
-    acoes.className = 'voz-balao-acoes';
-
-    const btnConfirmar = document.createElement('button');
-    btnConfirmar.className = 'voz-btn-confirmar';
-    btnConfirmar.textContent = '✅ Confirmar';
-
-    const btnRepetir = document.createElement('button');
-    btnRepetir.className = 'voz-btn-repetir';
-    btnRepetir.textContent = '🔄 Repetir';
-
-    acoes.appendChild(btnConfirmar);
-    acoes.appendChild(btnRepetir);
-    balao.appendChild(label);
-    balao.appendChild(resultado);
-    balao.appendChild(acoes);
-    wrapper.appendChild(balao);
-
-    btnConfirmar.addEventListener('click', () => {
-      input.value = texto;
-      input.dispatchEvent(new Event('input',  { bubbles: true }));
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-      fecharBaloes();
-      btn.textContent = '🎤';
-      btn.classList.remove('gravando');
-    });
-
-    btnRepetir.addEventListener('click', () => {
-      fecharBaloes();
-      btn.textContent = '🎤';
-      btn.classList.remove('gravando');
-      setTimeout(() => btn.click(), 200);
-    });
-
-    setTimeout(() => {
-      document.addEventListener('click', function handler(e) {
-        if (!balao.contains(e.target) && e.target !== btn) {
-          fecharBaloes();
-          document.removeEventListener('click', handler);
-        }
-      });
-    }, 100);
+  function pararGravacao() {
+    if (recAtivo) {
+      try { recAtivo.stop(); } catch(e) {}
+      recAtivo = null;
+    }
   }
 
   function injetarBotao(input) {
@@ -1359,43 +1287,67 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     wrapper.appendChild(input);
     wrapper.appendChild(btn);
 
-    function ativarVoz(e) {
+    let tocando = false;
+
+    function ativar(e) {
       e.preventDefault();
       e.stopPropagation();
-      if (recAtivo && recAtivo._campo === input) { recAtivo.stop(); fecharBaloes(); return; }
-      if (recAtivo) recAtivo.stop();
-      fecharBaloes();
+
+      // Evita duplo disparo touchstart + click no mesmo toque
+      if (e.type === 'click' && tocando) { tocando = false; return; }
+      if (e.type === 'touchstart') tocando = true;
+
+      // Se este campo já está gravando → para
+      if (recAtivo && recAtivo._campo === input) {
+        const b = recAtivo._btn;
+        pararGravacao();
+        if (b) { b.textContent = '🎤'; b.classList.remove('gravando'); }
+        return;
+      }
+
+      // Para qualquer outro campo que esteja gravando
+      if (recAtivo) {
+        const b = recAtivo._btn;
+        pararGravacao();
+        if (b) { b.textContent = '🎤'; b.classList.remove('gravando'); }
+      }
 
       const rec = new SpeechRecognition();
       rec.lang = 'pt-BR';
       rec.interimResults = false;
       rec.maxAlternatives = 1;
+      rec.continuous = false;
       rec._campo = input;
+      rec._btn   = btn;
 
       recAtivo = rec;
       btn.classList.add('gravando');
       btn.textContent = '🔴';
 
-      rec.onresult = (e) => {
-        const texto = e.results[0][0].transcript;
-        mostrarBalao(wrapper, input, texto, btn);
+      rec.onresult = (ev) => {
+        const texto = ev.results[0][0].transcript;
+        input.value = texto;
+        input.dispatchEvent(new Event('input',  { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
       };
-      rec.onerror = (e) => {
-        console.warn('Erro de voz:', e.error);
+
+      rec.onerror = () => {
         btn.classList.remove('gravando');
         btn.textContent = '🎤';
-      };
-      rec.onend = () => {
         if (recAtivo === rec) recAtivo = null;
       };
+
+      rec.onend = () => {
+        btn.classList.remove('gravando');
+        btn.textContent = '🎤';
+        if (recAtivo === rec) recAtivo = null;
+      };
+
       rec.start();
     }
 
-    btn.addEventListener('touchstart', ativarVoz, { passive: false });
-    btn.addEventListener('click', function(e) {
-      // evita duplo disparo em dispositivos que geram click após touchstart
-      e.preventDefault();
-    });
+    btn.addEventListener('touchstart', ativar, { passive: false });
+    btn.addEventListener('click',      ativar);
   }
 
   function injetarTodos() {
