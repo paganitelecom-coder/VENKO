@@ -364,6 +364,11 @@
 
   /* ── VOZ ── */
   .voz-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    min-width: 36px;
+    min-height: 36px;
     background: none; border: none; cursor: pointer;
     font-size: 1.05rem; padding: 0 5px;
     opacity: 0.45; transition: opacity 0.2s, transform 0.2s;
@@ -1354,7 +1359,9 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     wrapper.appendChild(input);
     wrapper.appendChild(btn);
 
-    btn.addEventListener('click', () => {
+    function ativarVoz(e) {
+      e.preventDefault();
+      e.stopPropagation();
       if (recAtivo && recAtivo._campo === input) { recAtivo.stop(); fecharBaloes(); return; }
       if (recAtivo) recAtivo.stop();
       fecharBaloes();
@@ -1382,6 +1389,12 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
         if (recAtivo === rec) recAtivo = null;
       };
       rec.start();
+    }
+
+    btn.addEventListener('touchstart', ativarVoz, { passive: false });
+    btn.addEventListener('click', function(e) {
+      // evita duplo disparo em dispositivos que geram click após touchstart
+      e.preventDefault();
     });
   }
 
