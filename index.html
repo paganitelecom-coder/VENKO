@@ -362,31 +362,6 @@
     .page { padding: 16px 12px 60px; }
   }
 
-  /* ── VOZ ── */
-  .voz-btn {
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    -webkit-user-select: none;
-    min-width: 36px;
-    min-height: 36px;
-    background: none; border: none; cursor: pointer;
-    font-size: 1.05rem; padding: 0 5px;
-    opacity: 0.45; transition: opacity 0.2s, transform 0.2s;
-    vertical-align: middle; line-height: 1;
-    user-select: none; flex-shrink: 0;
-  }
-  .voz-btn:hover { opacity: 0.8; }
-  .voz-btn.gravando { opacity: 1; animation: vozPulsar 0.65s infinite alternate; }
-  @keyframes vozPulsar {
-    from { transform: scale(1); }
-    to   { transform: scale(1.4); }
-  }
-  .voz-wrapper {
-    display: inline-flex; align-items: center;
-    width: 100%; position: relative;
-  }
-  .voz-wrapper input,
-  .voz-wrapper textarea { flex: 1; min-width: 0; }
 
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1206,7 +1181,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
           body: JSON.stringify({
             model: 'meta-llama/llama-4-scout-17b-16e-instruct',
             messages: [{ role: 'user', content: [
-              { type: 'image_url', image_url: { url: arq.b64 } },
+              { type: 'image_url', image_url: { url: arq.b64, detail: 'high' } },
               { type: 'text', text: 'Voce e um especialista em OCR de documentos de identidade brasileiros. Analise TODA a imagem com muito cuidado, mesmo que esteja rotacionada, inclinada ou com reflexo. Leia TODOS os textos visiveis no documento. O documento pode ser RG, CNH, CPF, RNE ou qualquer outro documento de identificacao brasileiro. Extraia os seguintes dados pessoais e retorne SOMENTE um JSON puro sem markdown sem explicacoes sem texto extra: {"nome_completo":"nome completo da pessoa titular do documento","cpf":"CPF encontrado em qualquer lugar do documento no formato 000.000.000-00, pode aparecer como CPF ou junto ao RG","rg":"numero do RG ou DNI ou numero de registro","data_nascimento":"data de nascimento no formato DD/MM/AAAA","celular":"telefone se houver","nome_mae":"nome completo da mae encontrado no campo FILIACAO ou MAE","email":""}. REGRAS IMPORTANTES: 1) No RG o campo FILIACAO tem dois nomes - o primeiro e o pai o segundo e a mae - extraia a mae. 2) O CPF pode aparecer como sequencia 000.000.000-00 em qualquer parte do documento. 3) DNI e RG sao a mesma coisa. 4) Data de nascimento pode aparecer como DATA NASC ou NASCIMENTO ou NASC. 5) Leia o documento inteiro frente e verso se houver. 6) Deixe vazio apenas se realmente nao encontrar o dado. Retorne APENAS o JSON.' }
             ]}],
             temperature: 0, max_tokens: 500
@@ -1247,126 +1222,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
 </script>
 <!-- FIM VENKO IA -->
 
-<!-- ===== PREENCHIMENTO POR VOZ ===== -->
-<script>
-(function () {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { console.warn('Web Speech API não suportada neste browser.'); return; }
-
-  const CAMPOS = [
-    'vendedor','nome','cpf','rg','nascimento','celular',
-    'mae','email','cep','cidade','rua','numero',
-    'complemento','bairro','plano_banda','plano_movel',
-    'plano_tv','plano_fixo','mensalidade','taxa',
-    'vencimento','periodo','obs'
-  ];
-
-  let recAtivo = null;
-
-  function pararGravacao() {
-    if (recAtivo) {
-      try { recAtivo.stop(); } catch(e) {}
-      recAtivo = null;
-    }
-  }
-
-  function injetarBotao(input) {
-    if (input.dataset.vozInjetado) return;
-    input.dataset.vozInjetado = '1';
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'voz-btn';
-    btn.title = 'Preencher por voz';
-    btn.textContent = '🎤';
-
-    const parent = input.parentNode;
-    const wrapper = document.createElement('span');
-    wrapper.className = 'voz-wrapper';
-    parent.insertBefore(wrapper, input);
-    wrapper.appendChild(input);
-    wrapper.appendChild(btn);
-
-    let tocando = false;
-
-    function ativar(e) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Evita duplo disparo touchstart + click no mesmo toque
-      if (e.type === 'click' && tocando) { tocando = false; return; }
-      if (e.type === 'touchstart') tocando = true;
-
-      // Se este campo já está gravando → para
-      if (recAtivo && recAtivo._campo === input) {
-        const b = recAtivo._btn;
-        pararGravacao();
-        if (b) { b.textContent = '🎤'; b.classList.remove('gravando'); }
-        return;
-      }
-
-      // Para qualquer outro campo que esteja gravando
-      if (recAtivo) {
-        const b = recAtivo._btn;
-        pararGravacao();
-        if (b) { b.textContent = '🎤'; b.classList.remove('gravando'); }
-      }
-
-      const rec = new SpeechRecognition();
-      rec.lang = 'pt-BR';
-      rec.interimResults = false;
-      rec.maxAlternatives = 1;
-      rec.continuous = false;
-      rec._campo = input;
-      rec._btn   = btn;
-
-      recAtivo = rec;
-      btn.classList.add('gravando');
-      btn.textContent = '🔴';
-
-      rec.onresult = (ev) => {
-        const texto = ev.results[0][0].transcript;
-        input.value = texto;
-        input.dispatchEvent(new Event('input',  { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-      };
-
-      rec.onerror = () => {
-        btn.classList.remove('gravando');
-        btn.textContent = '🎤';
-        if (recAtivo === rec) recAtivo = null;
-      };
-
-      rec.onend = () => {
-        btn.classList.remove('gravando');
-        btn.textContent = '🎤';
-        if (recAtivo === rec) recAtivo = null;
-      };
-
-      rec.start();
-    }
-
-    btn.addEventListener('touchstart', ativar, { passive: false });
-    btn.addEventListener('click',      ativar);
-  }
-
-  function injetarTodos() {
-    CAMPOS.forEach(id => {
-      const el = document.getElementById(id);
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-        injetarBotao(el);
-      }
-    });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', injetarTodos);
-  } else {
-    injetarTodos();
-  }
-})();
-</script>
-<!-- ===== FIM PREENCHIMENTO POR VOZ ===== -->
 
 </body>
 </html>
