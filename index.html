@@ -1123,7 +1123,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     return '';
   }
 
-
   function parsearJSON(txt) {
     var limpo = txt.replace(/```json/gi, '').replace(/```/g, '').trim();
     var inicio = limpo.indexOf('{');
@@ -1132,11 +1131,29 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     return JSON.parse(limpo.slice(inicio, fim + 1));
   }
 
+  // Redimensiona imagem para max 1600px mantendo proporção, retorna base64
+  function redimensionarImagem(b64, maxPx, quality) {
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() {
+        var w = img.width, h = img.height;
+        if (w > maxPx || h > maxPx) {
+          if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+          else { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality || 0.88));
+      };
+      img.src = b64;
+    });
+  }
+
   function preencherCampo(id, valor) {
-    if (!valor) return false;
+    if (!valor || valor === '' || valor === '—') return false;
     var el = document.getElementById(id);
-    if (!el) return false;
-    if (el.value && el.value.trim() !== '') return false;
+    if (!el || el.value) return false;
     el.value = valor;
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1173,58 +1190,145 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
   document.getElementById('vk-ai-camera').onchange = function() { if (this.files.length) processarArquivos(this.files); };
   document.getElementById('vk-ai-galeria').onchange = function() { if (this.files.length) processarArquivos(this.files); };
 
+  // Monta o prompt especializado por tipo de documento detectado
+  var PROMPT_SISTEMA = 'Você é um especialista em OCR e leitura de documentos de identidade brasileiros. Sua tarefa é extrair dados com máxima precisão.';
+
+  var PROMPT_EXTRACAO = 'Analise esta imagem de documento brasileiro com atenção máxima.\n\n' +
+    'TIPOS DE DOCUMENTO SUPORTADOS E ONDE ENCONTRAR CADA DADO:\n\n' +
+    'RG (Registro Geral / Carteira de Identidade):\n' +
+    '- NOME: campo "NOME" ou maior texto centralizado\n' +
+    '- DATA NASC: campo "DATA DE NASCIMENTO" ou "DATA NASC"\n' +
+    '- RG: campo "REGISTRO GERAL" ou "Nº" no cabeçalho, formato X.XXX.XXX\n' +
+    '- CPF: geralmente no verso, campo "CPF" formato 000.000.000-00\n' +
+    '- MÃE: campo "FILIAÇÃO" — o SEGUNDO nome listado é a mãe (primeiro é o pai)\n' +
+    '- ENDEREÇO: campo "ENDEREÇO" ou "RESIDÊNCIA" no verso (se presente)\n\n' +
+    'CNH (Carteira Nacional de Habilitação):\n' +
+    '- NOME: campo "NOME" na parte superior\n' +
+    '- DATA NASC: campo "DATA NASCIMENTO" ou "NASC."\n' +
+    '- CPF: campo "CPF" formato 000.000.000-00\n' +
+    '- RG: campo "DOC. IDENTIDADE" ou "RG"\n' +
+    '- MÃE: campo "FILIAÇÃO" — segundo nome\n' +
+    '- ENDEREÇO: campo "ENDEREÇO" na parte inferior (rua, número, cidade)\n\n' +
+    'RNE / CIE (Estrangeiros):\n' +
+    '- NOME: campo "NOME / NAME"\n' +
+    '- DATA NASC: campo "DATA DE NASCIMENTO / DATE OF BIRTH"\n' +
+    '- RG/RNE: número de registro no cabeçalho\n' +
+    '- ENDEREÇO: campo "ENDEREÇO" se presente\n\n' +
+    'COMPROVANTE DE RESIDÊNCIA (conta de luz/água/telefone/boleto):\n' +
+    '- NOME: nome do titular na parte superior\n' +
+    '- ENDEREÇO COMPLETO: extraia rua, número, complemento, bairro, cidade, CEP\n' +
+    '- CPF: se aparecer no documento\n\n' +
+    'REGRAS CRÍTICAS:\n' +
+    '1. Leia o documento inteiro — frente e verso se houver múltiplas imagens\n' +
+    '2. CPF sempre no formato 000.000.000-00 com pontos e traço\n' +
+    '3. Data sempre no formato DD/MM/AAAA\n' +
+    '4. Celular no formato (00) 00000-0000 — extraia apenas se claramente um celular pessoal\n' +
+    '5. No campo FILIAÇÃO do RG: "PAI\\nMÃE" — extraia APENAS o segundo nome para nome_mae\n' +
+    '6. Se o documento estiver rotacionado, inclinado ou com reflexo, tente mesmo assim\n' +
+    '7. Endereço: separe rua, número, complemento, bairro, cidade, CEP em campos distintos\n' +
+    '8. Se um campo não existir no documento, retorne string vazia ""\n' +
+    '9. Nunca invente dados — retorne apenas o que está visível\n\n' +
+    'Retorne SOMENTE este JSON sem markdown, sem explicação, sem texto extra:\n' +
+    '{"nome_completo":"","cpf":"","rg":"","data_nascimento":"","celular":"","nome_mae":"","email":"","endereco_rua":"","endereco_numero":"","endereco_complemento":"","endereco_bairro":"","endereco_cidade":"","endereco_cep":""}';
+
+  // Chama a API com retry automático
+  async function chamarGroq(imageB64, tentativa) {
+    tentativa = tentativa || 1;
+    var imgOtimizada = await redimensionarImagem(imageB64, tentativa === 1 ? 1600 : 2400, tentativa === 1 ? 0.88 : 0.95);
+    var response = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [
+          { role: 'system', content: PROMPT_SISTEMA },
+          { role: 'user', content: [
+            { type: 'image_url', image_url: { url: imgOtimizada, detail: 'high' } },
+            { type: 'text', text: PROMPT_EXTRACAO }
+          ]}
+        ],
+        temperature: 0,
+        max_tokens: 800
+      })
+    });
+    if (!response.ok) {
+      var errData = await response.json();
+      var msg = (errData.error && errData.error.message) ? errData.error.message : JSON.stringify(errData);
+      // Rate limit: aguarda e tenta novamente
+      if (response.status === 429 && tentativa < 3) {
+        await new Promise(function(r){ setTimeout(r, 2000 * tentativa); });
+        return chamarGroq(imageB64, tentativa + 1);
+      }
+      throw new Error('Erro ' + response.status + ': ' + msg);
+    }
+    var data = await response.json();
+    return parsearJSON(data.choices[0].message.content || '');
+  }
+
+  // Aplica dados extraídos na ficha (nunca sobrescreve campo já preenchido)
+  function aplicarDados(parsed, totalCampos) {
+    if (preencherCampo('nome',   parsed.nome_completo))   totalCampos++;
+    if (preencherCampo('cpf',    parsed.cpf))             totalCampos++;
+    if (preencherCampo('rg',     parsed.rg))              totalCampos++;
+    if (preencherCampo('celular',parsed.celular))         totalCampos++;
+    if (preencherCampo('mae',    parsed.nome_mae))        totalCampos++;
+    if (preencherCampo('email',  parsed.email))           totalCampos++;
+    // Endereço
+    if (preencherCampo('rua',         parsed.endereco_rua))         totalCampos++;
+    if (preencherCampo('numero',      parsed.endereco_numero))      totalCampos++;
+    if (preencherCampo('complemento', parsed.endereco_complemento)) totalCampos++;
+    if (preencherCampo('cidade',      parsed.endereco_cidade || parsed.endereco_bairro)) totalCampos++;
+    // CEP — dispara busca automática se tiver a função
+    if (parsed.endereco_cep) {
+      var cepLimpo = parsed.endereco_cep.replace(/\D/g,'');
+      var cepFormatado = cepLimpo.replace(/^(\d{5})(\d{3})$/,'$1-$2');
+      var elCep = document.getElementById('cep');
+      if (elCep && !elCep.value) {
+        elCep.value = cepFormatado;
+        elCep.dispatchEvent(new Event('input', { bubbles: true }));
+        elCep.dispatchEvent(new Event('change', { bubbles: true }));
+        totalCampos++;
+      }
+    }
+    // Data de nascimento
+    if (parsed.data_nascimento) {
+      var dateEl = document.getElementById('nascimento');
+      if (dateEl && !dateEl.value) {
+        var dt = converterData(parsed.data_nascimento);
+        if (dt) { dateEl.value = dt; dateEl.dispatchEvent(new Event('input', { bubbles: true })); totalCampos++; }
+      }
+    }
+    return totalCampos;
+  }
+
   window.vkExtract = async function() {
     if (!arquivos.length) return;
     var btn = document.getElementById('vk-ai-ok');
     var st  = document.getElementById('vk-ai-status');
     btn.disabled = true;
     var totalCampos = 0;
+
     for (var i = 0; i < arquivos.length; i++) {
       var arq = arquivos[i];
-      st.innerHTML = '<span style="color:#e67e22">⏳ Analisando ' + (i+1) + '/' + arquivos.length + '…</span>';
+      st.innerHTML = '<span style="color:#e67e22">⏳ Analisando imagem ' + (i+1) + ' de ' + arquivos.length + '…</span>';
       try {
-        var res = await fetch(GROQ_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
-          body: JSON.stringify({
-            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-            messages: [{ role: 'user', content: [
-              { type: 'image_url', image_url: { url: arq.b64, detail: 'high' } },
-              { type: 'text', text: 'Voce e um especialista em OCR de documentos de identidade brasileiros. Analise TODA a imagem com muito cuidado, mesmo que esteja rotacionada, inclinada ou com reflexo. Leia TODOS os textos visiveis no documento. O documento pode ser RG, CNH, CPF, RNE ou qualquer outro documento de identificacao brasileiro. Extraia os seguintes dados pessoais e retorne SOMENTE um JSON puro sem markdown sem explicacoes sem texto extra: {"nome_completo":"nome completo da pessoa titular do documento","cpf":"CPF encontrado em qualquer lugar do documento no formato 000.000.000-00, pode aparecer como CPF ou junto ao RG","rg":"numero do RG ou DNI ou numero de registro","data_nascimento":"data de nascimento no formato DD/MM/AAAA","celular":"telefone se houver","nome_mae":"nome completo da mae encontrado no campo FILIACAO ou MAE","email":""}. REGRAS IMPORTANTES: 1) No RG o campo FILIACAO tem dois nomes - o primeiro e o pai o segundo e a mae - extraia a mae. 2) O CPF pode aparecer como sequencia 000.000.000-00 em qualquer parte do documento. 3) DNI e RG sao a mesma coisa. 4) Data de nascimento pode aparecer como DATA NASC ou NASCIMENTO ou NASC. 5) Leia o documento inteiro frente e verso se houver. 6) Deixe vazio apenas se realmente nao encontrar o dado. Retorne APENAS o JSON.' }
-            ]}],
-            temperature: 0, max_tokens: 500
-          })
-        });
-        if (!res.ok) { var errData = await res.json(); throw new Error('Erro ' + res.status + ': ' + ((errData.error && errData.error.message) ? errData.error.message : JSON.stringify(errData))); }
-        var data = await res.json();
-        var txt = data.choices[0].message.content || '';
-        var parsed = parsearJSON(txt);
-        if (preencherCampo('nome', parsed.nome_completo)) totalCampos++;
-        if (preencherCampo('cpf',  parsed.cpf))           totalCampos++;
-        if (preencherCampo('rg',   parsed.rg))            totalCampos++;
-        if (preencherCampo('celular', parsed.celular))     totalCampos++;
-        if (preencherCampo('mae',  parsed.nome_mae))       totalCampos++;
-        if (preencherCampo('email',parsed.email))          totalCampos++;
-        if (parsed.data_nascimento) {
-          var dateEl = document.getElementById('nascimento');
-          if (dateEl && !dateEl.value) {
-            var iso = converterData(parsed.data_nascimento);
-            if (iso) { dateEl.value = iso; dateEl.dispatchEvent(new Event('input', { bubbles: true })); dateEl.dispatchEvent(new Event('change', { bubbles: true })); totalCampos++; }
-          }
-        }
+        var parsed = await chamarGroq(arq.b64);
+        totalCampos = aplicarDados(parsed, totalCampos);
         var imgs = document.getElementById('vk-ai-previews').querySelectorAll('img');
         if (imgs[i]) imgs[i].classList.add('ativa');
       } catch(err) {
         console.error('VENKO IA erro:', err);
-        st.innerHTML = '<span style="color:#e74c3c">❌ ' + err.message + '</span>';
-        btn.disabled = false;
-        return;
+        // Se for a última tentativa, mostra erro mas continua para próxima imagem
+        st.innerHTML = '<span style="color:#e74c3c">⚠️ Imagem ' + (i+1) + ': ' + err.message + '</span>';
+        if (i === arquivos.length - 1) { btn.disabled = false; return; }
+        await new Promise(function(r){ setTimeout(r, 1000); });
       }
     }
+
     if (typeof atualizarProgresso === 'function') atualizarProgresso();
     st.innerHTML = '<span style="color:#27ae60">✅ ' + totalCampos + ' campo(s) preenchido(s)!</span>';
     btn.disabled = false;
-    setTimeout(function() { document.getElementById('vk-ai-modal').style.display = 'none'; }, 2000);
+    setTimeout(function() { document.getElementById('vk-ai-modal').style.display = 'none'; }, 2500);
   };
 })();
 </script>
