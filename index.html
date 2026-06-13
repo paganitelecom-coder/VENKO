@@ -1191,78 +1191,88 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
   document.getElementById('vk-ai-galeria').onchange = function() { if (this.files.length) processarArquivos(this.files); };
 
   // Monta o prompt especializado por tipo de documento detectado
-  var PROMPT_SISTEMA = 'Você é um especialista em OCR e leitura de documentos de identidade brasileiros. Sua tarefa é extrair dados com máxima precisão.';
+  var PROMPT_SISTEMA = 'Você é um especialista em leitura e interpretação de documentos brasileiros. Analisa documentos mesmo que estejam rotacionados, com brilho, desfoque leve ou dobras.';
 
-  var PROMPT_EXTRACAO = 'Analise esta imagem de documento brasileiro com atenção máxima.\n\n' +
-    'TIPOS DE DOCUMENTO SUPORTADOS E ONDE ENCONTRAR CADA DADO:\n\n' +
-    'RG (Registro Geral / Carteira de Identidade):\n' +
-    '- NOME: campo "NOME" ou maior texto centralizado\n' +
-    '- DATA NASC: campo "DATA DE NASCIMENTO" ou "DATA NASC"\n' +
-    '- RG: campo "REGISTRO GERAL" ou "Nº" no cabeçalho, formato X.XXX.XXX\n' +
-    '- CPF: geralmente no verso, campo "CPF" formato 000.000.000-00\n' +
-    '- MÃE: campo "FILIAÇÃO" — o SEGUNDO nome listado é a mãe (primeiro é o pai)\n' +
-    '- ENDEREÇO: campo "ENDEREÇO" ou "RESIDÊNCIA" no verso (se presente)\n\n' +
-    'CNH (Carteira Nacional de Habilitação):\n' +
-    '- NOME: campo "NOME" na parte superior\n' +
-    '- DATA NASC: campo "DATA NASCIMENTO" ou "NASC."\n' +
-    '- CPF: campo "CPF" formato 000.000.000-00\n' +
-    '- RG: campo "DOC. IDENTIDADE" ou "RG"\n' +
-    '- MÃE: campo "FILIAÇÃO" — segundo nome\n' +
-    '- ENDEREÇO: campo "ENDEREÇO" na parte inferior (rua, número, cidade)\n\n' +
-    'RNE / CIE (Estrangeiros):\n' +
-    '- NOME: campo "NOME / NAME"\n' +
-    '- DATA NASC: campo "DATA DE NASCIMENTO / DATE OF BIRTH"\n' +
-    '- RG/RNE: número de registro no cabeçalho\n' +
-    '- ENDEREÇO: campo "ENDEREÇO" se presente\n\n' +
-    'COMPROVANTE DE RESIDÊNCIA (conta de luz/água/telefone/boleto):\n' +
-    '- NOME: nome do titular na parte superior\n' +
-    '- ENDEREÇO COMPLETO: extraia rua, número, complemento, bairro, cidade, CEP\n' +
-    '- CPF: se aparecer no documento\n\n' +
-    'REGRAS CRÍTICAS:\n' +
-    '1. Leia o documento inteiro — frente e verso se houver múltiplas imagens\n' +
-    '2. CPF sempre no formato 000.000.000-00 com pontos e traço\n' +
-    '3. Data sempre no formato DD/MM/AAAA\n' +
-    '4. Celular no formato (00) 00000-0000 — extraia apenas se claramente um celular pessoal\n' +
-    '5. No campo FILIAÇÃO do RG: "PAI\\nMÃE" — extraia APENAS o segundo nome para nome_mae\n' +
-    '6. Se o documento estiver rotacionado, inclinado ou com reflexo, tente mesmo assim\n' +
-    '7. Endereço: separe rua, número, complemento, bairro, cidade, CEP em campos distintos\n' +
-    '8. Se um campo não existir no documento, retorne string vazia ""\n' +
-    '9. Nunca invente dados — retorne apenas o que está visível\n\n' +
-    'Retorne SOMENTE este JSON sem markdown, sem explicação, sem texto extra:\n' +
+  // PASSO 1: leitura livre — modelo descreve tudo que vê no documento
+  var PROMPT_LEITURA = 'Leia este documento brasileiro com atenção máxima. ' +
+    'Transcreva em texto corrido TODO o conteúdo visível: cada campo, cada rótulo, cada valor. ' +
+    'Inclua exatamente como aparece no documento, linha por linha. ' +
+    'Se houver FILIAÇÃO, transcreva os dois nomes separados por quebra de linha exatamente como aparecem. ' +
+    'Se o documento tiver frente e verso, descreva os dois lados. ' +
+    'Não interprete ainda — apenas transcreva o que está escrito.';
+
+  // PASSO 2: interpretação — dado o texto transcrito, extrai os campos estruturados
+  var PROMPT_EXTRACAO = function(transcricao) {
+    return 'Abaixo está a transcrição de um documento brasileiro.\n\n' +
+    'TRANSCRIÇÃO:\n' + transcricao + '\n\n' +
+    'Com base nessa transcrição, extraia os dados abaixo aplicando estas regras:\n\n' +
+    'NOME DA MÃE — REGRAS POR TIPO DE DOCUMENTO:\n' +
+    '• RG antigo (papel): campo FILIAÇÃO contém PAI na primeira linha e MÃE na segunda linha. Extraia o SEGUNDO nome.\n' +
+    '• RG novo / CIN (modelo 2023+): campo FILIAÇÃO pode ter só a mãe, ou ter "Nome do Pai" e abaixo "Nome da Mãe" com rótulos explícitos. Leia os rótulos.\n' +
+    '• CNH: campo FILIAÇÃO igual ao RG — segundo nome é a mãe. Às vezes aparece como "MÃE:" com rótulo explícito.\n' +
+    '• Se o documento tiver os rótulos "MÃE" ou "NOME DA MÃE" explícitos, use o nome que vem DEPOIS desse rótulo.\n' +
+    '• Se só houver um nome em FILIAÇÃO, esse nome É a mãe.\n' +
+    '• Nunca retorne o nome do pai no campo nome_mae.\n\n' +
+    'DEMAIS CAMPOS:\n' +
+    '• CPF: formato 000.000.000-00. Procure em qualquer lugar do documento.\n' +
+    '• RG: número de registro geral, DNI ou documento de identidade. Formato X.XXX.XXX ou XXXXXXX.\n' +
+    '• Data nascimento: formato DD/MM/AAAA. Rótulos: DATA NASC, NASCIMENTO, NASC., DATE OF BIRTH.\n' +
+    '• Endereço (CNH, RG novo, comprovante): separe rua, número, complemento, bairro, cidade e CEP.\n' +
+    '• CEP: 8 dígitos, formato 00000-000.\n' +
+    '• Celular: só se for claramente um número pessoal de telefone, formato (00) 00000-0000.\n' +
+    '• Se um campo não existir no documento, retorne "".\n' +
+    '• Nunca invente dados.\n\n' +
+    'Retorne SOMENTE este JSON sem markdown, sem explicação:\n' +
     '{"nome_completo":"","cpf":"","rg":"","data_nascimento":"","celular":"","nome_mae":"","email":"","endereco_rua":"","endereco_numero":"","endereco_complemento":"","endereco_bairro":"","endereco_cidade":"","endereco_cep":""}';
+  };
 
-  // Chama a API com retry automático
-  async function chamarGroq(imageB64, tentativa) {
+  // Chamada à API Groq com retry
+  async function postGroq(messages, maxTokens, tentativa) {
     tentativa = tentativa || 1;
-    var imgOtimizada = await redimensionarImagem(imageB64, tentativa === 1 ? 1600 : 2400, tentativa === 1 ? 0.88 : 0.95);
     var response = await fetch(GROQ_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
       body: JSON.stringify({
         model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        messages: [
-          { role: 'system', content: PROMPT_SISTEMA },
-          { role: 'user', content: [
-            { type: 'image_url', image_url: { url: imgOtimizada, detail: 'high' } },
-            { type: 'text', text: PROMPT_EXTRACAO }
-          ]}
-        ],
+        messages: messages,
         temperature: 0,
-        max_tokens: 800
+        max_tokens: maxTokens || 1000
       })
     });
     if (!response.ok) {
       var errData = await response.json();
       var msg = (errData.error && errData.error.message) ? errData.error.message : JSON.stringify(errData);
-      // Rate limit: aguarda e tenta novamente
       if (response.status === 429 && tentativa < 3) {
-        await new Promise(function(r){ setTimeout(r, 2000 * tentativa); });
-        return chamarGroq(imageB64, tentativa + 1);
+        await new Promise(function(r){ setTimeout(r, 2500 * tentativa); });
+        return postGroq(messages, maxTokens, tentativa + 1);
       }
       throw new Error('Erro ' + response.status + ': ' + msg);
     }
     var data = await response.json();
-    return parsearJSON(data.choices[0].message.content || '');
+    return (data.choices[0].message.content || '').trim();
+  }
+
+  // Pipeline de 2 etapas: 1) transcrição livre da imagem  2) interpretação estruturada do texto
+  async function chamarGroq(imageB64) {
+    var imgOtimizada = await redimensionarImagem(imageB64, 1800, 0.90);
+
+    // ETAPA 1 — leitura: modelo vê a imagem e transcreve tudo que enxerga
+    var transcricao = await postGroq([
+      { role: 'system', content: PROMPT_SISTEMA },
+      { role: 'user', content: [
+        { type: 'image_url', image_url: { url: imgOtimizada, detail: 'high' } },
+        { type: 'text', text: PROMPT_LEITURA }
+      ]}
+    ], 1200);
+
+    // ETAPA 2 — extração: dado o texto transcrito, interpreta e monta o JSON
+    // Nesta etapa não precisa da imagem — só texto, mais barato e mais preciso
+    var jsonTxt = await postGroq([
+      { role: 'system', content: PROMPT_SISTEMA },
+      { role: 'user', content: PROMPT_EXTRACAO(transcricao) }
+    ], 800);
+
+    return parsearJSON(jsonTxt);
   }
 
   // Aplica dados extraídos na ficha (nunca sobrescreve campo já preenchido)
@@ -1310,15 +1320,15 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
 
     for (var i = 0; i < arquivos.length; i++) {
       var arq = arquivos[i];
-      st.innerHTML = '<span style="color:#e67e22">⏳ Analisando imagem ' + (i+1) + ' de ' + arquivos.length + '…</span>';
       try {
+        st.innerHTML = '<span style="color:#e67e22">⏳ Lendo documento ' + (i+1) + ' de ' + arquivos.length + '… (etapa 1/2)</span>';
         var parsed = await chamarGroq(arq.b64);
+        st.innerHTML = '<span style="color:#e67e22">🧠 Interpretando dados… (etapa 2/2)</span>';
         totalCampos = aplicarDados(parsed, totalCampos);
         var imgs = document.getElementById('vk-ai-previews').querySelectorAll('img');
         if (imgs[i]) imgs[i].classList.add('ativa');
       } catch(err) {
         console.error('VENKO IA erro:', err);
-        // Se for a última tentativa, mostra erro mas continua para próxima imagem
         st.innerHTML = '<span style="color:#e74c3c">⚠️ Imagem ' + (i+1) + ': ' + err.message + '</span>';
         if (i === arquivos.length - 1) { btn.disabled = false; return; }
         await new Promise(function(r){ setTimeout(r, 1000); });
