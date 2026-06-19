@@ -356,6 +356,24 @@
   .servico-row:last-of-type { border-bottom: none; }
   .servico-label { font-size: 0.82rem; font-weight: 600; color: var(--texto); padding-top: 11px; }
 
+  /* ── BOTÕES HP ── */
+  .hp-btn {
+    flex: 1;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--borda);
+    background: var(--branco);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--texto-suave);
+    transition: all 0.18s;
+  }
+  .hp-btn:hover { border-color: var(--primary-light); background: var(--verde-claro); color: var(--primary); }
+  .hp-btn.ativo-sim { border-color: #16a34a; background: #f0fdf4; color: #15803d; }
+  .hp-btn.ativo-nao { border-color: #ef4444; background: #fff1f2; color: #b91c1c; }
+
   /* ── BOTÕES TIPO CONTROLE/PÓS ── */
   .tipo-movel-btns {
     display: flex;
@@ -443,6 +461,16 @@
             <option value="Pendente">⏳ Pendente</option>
             <option value="Cancelada">❌ Cancelada</option>
           </select>
+        </div>
+      </div>
+      <div class="grid row-2">
+        <div>
+          <label>Criar HP?</label>
+          <div style="display:flex;gap:8px;margin-top:2px;">
+            <button class="hp-btn" id="hp-sim" onclick="selecionarHP('Sim')">✅ SIM</button>
+            <button class="hp-btn" id="hp-nao" onclick="selecionarHP('Não')">❌ NÃO</button>
+          </div>
+          <input type="hidden" id="criar_hp" value="">
         </div>
       </div>
     </div>
@@ -606,8 +634,11 @@
       </div>
       <div class="grid row-2">
         <div>
-          <label>Débito em Conta</label>
-          <select id="debito" onchange="atualizarProgresso()"><option value="">Selecione...</option><option>Sim</option><option>Não</option></select>
+          <label>Valor Promocional</label>
+          <div class="input-wrap">
+            <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso()">
+            <button class="clear-btn" onclick="limparCampo('debito')" tabindex="-1">✕</button>
+          </div>
         </div>
         <div>
           <label>Taxa de Instalação</label>
@@ -722,6 +753,27 @@
     v = v.replace(/^(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d)/,'$1-$2');
     this.value = v;
   });
+
+  // ── CRIAR HP ──
+  function selecionarHP(val) {
+    const btnSim = document.getElementById('hp-sim');
+    const btnNao = document.getElementById('hp-nao');
+    const campo  = document.getElementById('criar_hp');
+    if (campo.value === val) {
+      campo.value = '';
+      btnSim.className = 'hp-btn';
+      btnNao.className = 'hp-btn';
+    } else {
+      campo.value = val;
+      if (val === 'Sim') {
+        btnSim.className = 'hp-btn ativo-sim';
+        btnNao.className = 'hp-btn';
+      } else {
+        btnNao.className = 'hp-btn ativo-nao';
+        btnSim.className = 'hp-btn';
+      }
+    }
+  }
 
   // ── TIPO MÓVEL ──
   function selecionarTipoMovel(tipo) {
@@ -891,6 +943,7 @@
       id: Date.now(),
       data_cadastro: new Date().toLocaleDateString('pt-BR'),
       vendedor: vl('vendedor'), status: vl('status'),
+      criar_hp: document.getElementById('criar_hp')?.value || '',
       nome: vl('nome'), cpf: vl('cpf'), rg: vl('rg'),
       nascimento: fmtData(nascStr), mae: vl('mae'),
       celular: vl('celular'), email: vl('email'),
@@ -922,6 +975,7 @@
 `FICHA CADASTRAL - VENKO
 Vendedor: ${fichaAtual.vendedor}
 Status: ${fichaAtual.status}
+Criar HP: ${fichaAtual.criar_hp || '—'}
 
 DADOS PESSOAIS
 Nome: ${fichaAtual.nome}
@@ -943,7 +997,7 @@ CEP: ${fichaAtual.cep}${checkinLine}
 PLANO CONTRATADO
 ${servicosLinhas}
 Valor Total: ${fichaAtual.mensalidade}
-Debito em Conta: ${fichaAtual.debito}
+Valor Promocional: ${fichaAtual.debito}
 Taxa de Instalacao: ${fichaAtual.taxa}
 Melhor Vencimento: ${fichaAtual.vencimento}
 Periodo de Instalacao: ${fichaAtual.periodo}`;
@@ -1040,6 +1094,10 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     tipoMovelAtivo = null;
     document.getElementById('btn-controle').className = 'tipo-movel-btn';
     document.getElementById('btn-pos').className = 'tipo-movel-btn';
+    // Limpar HP
+    document.getElementById('criar_hp').value = '';
+    document.getElementById('hp-sim').className = 'hp-btn';
+    document.getElementById('hp-nao').className = 'hp-btn';
     fichaAtual = null; checkinCoords = null;
     atualizarProgresso();
     window.scrollTo({top:0, behavior:'smooth'});
@@ -1072,6 +1130,10 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     fichaAtual = f; checkinCoords = f.checkin_lat ? { lat: f.checkin_lat, lng: f.checkin_lng } : null;
     const map = ['vendedor','status','nome','cpf','rg','celular','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_movel','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo'];
     map.forEach(k => { const el = document.getElementById(k); if (el) el.value = f[k] || ''; });
+    // Restaurar HP
+    document.getElementById('criar_hp').value = f.criar_hp || '';
+    document.getElementById('hp-sim').className = 'hp-btn' + (f.criar_hp === 'Sim' ? ' ativo-sim' : '');
+    document.getElementById('hp-nao').className = 'hp-btn' + (f.criar_hp === 'Não' ? ' ativo-nao' : '');
     // Restaurar seleção Móvel
     const movel = (f.plano_movel || '').trim().toUpperCase();
     tipoMovelAtivo = null;
@@ -1143,10 +1205,10 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
 
   function exportarExcel() {
     if (fichas.length === 0) { toast('⚠️ Nenhuma ficha local para exportar'); return; }
-    const cols = ['data_cadastro','vendedor','status','nome','cpf','rg','nascimento','mae','celular','email',
+    const cols = ['data_cadastro','vendedor','status','criar_hp','nome','cpf','rg','nascimento','mae','celular','email',
       'rua','numero','complemento','bairro','cidade','cep',
       'plano_banda','plano_movel','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','checkin_url'];
-    const headers = ['Data Cadastro','Vendedor','Status','Nome','CPF','RG','Nascimento','Nome da Mãe','Celular','E-mail',
+    const headers = ['Data Cadastro','Vendedor','Status','Criar HP','Nome','CPF','RG','Nascimento','Nome da Mãe','Celular','E-mail',
       'Rua','Número','Complemento','Bairro','Cidade','CEP',
       'Banda Larga','Móvel','TV','Fixo','Mensalidade','Débito em Conta','Taxa Instalação','Vencimento','Período Instalação','Localização (Maps)'];
     const data = [headers, ...fichas.map(f => cols.map(c => f[c] || ''))];
