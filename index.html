@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VENKO – Ficha de Vendas</title>
-<!-- PWA / Atalho celular -->
 <meta name="application-name" content="VENKO Vendas">
 <meta name="apple-mobile-web-app-title" content="VENKO Vendas">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -351,18 +350,53 @@
 
   .servico-row {
     display: grid; grid-template-columns: 130px 1fr;
-    align-items: center; gap: 12px;
+    align-items: start; gap: 12px;
     padding: 8px 0; border-bottom: 1px solid #F1F5F9;
   }
   .servico-row:last-of-type { border-bottom: none; }
-  .servico-label { font-size: 0.82rem; font-weight: 600; color: var(--texto); }
+  .servico-label { font-size: 0.82rem; font-weight: 600; color: var(--texto); padding-top: 11px; }
+
+  /* ── BOTÕES TIPO CONTROLE/PÓS ── */
+  .tipo-movel-btns {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .tipo-movel-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--borda);
+    background: var(--branco);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    color: var(--texto-suave);
+    transition: all 0.18s;
+    user-select: none;
+  }
+  .tipo-movel-btn:hover {
+    border-color: var(--primary-light);
+    color: var(--primary);
+    background: var(--verde-claro);
+  }
+  .tipo-movel-btn.ativo-controle {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+  .tipo-movel-btn.ativo-pos {
+    border-color: #9333ea;
+    background: #faf5ff;
+    color: #7e22ce;
+  }
 
   @media (max-width: 600px) {
     .row-2, .row-3 { grid-template-columns: 1fr; }
     .page { padding: 16px 12px 60px; }
+    .servico-row { grid-template-columns: 110px 1fr; }
   }
-
-
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -533,13 +567,22 @@
           <button class="clear-btn" onclick="limparCampo('plano_banda')" tabindex="-1">✕</button>
         </div>
       </div>
+
+      <!-- MÓVEL com botões CONTROLE / PÓS -->
       <div class="servico-row">
         <div class="servico-label">📱 Móvel</div>
-        <div class="input-wrap">
-          <input type="text" id="plano_movel" placeholder="Digite o produto" oninput="atualizarProgresso()">
-          <button class="clear-btn" onclick="limparCampo('plano_movel')" tabindex="-1">✕</button>
+        <div>
+          <div class="tipo-movel-btns">
+            <button class="tipo-movel-btn" id="btn-controle" onclick="selecionarTipoMovel('CONTROLE')">CONTROLE</button>
+            <button class="tipo-movel-btn" id="btn-pos" onclick="selecionarTipoMovel('PÓS')">PÓS</button>
+          </div>
+          <div class="input-wrap">
+            <input type="text" id="plano_movel" placeholder="Digite o produto" oninput="atualizarProgresso(); limparSelecaoMovel()">
+            <button class="clear-btn" onclick="limparCampoMovel()" tabindex="-1">✕</button>
+          </div>
         </div>
       </div>
+
       <div class="servico-row">
         <div class="servico-label">📺 TV</div>
         <div class="input-wrap">
@@ -659,6 +702,7 @@
   let fichaAtual = null;
   let filtroAtivo = 'todos';
   let checkinCoords = null;
+  let tipoMovelAtivo = null; // 'CONTROLE' | 'PÓS' | null
 
   function mudarAba(aba, btn) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -678,6 +722,52 @@
     v = v.replace(/^(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d)/,'$1-$2');
     this.value = v;
   });
+
+  // ── TIPO MÓVEL ──
+  function selecionarTipoMovel(tipo) {
+    const campo = document.getElementById('plano_movel');
+    const btnC = document.getElementById('btn-controle');
+    const btnP = document.getElementById('btn-pos');
+
+    if (tipoMovelAtivo === tipo) {
+      // Desmarcar se clicar no mesmo
+      tipoMovelAtivo = null;
+      btnC.className = 'tipo-movel-btn';
+      btnP.className = 'tipo-movel-btn';
+      campo.value = '';
+    } else {
+      tipoMovelAtivo = tipo;
+      if (tipo === 'CONTROLE') {
+        btnC.className = 'tipo-movel-btn ativo-controle';
+        btnP.className = 'tipo-movel-btn';
+        campo.value = 'CONTROLE';
+      } else {
+        btnP.className = 'tipo-movel-btn ativo-pos';
+        btnC.className = 'tipo-movel-btn';
+        campo.value = 'PÓS';
+      }
+    }
+    atualizarProgresso();
+  }
+
+  function limparSelecaoMovel() {
+    // Se o usuário digitar manualmente, remove o destaque dos botões
+    const val = document.getElementById('plano_movel').value.trim().toUpperCase();
+    if (val !== 'CONTROLE' && val !== 'PÓS') {
+      tipoMovelAtivo = null;
+      document.getElementById('btn-controle').className = 'tipo-movel-btn';
+      document.getElementById('btn-pos').className = 'tipo-movel-btn';
+    }
+  }
+
+  function limparCampoMovel() {
+    tipoMovelAtivo = null;
+    document.getElementById('btn-controle').className = 'tipo-movel-btn';
+    document.getElementById('btn-pos').className = 'tipo-movel-btn';
+    document.getElementById('plano_movel').value = '';
+    document.getElementById('plano_movel').focus();
+    atualizarProgresso();
+  }
 
   let cepTimer;
   function onCepInput() {
@@ -946,6 +1036,10 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     document.getElementById('btn-checkin').disabled = false;
     hideSyncStatus();
     document.getElementById('cep-status').className = 'cep-status';
+    // Limpar seleção Móvel
+    tipoMovelAtivo = null;
+    document.getElementById('btn-controle').className = 'tipo-movel-btn';
+    document.getElementById('btn-pos').className = 'tipo-movel-btn';
     fichaAtual = null; checkinCoords = null;
     atualizarProgresso();
     window.scrollTo({top:0, behavior:'smooth'});
@@ -978,6 +1072,14 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     fichaAtual = f; checkinCoords = f.checkin_lat ? { lat: f.checkin_lat, lng: f.checkin_lng } : null;
     const map = ['vendedor','status','nome','cpf','rg','celular','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_movel','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo'];
     map.forEach(k => { const el = document.getElementById(k); if (el) el.value = f[k] || ''; });
+    // Restaurar seleção Móvel
+    const movel = (f.plano_movel || '').trim().toUpperCase();
+    tipoMovelAtivo = null;
+    document.getElementById('btn-controle').className = 'tipo-movel-btn';
+    document.getElementById('btn-pos').className = 'tipo-movel-btn';
+    if (movel === 'CONTROLE') { tipoMovelAtivo = 'CONTROLE'; document.getElementById('btn-controle').className = 'tipo-movel-btn ativo-controle'; }
+    else if (movel === 'PÓS') { tipoMovelAtivo = 'PÓS'; document.getElementById('btn-pos').className = 'tipo-movel-btn ativo-pos'; }
+
     mudarAba('formulario', document.querySelector('.tab-btn'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.tab-btn').classList.add('active');
@@ -1059,9 +1161,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
   atualizarContador();
   atualizarProgresso();
 </script>
-
-
-
 
 </body>
 </html>
