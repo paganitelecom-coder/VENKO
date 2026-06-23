@@ -714,7 +714,7 @@
     <div class="card-header">📝 Observações</div>
     <div class="card-body">
       <div>
-        <label>Obs. Internas (não aparecem no WhatsApp)</label>
+        <label>Observações</label>
         <textarea id="obs" placeholder="Anotações extras, referências, detalhes..." rows="3"
           style="width:100%;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-family:'Inter',sans-serif;font-size:0.85rem;color:var(--texto);background:#fafafa;outline:none;resize:vertical;transition:border-color .2s"></textarea>
       </div>
@@ -1023,6 +1023,7 @@
       mensalidade: vl('mensalidade'),
       debito: vl('debito'), taxa: vl('taxa'),
       vencimento: vl('vencimento'), periodo: vl('periodo'),
+      obs: vl('obs'),
       checkin_lat: checkinCoords?.lat || '',
       checkin_lng: checkinCoords?.lng || '',
       checkin_url: checkinCoords ? `https://www.google.com/maps?q=${checkinCoords.lat},${checkinCoords.lng}` : ''
@@ -1071,7 +1072,7 @@ Valor Total: ${fichaAtual.mensalidade}
 Valor Promocional: ${fichaAtual.debito}
 Taxa de Instalacao: ${fichaAtual.taxa}
 Melhor Vencimento: ${fichaAtual.vencimento}
-Periodo de Instalacao: ${fichaAtual.periodo}`;
+Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕES\n' + fichaAtual.obs : ''}`;
 
     document.getElementById('texto-gerado').textContent = txt;
     document.getElementById('hora-preview').textContent =
@@ -1199,7 +1200,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     const f = fichas.find(x => x.id === id);
     if (!f) return;
     fichaAtual = f; checkinCoords = f.checkin_lat ? { lat: f.checkin_lat, lng: f.checkin_lng } : null;
-    const map = ['vendedor','status','nome','cpf','rg','celular','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_controle','plano_pos','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo'];
+    const map = ['vendedor','status','nome','cpf','rg','celular','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_controle','plano_pos','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','obs'];
     map.forEach(k => { const el = document.getElementById(k); if (el) el.value = f[k] || ''; });
     // Restaurar HP
     document.getElementById('criar_hp').value = f.criar_hp || '';
@@ -1277,10 +1278,10 @@ Periodo de Instalacao: ${fichaAtual.periodo}`;
     if (fichas.length === 0) { toast('⚠️ Nenhuma ficha local para exportar'); return; }
     const cols = ['data_cadastro','vendedor','status','criar_hp','nome','cpf','rg','nascimento','mae','celular','email',
       'rua','numero','complemento','bairro','cidade','cep',
-      'plano_banda','plano_controle','plano_pos','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','checkin_url'];
+      'plano_banda','plano_controle','plano_pos','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','obs','checkin_url'];
     const headers = ['Data Cadastro','Vendedor','Status','Criar HP','Nome','CPF','RG','Nascimento','Nome da Mãe','Celular','E-mail',
       'Rua','Número','Complemento','Bairro','Cidade','CEP',
-      'Banda Larga','Móvel Controle','Móvel Pós','TV','Fixo','Mensalidade','Débito em Conta','Taxa Instalação','Vencimento','Período Instalação','Localização (Maps)'];
+      'Banda Larga','Móvel Controle','Móvel Pós','TV','Fixo','Mensalidade','Débito em Conta','Taxa Instalação','Vencimento','Período Instalação','Observações','Localização (Maps)'];
     const data = [headers, ...fichas.map(f => cols.map(c => f[c] || ''))];
     const ws = XLSX.utils.aoa_to_sheet(data);
     ws['!cols'] = headers.map(() => ({ wch: 20 }));
