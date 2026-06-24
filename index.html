@@ -419,6 +419,36 @@
   .movel-input-wrap:hover .clear-btn,
   .movel-input-wrap input:not(:placeholder-shown) ~ .clear-btn { display: block; }
 
+  /* ── PORTABILIDADE ── */
+  .portabilidade-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0 0 0;
+  }
+  .portabilidade-label {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--texto-suave);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    min-width: 88px;
+    text-align: center;
+  }
+  .portabilidade-input-wrap {
+    flex: 1;
+    position: relative;
+  }
+  .portabilidade-input-wrap .clear-btn {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    color: #94A3B8; font-size: 0.85rem; padding: 2px 4px; display: none;
+  }
+  .portabilidade-input-wrap:hover .clear-btn,
+  .portabilidade-input-wrap input:not(:placeholder-shown) ~ .clear-btn { display: block; }
+
   /* ── BOTÕES HP ── */
   .hp-btn {
     flex: 1;
@@ -442,6 +472,7 @@
     .page { padding: 16px 12px 60px; }
     .servico-row { grid-template-columns: 100px 1fr; }
     .movel-tipo-btn { min-width: 76px; font-size: 0.68rem; padding: 8px 8px; }
+    .portabilidade-label { min-width: 76px; font-size: 0.68rem; }
   }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -626,7 +657,7 @@
         </div>
       </div>
 
-      <!-- MÓVEL — botão CONTROLE + linha digitável / botão PÓS + linha digitável, um abaixo do outro -->
+      <!-- MÓVEL — botão CONTROLE + linha digitável / botão PÓS + linha digitável + PORTABILIDADE -->
       <div class="servico-row" style="align-items:start;">
         <div class="servico-label" style="padding-top:11px;">📱 Móvel</div>
         <div class="movel-bloco">
@@ -644,6 +675,14 @@
             <div class="movel-input-wrap">
               <input type="text" id="plano_pos" placeholder="Digite o produto" oninput="atualizarProgresso(); sincMovel('POS')">
               <button class="clear-btn" onclick="limparMovel('POS')" tabindex="-1">✕</button>
+            </div>
+          </div>
+          <!-- PORTABILIDADE -->
+          <div class="portabilidade-row">
+            <span class="portabilidade-label">PORTAB.</span>
+            <div class="portabilidade-input-wrap">
+              <input type="text" id="portabilidade" placeholder="Nº a portar, operadora..." oninput="atualizarProgresso()">
+              <button class="clear-btn" onclick="limparCampo('portabilidade')" tabindex="-1">✕</button>
             </div>
           </div>
         </div>
@@ -1018,6 +1057,7 @@
       plano_banda: vl('plano_banda'),
       plano_controle: vl('plano_controle'),
       plano_pos: vl('plano_pos'),
+      portabilidade: vl('portabilidade'),
       plano_movel: movelTexto,
       plano_tv: vl('plano_tv'), plano_fixo: vl('plano_fixo'),
       mensalidade: vl('mensalidade'),
@@ -1043,6 +1083,9 @@
     const checkinLine = checkinCoords
       ? `\nCheck-in: https://www.google.com/maps?q=${checkinCoords.lat},${checkinCoords.lng}` : '';
 
+    const portabilidadeLine = fichaAtual.portabilidade
+      ? `\nPortabilidade: ${fichaAtual.portabilidade}` : '';
+
     const txt =
 `FICHA CADASTRAL - VENKO
 Vendedor: ${fichaAtual.vendedor}
@@ -1067,7 +1110,7 @@ Cidade: ${fichaAtual.cidade}
 CEP: ${fichaAtual.cep}${checkinLine}
 
 PLANO CONTRATADO
-${servicosLinhas}
+${servicosLinhas}${portabilidadeLine}
 Valor Total: ${fichaAtual.mensalidade}
 Valor Promocional: ${fichaAtual.debito}
 Taxa de Instalacao: ${fichaAtual.taxa}
@@ -1200,7 +1243,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     const f = fichas.find(x => x.id === id);
     if (!f) return;
     fichaAtual = f; checkinCoords = f.checkin_lat ? { lat: f.checkin_lat, lng: f.checkin_lng } : null;
-    const map = ['vendedor','status','nome','cpf','rg','celular','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_controle','plano_pos','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','obs'];
+    const map = ['vendedor','status','nome','cpf','rg','celular','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_controle','plano_pos','portabilidade','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','obs'];
     map.forEach(k => { const el = document.getElementById(k); if (el) el.value = f[k] || ''; });
     // Restaurar HP
     document.getElementById('criar_hp').value = f.criar_hp || '';
@@ -1238,7 +1281,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       const localCell = f.checkin_url
         ? `<a href="${f.checkin_url}" target="_blank">📍 Ver mapa</a>`
         : '<span style="color:#c0c8d0">—</span>';
-      const movelCell = [f.plano_controle ? 'C: '+f.plano_controle : '', f.plano_pos ? 'P: '+f.plano_pos : ''].filter(Boolean).join('<br>') || (f.plano_movel || '—');
+      const movelCell = [
+        f.plano_controle ? 'C: '+f.plano_controle : '',
+        f.plano_pos ? 'P: '+f.plano_pos : '',
+        f.portabilidade ? '↔ '+f.portabilidade : ''
+      ].filter(Boolean).join('<br>') || (f.plano_movel || '—');
       return `<tr>
         <td>${lista.length - i}</td>
         <td class="td-nome">${f.nome}</td>
@@ -1278,10 +1325,10 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (fichas.length === 0) { toast('⚠️ Nenhuma ficha local para exportar'); return; }
     const cols = ['data_cadastro','vendedor','status','criar_hp','nome','cpf','rg','nascimento','mae','celular','email',
       'rua','numero','complemento','bairro','cidade','cep',
-      'plano_banda','plano_controle','plano_pos','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','obs','checkin_url'];
+      'plano_banda','plano_controle','plano_pos','portabilidade','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','obs','checkin_url'];
     const headers = ['Data Cadastro','Vendedor','Status','Criar HP','Nome','CPF','RG','Nascimento','Nome da Mãe','Celular','E-mail',
       'Rua','Número','Complemento','Bairro','Cidade','CEP',
-      'Banda Larga','Móvel Controle','Móvel Pós','TV','Fixo','Mensalidade','Débito em Conta','Taxa Instalação','Vencimento','Período Instalação','Observações','Localização (Maps)'];
+      'Banda Larga','Móvel Controle','Móvel Pós','Portabilidade','TV','Fixo','Mensalidade','Débito em Conta','Taxa Instalação','Vencimento','Período Instalação','Observações','Localização (Maps)'];
     const data = [headers, ...fichas.map(f => cols.map(c => f[c] || ''))];
     const ws = XLSX.utils.aoa_to_sheet(data);
     ws['!cols'] = headers.map(() => ({ wch: 20 }));
