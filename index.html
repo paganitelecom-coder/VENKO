@@ -364,90 +364,7 @@
     padding-top: 11px;
   }
 
-  /* ── MÓVEL: bloco com dois sub-campos CONTROLE e PÓS ── */
-  .movel-bloco {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .movel-sublinha {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .movel-tipo-btn {
-    flex-shrink: 0;
-    min-width: 88px;
-    padding: 9px 12px;
-    border-radius: 8px;
-    border: 1.5px solid var(--borda);
-    background: var(--branco);
-    font-family: 'Inter', sans-serif;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    cursor: pointer;
-    color: var(--texto-suave);
-    transition: all 0.18s;
-    text-align: center;
-    user-select: none;
-  }
-  .movel-tipo-btn:hover {
-    border-color: var(--primary-light);
-    color: var(--primary);
-    background: var(--verde-claro);
-  }
-  .movel-tipo-btn.ativo-controle {
-    border-color: #2563eb;
-    background: #eff6ff;
-    color: #1d4ed8;
-  }
-  .movel-tipo-btn.ativo-pos {
-    border-color: #9333ea;
-    background: #faf5ff;
-    color: #7e22ce;
-  }
-  .movel-input-wrap {
-    flex: 1;
-    position: relative;
-  }
-  .movel-input-wrap .clear-btn {
-    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-    background: none; border: none; cursor: pointer;
-    color: #94A3B8; font-size: 0.85rem; padding: 2px 4px; display: none;
-  }
-  .movel-input-wrap:hover .clear-btn,
-  .movel-input-wrap input:not(:placeholder-shown) ~ .clear-btn { display: block; }
 
-  /* ── PORTABILIDADE ── */
-  .portabilidade-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 0 0 0;
-  }
-  .portabilidade-label {
-    flex-shrink: 0;
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--texto-suave);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    min-width: 88px;
-    text-align: center;
-  }
-  .portabilidade-input-wrap {
-    flex: 1;
-    position: relative;
-  }
-  .portabilidade-input-wrap .clear-btn {
-    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-    background: none; border: none; cursor: pointer;
-    color: #94A3B8; font-size: 0.85rem; padding: 2px 4px; display: none;
-  }
-  .portabilidade-input-wrap:hover .clear-btn,
-  .portabilidade-input-wrap input:not(:placeholder-shown) ~ .clear-btn { display: block; }
 
   /* ── BOTÕES HP ── */
   .hp-btn {
@@ -471,8 +388,6 @@
     .row-2, .row-3 { grid-template-columns: 1fr; }
     .page { padding: 16px 12px 60px; }
     .servico-row { grid-template-columns: 100px 1fr; }
-    .movel-tipo-btn { min-width: 76px; font-size: 0.68rem; padding: 8px 8px; }
-    .portabilidade-label { min-width: 76px; font-size: 0.68rem; }
   }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -657,34 +572,30 @@
         </div>
       </div>
 
-      <!-- MÓVEL — botão CONTROLE + linha digitável / botão PÓS + linha digitável + PORTABILIDADE -->
-      <div class="servico-row" style="align-items:start;">
-        <div class="servico-label" style="padding-top:11px;">📱 Móvel</div>
-        <div class="movel-bloco">
-          <!-- CONTROLE -->
-          <div class="movel-sublinha">
-            <button class="movel-tipo-btn" id="btn-controle" onclick="toggleMovel('CONTROLE')">CONTROLE</button>
-            <div class="movel-input-wrap">
-              <input type="text" id="plano_controle" placeholder="Digite o produto" oninput="atualizarProgresso(); sincMovel('CONTROLE')">
-              <button class="clear-btn" onclick="limparMovel('CONTROLE')" tabindex="-1">✕</button>
-            </div>
-          </div>
-          <!-- PÓS -->
-          <div class="movel-sublinha">
-            <button class="movel-tipo-btn" id="btn-pos" onclick="toggleMovel('POS')">PÓS</button>
-            <div class="movel-input-wrap">
-              <input type="text" id="plano_pos" placeholder="Digite o produto" oninput="atualizarProgresso(); sincMovel('POS')">
-              <button class="clear-btn" onclick="limparMovel('POS')" tabindex="-1">✕</button>
-            </div>
-          </div>
-          <!-- PORTABILIDADE -->
-          <div class="portabilidade-row">
-            <span class="portabilidade-label">PORTAB.</span>
-            <div class="portabilidade-input-wrap">
-              <input type="text" id="portabilidade" placeholder="Nº a portar, operadora..." oninput="atualizarProgresso()">
-              <button class="clear-btn" onclick="limparCampo('portabilidade')" tabindex="-1">✕</button>
-            </div>
-          </div>
+      <!-- CONTROLE -->
+      <div class="servico-row">
+        <div class="servico-label">📱 Controle</div>
+        <div class="input-wrap">
+          <input type="text" id="plano_controle" placeholder="Digite o produto" oninput="atualizarProgresso()">
+          <button class="clear-btn" onclick="limparCampo('plano_controle')" tabindex="-1">✕</button>
+        </div>
+      </div>
+
+      <!-- PÓS -->
+      <div class="servico-row">
+        <div class="servico-label">📱 Pós</div>
+        <div class="input-wrap">
+          <input type="text" id="plano_pos" placeholder="Digite o produto" oninput="atualizarProgresso()">
+          <button class="clear-btn" onclick="limparCampo('plano_pos')" tabindex="-1">✕</button>
+        </div>
+      </div>
+
+      <!-- PORTABILIDADE -->
+      <div class="servico-row">
+        <div class="servico-label">↔️ Portab.</div>
+        <div class="input-wrap">
+          <input type="text" id="portabilidade" placeholder="Nº a portar, operadora..." oninput="atualizarProgresso()">
+          <button class="clear-btn" onclick="limparCampo('portabilidade')" tabindex="-1">✕</button>
         </div>
       </div>
 
@@ -815,11 +726,7 @@
   let filtroAtivo = 'todos';
   let checkinCoords = null;
 
-  // Estado dos botões Móvel
-  let controleAtivo = false;
-  let posAtivo = false;
-
-  function mudarAba(aba, btn) {
+function mudarAba(aba, btn) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('page-' + aba).classList.add('active');
@@ -859,62 +766,8 @@
     }
   }
 
-  // ── MÓVEL: toggle individual por botão ──
-  function toggleMovel(tipo) {
-    if (tipo === 'CONTROLE') {
-      controleAtivo = !controleAtivo;
-      const btn = document.getElementById('btn-controle');
-      const campo = document.getElementById('plano_controle');
-      if (controleAtivo) {
-        btn.className = 'movel-tipo-btn ativo-controle';
-        if (!campo.value.trim()) { campo.value = 'CONTROLE'; atualizarProgresso(); }
-      } else {
-        btn.className = 'movel-tipo-btn';
-        if (campo.value.trim().toUpperCase() === 'CONTROLE') { campo.value = ''; atualizarProgresso(); }
-      }
-    } else {
-      posAtivo = !posAtivo;
-      const btn = document.getElementById('btn-pos');
-      const campo = document.getElementById('plano_pos');
-      if (posAtivo) {
-        btn.className = 'movel-tipo-btn ativo-pos';
-        if (!campo.value.trim()) { campo.value = 'PÓS'; atualizarProgresso(); }
-      } else {
-        btn.className = 'movel-tipo-btn';
-        if (campo.value.trim().toUpperCase() === 'PÓS') { campo.value = ''; atualizarProgresso(); }
-      }
-    }
-  }
 
-  // Sincroniza estado do botão ao digitar manualmente
-  function sincMovel(tipo) {
-    if (tipo === 'CONTROLE') {
-      const val = document.getElementById('plano_controle').value.trim();
-      controleAtivo = val.length > 0;
-      document.getElementById('btn-controle').className = 'movel-tipo-btn' + (controleAtivo ? ' ativo-controle' : '');
-    } else {
-      const val = document.getElementById('plano_pos').value.trim();
-      posAtivo = val.length > 0;
-      document.getElementById('btn-pos').className = 'movel-tipo-btn' + (posAtivo ? ' ativo-pos' : '');
-    }
-  }
-
-  function limparMovel(tipo) {
-    if (tipo === 'CONTROLE') {
-      document.getElementById('plano_controle').value = '';
-      controleAtivo = false;
-      document.getElementById('btn-controle').className = 'movel-tipo-btn';
-      document.getElementById('plano_controle').focus();
-    } else {
-      document.getElementById('plano_pos').value = '';
-      posAtivo = false;
-      document.getElementById('btn-pos').className = 'movel-tipo-btn';
-      document.getElementById('plano_pos').focus();
-    }
-    atualizarProgresso();
-  }
-
-  // Constrói string do campo móvel para o texto final
+  // Constrói string do campo móvel para o texto final (mantido para compatibilidade)
   function getMovelTexto() {
     const c = document.getElementById('plano_controle').value.trim();
     const p = document.getElementById('plano_pos').value.trim();
@@ -1205,10 +1058,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     document.getElementById('btn-checkin').disabled = false;
     hideSyncStatus();
     document.getElementById('cep-status').className = 'cep-status';
-    // Limpar Móvel
-    controleAtivo = false; posAtivo = false;
-    document.getElementById('btn-controle').className = 'movel-tipo-btn';
-    document.getElementById('btn-pos').className = 'movel-tipo-btn';
     // Limpar HP
     document.getElementById('criar_hp').value = '';
     document.getElementById('hp-sim').className = 'hp-btn';
@@ -1249,12 +1098,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     document.getElementById('criar_hp').value = f.criar_hp || '';
     document.getElementById('hp-sim').className = 'hp-btn' + (f.criar_hp === 'Sim' ? ' ativo-sim' : '');
     document.getElementById('hp-nao').className = 'hp-btn' + (f.criar_hp === 'Não' ? ' ativo-nao' : '');
-    // Restaurar botões Móvel
-    controleAtivo = !!(f.plano_controle && f.plano_controle.trim());
-    posAtivo = !!(f.plano_pos && f.plano_pos.trim());
-    document.getElementById('btn-controle').className = 'movel-tipo-btn' + (controleAtivo ? ' ativo-controle' : '');
-    document.getElementById('btn-pos').className = 'movel-tipo-btn' + (posAtivo ? ' ativo-pos' : '');
-
     mudarAba('formulario', document.querySelector('.tab-btn'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.tab-btn').classList.add('active');
@@ -1282,10 +1125,10 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         ? `<a href="${f.checkin_url}" target="_blank">📍 Ver mapa</a>`
         : '<span style="color:#c0c8d0">—</span>';
       const movelCell = [
-        f.plano_controle ? 'C: '+f.plano_controle : '',
-        f.plano_pos ? 'P: '+f.plano_pos : '',
-        f.portabilidade ? '↔ '+f.portabilidade : ''
-      ].filter(Boolean).join('<br>') || (f.plano_movel || '—');
+        f.plano_controle ? '<span style="color:#1d4ed8">C:</span> '+f.plano_controle : '',
+        f.plano_pos ? '<span style="color:#7e22ce">P:</span> '+f.plano_pos : '',
+        f.portabilidade ? '<span style="color:#0F766E">↔</span> '+f.portabilidade : ''
+      ].filter(Boolean).join('<br>') || '—';
       return `<tr>
         <td>${lista.length - i}</td>
         <td class="td-nome">${f.nome}</td>
@@ -1328,7 +1171,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       'plano_banda','plano_controle','plano_pos','portabilidade','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','obs','checkin_url'];
     const headers = ['Data Cadastro','Vendedor','Status','Criar HP','Nome','CPF','RG','Nascimento','Nome da Mãe','Celular','E-mail',
       'Rua','Número','Complemento','Bairro','Cidade','CEP',
-      'Banda Larga','Móvel Controle','Móvel Pós','Portabilidade','TV','Fixo','Mensalidade','Débito em Conta','Taxa Instalação','Vencimento','Período Instalação','Observações','Localização (Maps)'];
+      'Banda Larga','Controle','Pós','Portabilidade','TV','Fixo','Valor Total','Valor Promocional','Taxa Instalação','Vencimento','Período Instalação','Observações','Localização (Maps)'];
     const data = [headers, ...fichas.map(f => cols.map(c => f[c] || ''))];
     const ws = XLSX.utils.aoa_to_sheet(data);
     ws['!cols'] = headers.map(() => ({ wch: 20 }));
