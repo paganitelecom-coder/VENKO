@@ -186,8 +186,8 @@
 
     <div class="hint">
       <strong>Acesso demo:</strong><br>
-      Admin: <span class="chip">admin</span> / <span class="chip">admin123</span><br>
-      Vendedor: <span class="chip">joao</span> / <span class="chip">venko123</span>
+      Admin: <span class="chip">paulo</span> / <span class="chip">paulo@26</span><br>
+      Vendedor: <span class="chip">mailton</span> / <span class="chip">mailton@26</span>
     </div>
   </div>
 
@@ -197,10 +197,17 @@
 <script>
   // ── USUÁRIOS (em produção, validar via Google Sheets / Apps Script) ──
   const USERS = [
-    { username: 'admin',    password: 'admin123', role: 'admin',  name: 'Administrador' },
-    { username: 'joao',     password: 'venko123', role: 'vendor', name: 'João Silva' },
-    { username: 'maria',    password: 'venko123', role: 'vendor', name: 'Maria Souza' },
-    { username: 'carlos',   password: 'venko123', role: 'vendor', name: 'Carlos Lima' },
+    // ADMINS
+    { username: 'paulo',     password: 'paulo@26',     role: 'admin',  name: 'Paulo Pagani' },
+    { username: 'taiane',    password: 'taiane@26',    role: 'admin',  name: 'Taiane de Castro' },
+    // VENDEDORES
+    { username: 'mailton',   password: 'mailton@26',   role: 'vendor', name: 'Mailton Dantas' },
+    { username: 'ricardo',   password: 'ricardo@26',   role: 'vendor', name: 'Ricardo Vivas' },
+    { username: 'guilherme', password: 'guilherme@26', role: 'vendor', name: 'Guilherme' },
+    { username: 'luciano',   password: 'luciano@26',   role: 'vendor', name: 'Luciano do Nascimento' },
+    { username: 'mauricio',  password: 'mauricio@26',  role: 'vendor', name: 'Mauricio Moraes' },
+    { username: 'alexandre', password: 'alexandre@26', role: 'vendor', name: 'Alexandre Martello' },
+    { username: 'douglas',   password: 'douglas@26',   role: 'vendor', name: 'Douglas Oliveira' },
   ];
 
   // Carregar usuários extras salvos pelo admin
