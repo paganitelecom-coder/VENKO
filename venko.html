@@ -1232,11 +1232,20 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   function mesclarFichas(remotas) {
     const mapa = new Map();
     fichas.forEach(f => mapa.set(String(f.id), f));
+
+    // Contador para gerar chaves únicas a fichas remotas sem id válido
+    // (não deveria mais acontecer após o ajuste pontual no Sheets, mas
+    // protege contra qualquer linha futura que escape sem id)
+    let semIdCount = 0;
+
     remotas.forEach(f => {
-      const idStr = String(f.id);
+      let idStr = String(f.id || '').trim();
+      if (idStr === '') {
+        idStr = '_semid_' + (semIdCount++);
+      }
       const local = mapa.get(idStr);
       // normaliza tipos (id pode vir como string da planilha)
-      mapa.set(idStr, { ...local, ...f, id: local ? local.id : (Number(f.id) || f.id) });
+      mapa.set(idStr, { ...local, ...f, id: local ? local.id : (Number(f.id) || idStr) });
     });
     fichas = Array.from(mapa.values());
     salvarFichas();
