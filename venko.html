@@ -81,6 +81,17 @@
   }
   .btn-logout:hover { border-color: #EF4444; color: #EF4444; }
 
+  .btn-atualizar {
+    padding: 6px 12px; background: none; border: 1px solid var(--border);
+    border-radius: 8px; font-family: 'Inter',sans-serif; font-size: 0.75rem;
+    font-weight: 600; color: var(--muted); cursor: pointer; transition: all .2s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-atualizar:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+  .btn-atualizar:disabled { opacity: .6; cursor: not-allowed; }
+  .btn-atualizar .icone-girando { display: inline-block; animation: girar 1s linear infinite; }
+  @keyframes girar { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
   /* ── TABS ── */
   .tabs {
     background: var(--white);
@@ -442,6 +453,9 @@
       <span id="user-name">—</span>
       <span class="role-badge" id="role-badge">—</span>
     </div>
+    <button class="btn-atualizar" id="btn-atualizar" onclick="atualizarDoSheets(true)">
+      <span id="icone-atualizar">🔄</span> <span id="texto-atualizar">Atualizar</span>
+    </button>
     <button class="btn-logout" onclick="logout()">Sair</button>
   </div>
 </div>
@@ -907,7 +921,9 @@
 
     atualizarContadores();
     renderDashboard();
+    atualizarDoSheets(false);
   }
+
 
   // ── ABAS ──
   function mudarAba(btn) {
@@ -1207,6 +1223,54 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   function salvarFichas() {
     localStorage.setItem('fichas', JSON.stringify(fichas));
     atualizarContadores();
+  }
+
+  // ── BUSCAR / MESCLAR FICHAS DO GOOGLE SHEETS ──
+  // Mescla por id: ficha do Sheets sobrescreve a local se o id já existe
+  // (Sheets é a fonte mais atual, ex: status alterado por outro vendedor/admin),
+  // e fichas locais que ainda não foram enviadas são preservadas.
+  function mesclarFichas(remotas) {
+    const mapa = new Map();
+    fichas.forEach(f => mapa.set(String(f.id), f));
+    remotas.forEach(f => {
+      const idStr = String(f.id);
+      const local = mapa.get(idStr);
+      // normaliza tipos (id pode vir como string da planilha)
+      mapa.set(idStr, { ...local, ...f, id: local ? local.id : (Number(f.id) || f.id) });
+    });
+    fichas = Array.from(mapa.values());
+    salvarFichas();
+  }
+
+  async function atualizarDoSheets(manual) {
+    const btn = document.getElementById('btn-atualizar');
+    const icone = document.getElementById('icone-atualizar');
+    const texto = document.getElementById('texto-atualizar');
+    if (btn.disabled) return;
+
+    btn.disabled = true;
+    icone.classList.add('icone-girando');
+    if (manual) texto.textContent = 'Atualizando...';
+
+    try {
+      const resp = await fetch(SHEETS_URL + '?action=listar', { cache: 'no-store' });
+      const dados = await resp.json();
+      if (dados.status === 'ok' && Array.isArray(dados.fichas)) {
+        mesclarFichas(dados.fichas);
+        renderTabelaMinhas();
+        renderTabelaTodas();
+        renderDashboard();
+        if (manual) toast('✅ Fichas atualizadas!');
+      } else if (manual) {
+        toast('⚠️ Não foi possível atualizar agora.');
+      }
+    } catch (err) {
+      if (manual) toast('⚠️ Falha ao buscar do Google Sheets.');
+    } finally {
+      btn.disabled = false;
+      icone.classList.remove('icone-girando');
+      texto.textContent = 'Atualizar';
+    }
   }
 
   function atualizarContadores() {
