@@ -846,10 +846,17 @@
 
   // ── USUÁRIOS BASE ──
   const BASE_USERS = [
-    { username: 'admin',  password: 'admin123', role: 'admin',  name: 'Administrador' },
-    { username: 'joao',   password: 'venko123', role: 'vendor', name: 'João Silva' },
-    { username: 'maria',  password: 'venko123', role: 'vendor', name: 'Maria Souza' },
-    { username: 'carlos', password: 'venko123', role: 'vendor', name: 'Carlos Lima' },
+    // ADMINS
+    { username: 'paulo',     password: 'paulo@26',     role: 'admin',  name: 'Paulo Pagani' },
+    { username: 'taiane',    password: 'taiane@26',    role: 'admin',  name: 'Taiane de Castro' },
+    // VENDEDORES
+    { username: 'mailton',   password: 'mailton@26',   role: 'vendor', name: 'Mailton Dantas' },
+    { username: 'ricardo',   password: 'ricardo@26',   role: 'vendor', name: 'Ricardo Vivas' },
+    { username: 'guilherme', password: 'guilherme@26', role: 'vendor', name: 'Guilherme' },
+    { username: 'luciano',   password: 'luciano@26',   role: 'vendor', name: 'Luciano do Nascimento' },
+    { username: 'mauricio',  password: 'mauricio@26',  role: 'vendor', name: 'Mauricio Moraes' },
+    { username: 'alexandre', password: 'alexandre@26', role: 'vendor', name: 'Alexandre Martello' },
+    { username: 'douglas',   password: 'douglas@26',   role: 'vendor', name: 'Douglas Oliveira' },
   ];
 
   function getAllUsers() {
@@ -1232,20 +1239,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   function mesclarFichas(remotas) {
     const mapa = new Map();
     fichas.forEach(f => mapa.set(String(f.id), f));
-
-    // Contador para gerar chaves únicas a fichas remotas sem id válido
-    // (não deveria mais acontecer após o ajuste pontual no Sheets, mas
-    // protege contra qualquer linha futura que escape sem id)
-    let semIdCount = 0;
-
     remotas.forEach(f => {
-      let idStr = String(f.id || '').trim();
-      if (idStr === '') {
-        idStr = '_semid_' + (semIdCount++);
-      }
+      const idStr = String(f.id);
       const local = mapa.get(idStr);
       // normaliza tipos (id pode vir como string da planilha)
-      mapa.set(idStr, { ...local, ...f, id: local ? local.id : (Number(f.id) || idStr) });
+      mapa.set(idStr, { ...local, ...f, id: local ? local.id : (Number(f.id) || f.id) });
     });
     fichas = Array.from(mapa.values());
     salvarFichas();
@@ -1569,7 +1567,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
             <div class="user-stat"><div class="user-stat-val">${fichasU.length}</div><div class="user-stat-lbl">Fichas</div></div>
             <div class="user-stat"><div class="user-stat-val">${fichasU.filter(f=>f.status==='Concluída').length}</div><div class="user-stat-lbl">Concluídas</div></div>
           </div>
-          ${!isBase ? `<button class="btn-del-user" onclick="removerUsuario('${u.username}')">🗑 Remover</button>` : '<div style="font-size:.65rem;color:var(--muted)">Usuário padrão</div>'}
+          ${!isBase ? `<button class="btn-del-user" onclick="removerUsuario('${u.username}')">🗑 Remover</button>` : ''}
         </div>`;
     }).join('');
   }
