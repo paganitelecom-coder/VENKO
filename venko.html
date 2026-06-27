@@ -45,8 +45,8 @@
   }
   body.dark-mode .btn-dark-toggle { color: #fbbf24; }
   body.dark-mode .plano-pills .pill-btn { background: #0f172a; border-color: #334155; color: #94a3b8; }
-  body.dark-mode .plano-pills .pill-btn.ativo { background: #134e4a; border-color: #14B8A6; color: #5eead4; }
-  body.dark-mode .plano-pills .pill-btn:hover:not(.ativo) { background: #1e3a3a; border-color: #0F766E; }
+  body.dark-mode .plano-pills .pill-btn.ativo { background: #0F766E; border-color: #14B8A6; color: white; }
+  body.dark-mode .plano-pills .pill-btn:hover:not(.ativo) { background: #1e3a3a; border-color: #0F766E; color: #5eead4; }
 
   body {
     font-family: 'Inter', sans-serif;
@@ -260,46 +260,43 @@
   .servico-label { font-size:.82rem; font-weight:600; color:var(--text); padding-top:11px; }
 
   /* ── PLANO PILLS (NOVO) ── */
-  .plano-field { display: flex; flex-direction: column; gap: 6px; }
-
   .plano-pills {
-    display: flex; flex-wrap: wrap; gap: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 2px 0;
   }
 
   .pill-btn {
-    padding: 5px 11px;
+    padding: 8px 16px;
     border: 1.5px solid var(--border);
     border-radius: 20px;
     background: var(--white);
     font-family: 'Inter', sans-serif;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: var(--muted);
     cursor: pointer;
     transition: all .15s;
     white-space: nowrap;
-    line-height: 1.4;
+    line-height: 1.3;
   }
   .pill-btn:hover:not(.ativo) {
     border-color: var(--primary-light);
     background: var(--verde-claro);
     color: var(--primary);
+    transform: translateY(-1px);
   }
   .pill-btn.ativo {
     border-color: var(--primary);
     background: var(--primary);
     color: white;
-    box-shadow: 0 2px 8px rgba(15,118,110,.25);
+    box-shadow: 0 2px 8px rgba(15,118,110,.3);
   }
 
-  .plano-input-wrap { position: relative; }
-  .plano-input-wrap .clear-btn {
-    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-    background: none; border: none; cursor: pointer;
-    color: #94A3B8; font-size: .85rem; padding: 2px 4px; display: none;
-  }
-  .plano-input-wrap:hover .clear-btn,
-  .plano-input-wrap input:not(:placeholder-shown) ~ .clear-btn { display: block; }
+  /* hidden inputs mantêm os dados mas não aparecem */
+  .plano-hidden { display: none; }
 
   /* ── PREVIEW ── */
   .preview-wrap { max-width:720px; margin:0 auto; display:none; }
@@ -698,41 +695,30 @@
       <!-- 🌐 BANDA LARGA -->
       <div class="servico-row">
         <div class="servico-label">🌐 Banda Larga</div>
-        <div class="plano-field">
-          <div class="plano-pills" id="pills-banda">
+        <div class="plano-pills" id="pills-banda">
             <button class="pill-btn" onclick="selecionarPlano('plano_banda','250MB',this)">250 MB</button>
             <button class="pill-btn" onclick="selecionarPlano('plano_banda','350MB',this)">350 MB</button>
             <button class="pill-btn" onclick="selecionarPlano('plano_banda','500MB',this)">500 MB</button>
             <button class="pill-btn" onclick="selecionarPlano('plano_banda','600MB',this)">600 MB</button>
             <button class="pill-btn" onclick="selecionarPlano('plano_banda','1GB',this)">1 GB</button>
           </div>
-          <div class="plano-input-wrap">
-            <input type="text" id="plano_banda" placeholder="Ou digite outro produto..." oninput="atualizarProgresso();limparPills('pills-banda')">
-            <button class="clear-btn" onclick="limparPlano('plano_banda','pills-banda')" tabindex="-1">✕</button>
-          </div>
-        </div>
+          <input class="plano-hidden" type="text" id="plano_banda">
       </div>
 
       <!-- 📱 CONTROLE -->
       <div class="servico-row">
         <div class="servico-label">📱 Controle</div>
-        <div class="plano-field">
-          <div class="plano-pills" id="pills-controle">
+        <div class="plano-pills" id="pills-controle">
             <button class="pill-btn" onclick="selecionarPlano('plano_controle','25GB',this)">25 GB</button>
             <button class="pill-btn" onclick="selecionarPlano('plano_controle','20GB',this)">20 GB</button>
           </div>
-          <div class="plano-input-wrap">
-            <input type="text" id="plano_controle" placeholder="Ou digite outro produto..." oninput="atualizarProgresso();limparPills('pills-controle')">
-            <button class="clear-btn" onclick="limparPlano('plano_controle','pills-controle')" tabindex="-1">✕</button>
-          </div>
-        </div>
+          <input class="plano-hidden" type="text" id="plano_controle">
       </div>
 
       <!-- 📱 PÓS -->
       <div class="servico-row">
         <div class="servico-label">📱 Pós</div>
-        <div class="plano-field">
-          <div class="plano-pills" id="pills-pos">
+        <div class="plano-pills" id="pills-pos">
             <button class="pill-btn" onclick="selecionarPlano('plano_pos','60GB',this)">60 GB</button>
             <button class="pill-btn" onclick="selecionarPlano('plano_pos','50GB',this)">50 GB</button>
             <button class="pill-btn" onclick="selecionarPlano('plano_pos','100GB',this)">100 GB</button>
@@ -740,11 +726,7 @@
             <button class="pill-btn" onclick="selecionarPlano('plano_pos','200GB',this)">200 GB</button>
             <button class="pill-btn" onclick="selecionarPlano('plano_pos','500GB',this)">500 GB</button>
           </div>
-          <div class="plano-input-wrap">
-            <input type="text" id="plano_pos" placeholder="Ou digite outro produto..." oninput="atualizarProgresso();limparPills('pills-pos')">
-            <button class="clear-btn" onclick="limparPlano('plano_pos','pills-pos')" tabindex="-1">✕</button>
-          </div>
-        </div>
+          <input class="plano-hidden" type="text" id="plano_pos">
       </div>
 
       <!-- ↔️ PORTABILIDADE -->
@@ -1003,29 +985,16 @@
   // ── PILLS: Selecionar plano pré-definido ──
   function selecionarPlano(campoId, valor, btnEl) {
     const pillsContainer = btnEl.closest('.plano-pills');
-    // Desativar todos os pills do grupo
-    pillsContainer.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
-    // Se clicar no mesmo que já estava ativo, deseleciona
     const input = document.getElementById(campoId);
+    // Toggle: se clicar no já ativo, deseleciona
     if (input.value === valor) {
+      pillsContainer.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
       input.value = '';
     } else {
+      pillsContainer.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
       btnEl.classList.add('ativo');
       input.value = valor;
     }
-    atualizarProgresso();
-  }
-
-  // Limpar pills quando o usuário digita manualmente no input
-  function limparPills(pillsId) {
-    document.getElementById(pillsId).querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
-  }
-
-  // Limpar campo + pills pelo botão ✕
-  function limparPlano(campoId, pillsId) {
-    document.getElementById(campoId).value = '';
-    document.getElementById(campoId).focus();
-    limparPills(pillsId);
     atualizarProgresso();
   }
 
@@ -1354,8 +1323,9 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   function limpar() {
     document.querySelectorAll('#page-formulario input, #page-formulario select, #page-formulario textarea')
       .forEach(el => el.value = '');
-    // Limpar todos os pills
+    // Limpar todos os pills e hidden inputs de plano
     document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
+    ['plano_banda','plano_controle','plano_pos'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
     document.getElementById('status').value = 'Agendada';
     document.getElementById('vendedor').value = session.name;
     document.getElementById('preview').classList.remove('show');
