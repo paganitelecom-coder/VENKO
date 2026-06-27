@@ -107,6 +107,35 @@
     outline: none;
     transition: border-color .2s, box-shadow .2s;
   }
+
+  .password-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .password-input-wrap input {
+    flex: 1;
+    padding-right: 44px;
+  }
+
+  .btn-toggle-senha {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 8px;
+    transition: opacity .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-toggle-senha:hover {
+    opacity: 0.7;
+  }
   .field input:focus {
     border-color: var(--primary-light);
     box-shadow: 0 0 0 3px rgba(20,184,166,0.15);
@@ -179,7 +208,10 @@
     </div>
     <div class="field">
       <label>Senha</label>
-      <input type="password" id="senha" placeholder="••••••••" autocomplete="current-password">
+      <div class="password-input-wrap">
+        <input type="password" id="senha" placeholder="••••••••" autocomplete="current-password">
+        <button type="button" class="btn-toggle-senha" onclick="toggleSenha()" tabindex="-1">👁️</button>
+      </div>
     </div>
 
     <button class="btn-entrar" id="btn-entrar" onclick="entrar()">Entrar →</button>
@@ -219,6 +251,19 @@
 
   function getUsers() {
     return USERS;
+  }
+
+  function toggleSenha() {
+    const input = document.getElementById('senha');
+    const btn = document.querySelector('.btn-toggle-senha');
+    
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = '🙈';
+    } else {
+      input.type = 'password';
+      btn.textContent = '👁️';
+    }
   }
 
   function entrar() {
