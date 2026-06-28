@@ -194,13 +194,15 @@
     color: var(--text); background: #FAFAFA;
     border: 1px solid var(--border); border-radius: 6px;
     outline: none; transition: border-color .2s, box-shadow .2s;
+    text-transform: uppercase;
   }
   input:focus, select:focus {
     border-color: var(--primary-light);
     box-shadow: 0 0 0 3px rgba(20,184,166,.15);
     background: white;
   }
-  input::placeholder { color: #94A3B8; font-weight: 400; }
+  input::placeholder { color: #94A3B8; font-weight: 400; text-transform: none; }
+  input[type="email"] { text-transform: none; }
 
   /* ── BADGE PREÇO AUTOMÁTICO ── */
   .preco-auto-badge {
@@ -461,6 +463,7 @@
     padding:3px 8px; border:1px solid var(--border); border-radius:6px;
     font-family:'Inter',sans-serif; font-size:.72rem; font-weight:600;
     color:var(--text); background:var(--white); cursor:pointer; outline:none;
+    text-transform: none;
   }
   .status-select:focus { border-color:var(--primary-light); }
 
@@ -605,11 +608,18 @@
       <div class="grid row-2">
         <div><label>Data de Nascimento</label><input type="text" id="nascimento" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this);atualizarProgresso()"></div>
         <div>
-          <label>Celular</label>
+          <label>WhatsApp</label>
           <div class="input-wrap">
             <input type="text" id="celular" placeholder="(00) 00000-0000" maxlength="15" oninput="atualizarProgresso()">
             <button class="clear-btn" onclick="limparCampo('celular')" tabindex="-1">✕</button>
           </div>
+        </div>
+      </div>
+      <div>
+        <label>SMS</label>
+        <div class="input-wrap">
+          <input type="text" id="sms" placeholder="(00) 00000-0000" maxlength="15" oninput="atualizarProgresso()">
+          <button class="clear-btn" onclick="limparCampo('sms')" tabindex="-1">✕</button>
         </div>
       </div>
       <div>
@@ -737,19 +747,21 @@
       <!-- 📺 TV -->
       <div class="servico-row">
         <div class="servico-label">📺 TV</div>
-        <div class="input-wrap">
-          <input type="text" id="plano_tv" placeholder="Digite o produto" oninput="atualizarProgresso();buscarPreco()">
-          <button class="clear-btn" onclick="limparCampo('plano_tv');buscarPreco()" tabindex="-1">✕</button>
+        <div class="plano-pills" id="pills-tv">
+          <button class="pill-btn" onclick="selecionarPlano('plano_tv','BOX',this)">BOX</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_tv','CABO',this)">CABO</button>
         </div>
+        <input class="plano-hidden" type="text" id="plano_tv">
       </div>
 
       <!-- ☎️ FIXO -->
       <div class="servico-row">
         <div class="servico-label">☎️ Fixo</div>
-        <div class="input-wrap">
-          <input type="text" id="plano_fixo" placeholder="Digite o produto" oninput="atualizarProgresso();buscarPreco()">
-          <button class="clear-btn" onclick="limparCampo('plano_fixo');buscarPreco()" tabindex="-1">✕</button>
+        <div class="plano-pills" id="pills-fixo">
+          <button class="pill-btn" onclick="selecionarPlano('plano_fixo','MUNDO',this)">MUNDO</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_fixo','BRASIL',this)">BRASIL</button>
         </div>
+        <input class="plano-hidden" type="text" id="plano_fixo">
       </div>
 
       <!-- STATUS DA BUSCA DE PREÇO -->
@@ -802,7 +814,7 @@
     <div class="card-header">📝 Observações</div>
     <div class="card-body">
       <textarea id="obs" placeholder="Anotações extras..." rows="3"
-        style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:.85rem;color:var(--text);background:#fafafa;outline:none;resize:vertical;transition:border-color .2s"></textarea>
+        style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:.85rem;color:var(--text);background:#fafafa;outline:none;resize:vertical;transition:border-color .2s;text-transform:uppercase;"></textarea>
     </div>
   </div>
 
@@ -834,7 +846,7 @@
     <button class="btn-export" onclick="exportarExcel('minhas')">⬇️ Exportar</button>
   </div>
   <div class="busca-wrap">
-    <input type="text" id="busca-minhas" placeholder="Buscar por nome ou CPF..." oninput="renderTabelaMinhas()">
+    <input type="text" id="busca-minhas" placeholder="Buscar por nome ou CPF..." oninput="renderTabelaMinhas()" style="text-transform:none;">
   </div>
   <div class="filtros" id="filtros-minhas">
     <button class="filtro-btn ativo" onclick="filtrar('todos','minhas',this)">Todos</button>
@@ -874,7 +886,7 @@
     <button class="btn-export" onclick="exportarExcel('todas')">⬇️ Exportar</button>
   </div>
   <div class="busca-wrap">
-    <input type="text" id="busca-todas" placeholder="Buscar por nome, CPF ou vendedor..." oninput="renderTabelaTodas()">
+    <input type="text" id="busca-todas" placeholder="Buscar por nome, CPF ou vendedor..." oninput="renderTabelaTodas()" style="text-transform:none;">
   </div>
   <div class="filtros" id="filtros-todas">
     <button class="filtro-btn ativo" onclick="filtrar('todos','todas',this)">Todos</button>
@@ -901,11 +913,11 @@
         </div>
         <div>
           <label>Usuário (login)</label>
-          <input type="text" id="new-user" placeholder="ex: joao.silva">
+          <input type="text" id="new-user" placeholder="ex: joao.silva" style="text-transform:none;">
         </div>
         <div>
           <label>Senha</label>
-          <input type="password" id="new-pass" placeholder="Senha de acesso">
+          <input type="password" id="new-pass" placeholder="Senha de acesso" style="text-transform:none;">
         </div>
         <div>
           <label>Nível de Acesso</label>
@@ -1167,6 +1179,15 @@
       btn.style.display = session.role === 'admin' ? '' : 'none';
     });
     document.getElementById('vendedor').value = session.name;
+
+    // Vendedor não escolhe status — fica travado em Pendente. Só admin pode mudar.
+    const statusSel = document.getElementById('status');
+    if (session.role !== 'admin') {
+      statusSel.value = 'Pendente';
+      statusSel.disabled = true;
+      statusSel.title = 'Apenas administradores podem alterar o status.';
+    }
+
     atualizarProgresso();
 
     document.getElementById('cpf').addEventListener('input', function() {
@@ -1175,6 +1196,11 @@
       this.value = v;
     });
     document.getElementById('celular').addEventListener('input', function() {
+      let v = this.value.replace(/\D/g,'').slice(0,11);
+      v = v.replace(/^(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d)/,'$1-$2');
+      this.value = v;
+    });
+    document.getElementById('sms').addEventListener('input', function() {
       let v = this.value.replace(/\D/g,'').slice(0,11);
       v = v.replace(/^(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d)/,'$1-$2');
       this.value = v;
@@ -1309,15 +1335,18 @@
     const nascStr    = document.getElementById('nascimento').value;
     const movelTexto = getMovelTexto();
 
+    // Vendedor sempre envia como Pendente — só admin define outro status.
+    const statusFicha = session.role === 'admin' ? vl('status') : 'Pendente';
+
     fichaAtual = {
       id: Date.now(),
       data_cadastro: new Date().toLocaleDateString('pt-BR'),
       username_vendedor: session.username,
-      vendedor: vl('vendedor'), status: vl('status'),
+      vendedor: vl('vendedor'), status: statusFicha,
       criar_hp: document.getElementById('criar_hp')?.value || '',
       nome: vl('nome'), cpf: vl('cpf'), rg: vl('rg'),
       nascimento: fmtData(nascStr), mae: vl('mae'),
-      celular: vl('celular'), email: vl('email'),
+      celular: vl('celular'), sms: vl('sms'), email: vl('email'),
       rua: vl('rua'), numero: vl('numero'), complemento: vl('complemento'),
       bairro: vl('bairro'), cidade: vl('cidade'), cep: vl('cep'),
       plano_banda: vl('plano_banda'), plano_controle: vl('plano_controle'),
@@ -1340,8 +1369,9 @@
     const servicosLinhas = servicosAtivos.length
       ? servicosAtivos.map(s => `${s.label}: ${s.val}`).join('\n') : '—';
 
-    const checkinLine = checkinCoords ? `\nCheck-in: https://www.google.com/maps?q=${checkinCoords.lat},${checkinCoords.lng}` : '';
+    const checkinLine = checkinCoords ? `\n📍 Check-in: https://www.google.com/maps?q=${checkinCoords.lat},${checkinCoords.lng}` : '';
     const portabLine  = fichaAtual.portabilidade ? `\nPortabilidade: ${fichaAtual.portabilidade}` : '';
+    const smsLine      = fichaAtual.sms ? `\nSMS: ${fichaAtual.sms}` : '';
 
     const txt =
 `FICHA CADASTRAL - VENKO
@@ -1355,11 +1385,11 @@ CPF: ${fichaAtual.cpf}
 RG: ${fichaAtual.rg}
 Data de Nascimento: ${fichaAtual.nascimento}
 Nome da Mae: ${fichaAtual.mae}
-Celular: ${fichaAtual.celular}
+WhatsApp: ${fichaAtual.celular}${smsLine}
 E-mail: ${fichaAtual.email}
 
 ENDERECO DE INSTALACAO
-Rua: ${fichaAtual.rua}
+📍 Rua: ${fichaAtual.rua}
 Numero: ${fichaAtual.numero}
 Complemento: ${fichaAtual.complemento}
 Bairro: ${fichaAtual.bairro}
@@ -1457,8 +1487,12 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     document.querySelectorAll('#page-formulario input, #page-formulario select, #page-formulario textarea')
       .forEach(el => el.value = '');
     document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
-    ['plano_banda','plano_controle','plano_pos'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
-    document.getElementById('status').value = 'Agendada';
+    ['plano_banda','plano_controle','plano_pos','plano_tv','plano_fixo'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+    if (session.role === 'admin') {
+      document.getElementById('status').value = 'Agendada';
+    } else {
+      document.getElementById('status').value = 'Pendente';
+    }
     document.getElementById('vendedor').value = session.name;
     document.getElementById('preview').classList.remove('show');
     document.getElementById('btn-checkin').innerHTML = '📍 Check-in — Localização do Cliente';
@@ -1584,6 +1618,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         f.portabilidade ? '<span style="color:#0F766E">↔</span> '+f.portabilidade : ''
       ].filter(Boolean).join('<br>') || '—';
 
+      // Apenas admin pode alterar o status; vendedor vê só o selo (read-only)
       const statusCell = isAdmin
         ? `<select class="status-select" onchange="alterarStatus(${f.id},this.value)">
             ${['Agendada','Concluída','Pendente','Cancelada'].map(s =>
@@ -1628,6 +1663,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   }
 
   function alterarStatus(id, novoStatus) {
+    if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem alterar o status.', 'warning'); return; }
     const idx = fichas.findIndex(f => f.id === id);
     if (idx < 0) return;
     fichas[idx].status = novoStatus;
@@ -1650,14 +1686,21 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (!f) return;
     fichaAtual = f;
     checkinCoords = f.checkin_lat ? { lat: f.checkin_lat, lng: f.checkin_lng } : null;
-    const map = ['vendedor','status','nome','cpf','rg','celular','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_controle','plano_pos','portabilidade','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','obs'];
-    map.forEach(k => { const el = document.getElementById(k); if (el) el.value = f[k]||''; });
+    const map = ['vendedor','status','nome','cpf','rg','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_controle','plano_pos','portabilidade','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','obs'];
+    map.forEach(k => {
+      const el = document.getElementById(k);
+      if (!el) return;
+      if (k === 'status' && session.role !== 'admin') return; // vendedor não reedita status
+      el.value = f[k]||'';
+    });
     document.getElementById('criar_hp').value = f.criar_hp||'';
     document.getElementById('hp-sim').className = 'hp-btn' + (f.criar_hp==='Sim' ? ' ativo-sim' : '');
     document.getElementById('hp-nao').className = 'hp-btn' + (f.criar_hp==='Não' ? ' ativo-nao' : '');
     restaurarPill('plano_banda',    'pills-banda');
     restaurarPill('plano_controle', 'pills-controle');
     restaurarPill('plano_pos',      'pills-pos');
+    restaurarPill('plano_tv',       'pills-tv');
+    restaurarPill('plano_fixo',     'pills-fixo');
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelector('[data-tab="formulario"]').classList.add('active');
@@ -1847,11 +1890,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     const lista = ctx === 'todas' ? fichas
       : fichas.filter(f => session.role==='admin' || f.username_vendedor===session.username);
     if (!lista.length) { showToast('⚠️ Nenhuma ficha para exportar','warning'); return; }
-    const cols = ['data_cadastro','vendedor','status','criar_hp','nome','cpf','rg','nascimento','mae','celular','email',
+    const cols = ['data_cadastro','vendedor','status','criar_hp','nome','cpf','rg','nascimento','mae','celular','sms','email',
       'rua','numero','complemento','bairro','cidade','cep',
       'plano_banda','plano_controle','plano_pos','portabilidade','plano_tv','plano_fixo',
       'mensalidade','debito','taxa','vencimento','periodo','obs','checkin_url'];
-    const headers = ['Data','Vendedor','Status','Criar HP','Nome','CPF','RG','Nascimento','Mãe','Celular','E-mail',
+    const headers = ['Data','Vendedor','Status','Criar HP','Nome','CPF','RG','Nascimento','Mãe','WhatsApp','SMS','E-mail',
       'Rua','Número','Complemento','Bairro','Cidade','CEP',
       'Banda Larga','Controle','Pós','Portabilidade','TV','Fixo',
       'Valor Total','Val. Promocional','Taxa Inst.','Vencimento','Período','Observações','Localização'];
