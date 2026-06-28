@@ -47,6 +47,7 @@
   body.dark-mode .plano-pills .pill-btn { background: #0f172a; border-color: #334155; color: #94a3b8; }
   body.dark-mode .plano-pills .pill-btn.ativo { background: #0F766E; border-color: #14B8A6; color: white; }
   body.dark-mode .plano-pills .pill-btn:hover:not(.ativo) { background: #1e3a3a; border-color: #0F766E; color: #5eead4; }
+  body.dark-mode .preco-auto-badge { background: #134e4a; color: #5eead4; border-color: #0F766E; }
 
   body {
     font-family: 'Inter', sans-serif;
@@ -74,7 +75,7 @@
   }
   .topbar-title { font-size: 1rem; font-weight: 700; color: var(--text); }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
-  
+
   .btn-dark-toggle {
     padding: 6px 12px; background: none; border: 1px solid var(--border);
     border-radius: 8px; font-family: 'Inter',sans-serif; font-size: 1.1rem;
@@ -201,6 +202,30 @@
   }
   input::placeholder { color: #94A3B8; font-weight: 400; }
 
+  /* ── BADGE PREÇO AUTOMÁTICO ── */
+  .preco-auto-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: .68rem; font-weight: 700; padding: 3px 10px;
+    border-radius: 20px; border: 1px solid #99f6e4;
+    background: #f0fdfa; color: var(--primary);
+    margin-top: 4px; transition: all .2s;
+  }
+  .preco-status {
+    max-width: 720px; margin: -10px auto 10px;
+    font-size: .75rem; font-weight: 600; padding: 8px 14px;
+    border-radius: 8px; display: none; align-items: center; gap: 8px;
+  }
+  .preco-status.show     { display: flex; }
+  .preco-status.ok       { background: #f0fdfa; color: var(--primary); border: 1px solid #99f6e4; }
+  .preco-status.pendente { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+  .preco-status.erro     { background: #fff1f2; color: #991b1b; border: 1px solid #fecdd3; }
+
+  /* campo com preço automático — borda verde sutil */
+  input.auto-preenchido {
+    border-color: var(--primary-light);
+    background: #f0fdfa !important;
+  }
+
   /* ── PROGRESS ── */
   .progress-bar-wrap { max-width: 720px; margin: 0 auto 20px; }
   .progress-label {
@@ -259,43 +284,26 @@
   .servico-row:last-of-type { border-bottom: none; }
   .servico-label { font-size:.82rem; font-weight:600; color:var(--text); padding-top:11px; }
 
-  /* ── PLANO PILLS (NOVO) ── */
+  /* ── PLANO PILLS ── */
   .plano-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-    padding: 2px 0;
+    display: flex; flex-wrap: wrap; gap: 8px;
+    align-items: center; padding: 2px 0;
   }
-
   .pill-btn {
-    padding: 8px 16px;
-    border: 1.5px solid var(--border);
-    border-radius: 20px;
-    background: var(--white);
-    font-family: 'Inter', sans-serif;
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--muted);
-    cursor: pointer;
-    transition: all .15s;
-    white-space: nowrap;
-    line-height: 1.3;
+    padding: 8px 16px; border: 1.5px solid var(--border);
+    border-radius: 20px; background: var(--white);
+    font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 700;
+    color: var(--muted); cursor: pointer; transition: all .15s;
+    white-space: nowrap; line-height: 1.3;
   }
   .pill-btn:hover:not(.ativo) {
-    border-color: var(--primary-light);
-    background: var(--verde-claro);
-    color: var(--primary);
-    transform: translateY(-1px);
+    border-color: var(--primary-light); background: var(--verde-claro);
+    color: var(--primary); transform: translateY(-1px);
   }
   .pill-btn.ativo {
-    border-color: var(--primary);
-    background: var(--primary);
-    color: white;
-    box-shadow: 0 2px 8px rgba(15,118,110,.3);
+    border-color: var(--primary); background: var(--primary);
+    color: white; box-shadow: 0 2px 8px rgba(15,118,110,.3);
   }
-
-  /* hidden inputs mantêm os dados mas não aparecem */
   .plano-hidden { display: none; }
 
   /* ── PREVIEW ── */
@@ -483,18 +491,6 @@
   }
   .btn-del-user:hover { background:#fee2e2; }
 
-  /* ── TOAST (versão simples usada no corpo) ── */
-  .toast-simples {
-    position:fixed; bottom:24px; left:50%;
-    transform:translateX(-50%) translateY(80px);
-    background:#1E293B; color:white;
-    padding:12px 20px; border-radius:30px;
-    font-size:.82rem; font-weight:600;
-    box-shadow:0 4px 20px rgba(0,0,0,.2);
-    transition:transform .3s; z-index:999; white-space:nowrap;
-  }
-  .toast-simples.show { transform:translateX(-50%) translateY(0); }
-
   @media (max-width:600px) {
     .row-2, .row-3 { grid-template-columns:1fr; }
     .page { padding:16px 12px 60px; }
@@ -649,8 +645,8 @@
         <div>
           <label>Cidade</label>
           <div class="input-wrap">
-            <input type="text" id="cidade" placeholder="Cidade" oninput="atualizarProgresso()">
-            <button class="clear-btn" onclick="limparCampo('cidade')" tabindex="-1">✕</button>
+            <input type="text" id="cidade" placeholder="CIDADE" oninput="onCidadeInput()" style="text-transform:uppercase;">
+            <button class="clear-btn" onclick="limparCampo('cidade');buscarPreco()" tabindex="-1">✕</button>
           </div>
         </div>
       </div>
@@ -696,37 +692,37 @@
       <div class="servico-row">
         <div class="servico-label">🌐 Banda Larga</div>
         <div class="plano-pills" id="pills-banda">
-            <button class="pill-btn" onclick="selecionarPlano('plano_banda','250MB',this)">250 MB</button>
-            <button class="pill-btn" onclick="selecionarPlano('plano_banda','350MB',this)">350 MB</button>
-            <button class="pill-btn" onclick="selecionarPlano('plano_banda','500MB',this)">500 MB</button>
-            <button class="pill-btn" onclick="selecionarPlano('plano_banda','600MB',this)">600 MB</button>
-            <button class="pill-btn" onclick="selecionarPlano('plano_banda','1GB',this)">1 GB</button>
-          </div>
-          <input class="plano-hidden" type="text" id="plano_banda">
+          <button class="pill-btn" onclick="selecionarPlano('plano_banda','250MB',this)">250 MB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_banda','350MB',this)">350 MB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_banda','500MB',this)">500 MB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_banda','600MB',this)">600 MB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_banda','1GB',this)">1 GB</button>
+        </div>
+        <input class="plano-hidden" type="text" id="plano_banda">
       </div>
 
       <!-- 📱 CONTROLE -->
       <div class="servico-row">
         <div class="servico-label">📱 Controle</div>
         <div class="plano-pills" id="pills-controle">
-            <button class="pill-btn" onclick="selecionarPlano('plano_controle','25GB',this)">25 GB</button>
-            <button class="pill-btn" onclick="selecionarPlano('plano_controle','20GB',this)">20 GB</button>
-          </div>
-          <input class="plano-hidden" type="text" id="plano_controle">
+          <button class="pill-btn" onclick="selecionarPlano('plano_controle','25GB',this)">25 GB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_controle','20GB',this)">20 GB</button>
+        </div>
+        <input class="plano-hidden" type="text" id="plano_controle">
       </div>
 
       <!-- 📱 PÓS -->
       <div class="servico-row">
         <div class="servico-label">📱 Pós</div>
         <div class="plano-pills" id="pills-pos">
-            <button class="pill-btn" onclick="selecionarPlano('plano_pos','60GB',this)">60 GB</button>
-            <button class="pill-btn" onclick="selecionarPlano('plano_pos','50GB',this)">50 GB</button>
-            <button class="pill-btn" onclick="selecionarPlano('plano_pos','100GB',this)">100 GB</button>
-            <button class="pill-btn" onclick="selecionarPlano('plano_pos','150GB',this)">150 GB</button>
-            <button class="pill-btn" onclick="selecionarPlano('plano_pos','200GB',this)">200 GB</button>
-            <button class="pill-btn" onclick="selecionarPlano('plano_pos','500GB',this)">500 GB</button>
-          </div>
-          <input class="plano-hidden" type="text" id="plano_pos">
+          <button class="pill-btn" onclick="selecionarPlano('plano_pos','60GB',this)">60 GB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_pos','50GB',this)">50 GB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_pos','100GB',this)">100 GB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_pos','150GB',this)">150 GB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_pos','200GB',this)">200 GB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_pos','500GB',this)">500 GB</button>
+        </div>
+        <input class="plano-hidden" type="text" id="plano_pos">
       </div>
 
       <!-- ↔️ PORTABILIDADE -->
@@ -742,8 +738,8 @@
       <div class="servico-row">
         <div class="servico-label">📺 TV</div>
         <div class="input-wrap">
-          <input type="text" id="plano_tv" placeholder="Digite o produto" oninput="atualizarProgresso()">
-          <button class="clear-btn" onclick="limparCampo('plano_tv')" tabindex="-1">✕</button>
+          <input type="text" id="plano_tv" placeholder="Digite o produto" oninput="atualizarProgresso();buscarPreco()">
+          <button class="clear-btn" onclick="limparCampo('plano_tv');buscarPreco()" tabindex="-1">✕</button>
         </div>
       </div>
 
@@ -751,24 +747,27 @@
       <div class="servico-row">
         <div class="servico-label">☎️ Fixo</div>
         <div class="input-wrap">
-          <input type="text" id="plano_fixo" placeholder="Digite o produto" oninput="atualizarProgresso()">
-          <button class="clear-btn" onclick="limparCampo('plano_fixo')" tabindex="-1">✕</button>
+          <input type="text" id="plano_fixo" placeholder="Digite o produto" oninput="atualizarProgresso();buscarPreco()">
+          <button class="clear-btn" onclick="limparCampo('plano_fixo');buscarPreco()" tabindex="-1">✕</button>
         </div>
       </div>
+
+      <!-- STATUS DA BUSCA DE PREÇO -->
+      <div class="preco-status" id="preco-status"></div>
 
       <div style="margin-top:4px;">
         <label>Valor Total</label>
         <div class="input-wrap">
-          <input type="text" id="mensalidade" placeholder="R$ 0,00" oninput="atualizarProgresso()">
-          <button class="clear-btn" onclick="limparCampo('mensalidade')" tabindex="-1">✕</button>
+          <input type="text" id="mensalidade" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('mensalidade')">
+          <button class="clear-btn" onclick="limparCampo('mensalidade');marcarManual('mensalidade')" tabindex="-1">✕</button>
         </div>
       </div>
       <div class="grid row-2">
         <div>
           <label>Valor Promocional</label>
           <div class="input-wrap">
-            <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso()">
-            <button class="clear-btn" onclick="limparCampo('debito')" tabindex="-1">✕</button>
+            <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('debito')">
+            <button class="clear-btn" onclick="limparCampo('debito');marcarManual('debito')" tabindex="-1">✕</button>
           </div>
         </div>
         <div>
@@ -826,7 +825,7 @@
   </div>
 </div>
 
-<!-- ═══ ABA: MINHAS VENDAS (vendedor) ═══ -->
+<!-- ═══ ABA: MINHAS VENDAS ═══ -->
 <div class="page" id="page-historico">
   <div class="planilha-header">
     <div class="planilha-titulo">
@@ -850,7 +849,7 @@
   <div id="tabela-minhas"></div>
 </div>
 
-<!-- ═══ ABA: DESEMPENHO (vendedor) ═══ -->
+<!-- ═══ ABA: DESEMPENHO ═══ -->
 <div class="page" id="page-dashboard">
   <div class="page-header">
     <div><h1>Meu Desempenho</h1><p id="dash-sub">Resumo das suas vendas</p></div>
@@ -982,11 +981,143 @@
     }, duration);
   }
 
-  // ── PILLS: Selecionar plano pré-definido ──
+  // ══════════════════════════════════════════════════════════════
+  // SISTEMA DE PREÇOS AUTOMÁTICO
+  // ══════════════════════════════════════════════════════════════
+  let tabelaPrecos  = [];   // cache da aba PRECOS
+  let tabelaCidades = [];   // cache da aba CIDADES
+  let camposAutoPreenchidos = new Set(); // controla quais campos foram preenchidos automaticamente
+
+  // Normaliza string: maiúsculo, sem acento, sem espaços duplos
+  function normalizar(str) {
+    return String(str || '')
+      .toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  }
+
+  // Carrega preços e cidades do Sheets (uma vez, com cache)
+  async function carregarPrecos() {
+    if (tabelaPrecos.length && tabelaCidades.length) return; // já carregado
+    try {
+      const [rPrecos, rCidades] = await Promise.all([
+        fetch(SHEETS_URL + '?action=precos', { cache: 'no-store' }).then(r => r.json()),
+        fetch(SHEETS_URL + '?action=cidades', { cache: 'no-store' }).then(r => r.json())
+      ]);
+      if (rPrecos.status === 'ok')   tabelaPrecos  = rPrecos.precos   || [];
+      if (rCidades.status === 'ok')  tabelaCidades = rCidades.cidades  || [];
+    } catch(e) {
+      // sem internet ou script offline — silencioso
+    }
+  }
+
+  // Retorna o grupo da cidade digitada
+  function getGrupoCidade(cidade) {
+    const c = normalizar(cidade);
+    if (!c) return null;
+    const found = tabelaCidades.find(row => normalizar(row.CIDADE) === c);
+    return found ? normalizar(found.GRUPO) : null;
+  }
+
+  // Busca preço pela combinação de produtos + grupo
+  function buscarPreco() {
+    const cidade  = normalizar(document.getElementById('cidade').value);
+    const banda   = normalizar(document.getElementById('plano_banda').value);
+    const controle= normalizar(document.getElementById('plano_controle').value);
+    const pos     = normalizar(document.getElementById('plano_pos').value);
+    const tv      = normalizar(document.getElementById('plano_tv').value);
+    const fixo    = normalizar(document.getElementById('plano_fixo').value);
+
+    const statusEl = document.getElementById('preco-status');
+
+    // Precisa de pelo menos um produto e a cidade
+    const temProduto = banda || controle || pos || tv || fixo;
+    if (!temProduto || !cidade) {
+      statusEl.className = 'preco-status';
+      limparAutoPreenchimento();
+      return;
+    }
+
+    const grupo = getGrupoCidade(cidade);
+    if (!grupo) {
+      statusEl.className = 'preco-status show pendente';
+      statusEl.innerHTML = `⚠️ Cidade "<strong>${cidade}</strong>" não encontrada na tabela — preencha o valor manualmente.`;
+      limparAutoPreenchimento();
+      return;
+    }
+
+    // Busca linha que bate em todos os campos
+    const match = tabelaPrecos.find(row => {
+      return normalizar(row.BANDA_LARGA) === banda
+          && normalizar(row.CONTROLE)    === controle
+          && normalizar(row.POS)         === pos
+          && normalizar(row.TV)          === tv
+          && normalizar(row.FIXO)        === fixo
+          && normalizar(row.GRUPO)       === grupo;
+    });
+
+    if (match) {
+      const total = match.VALOR_TOTAL || '';
+      const promo = match.VALOR_PROMOCIONAL || '';
+
+      // Preenche apenas se o campo não foi editado manualmente
+      if (!camposAutoPreenchidos.has('mensalidade_manual')) {
+        document.getElementById('mensalidade').value = total;
+        document.getElementById('mensalidade').classList.add('auto-preenchido');
+        camposAutoPreenchidos.add('mensalidade');
+      }
+      if (!camposAutoPreenchidos.has('debito_manual')) {
+        document.getElementById('debito').value = promo;
+        document.getElementById('debito').classList.add('auto-preenchido');
+        camposAutoPreenchidos.add('debito');
+      }
+
+      statusEl.className = 'preco-status show ok';
+      statusEl.innerHTML = `✅ Preço encontrado — grupo <strong>${grupo}</strong>. Edite os campos se precisar ajustar.`;
+      atualizarProgresso();
+    } else {
+      statusEl.className = 'preco-status show pendente';
+      statusEl.innerHTML = `⚠️ Combinação não encontrada para o grupo <strong>${grupo}</strong> — preencha o valor manualmente.`;
+      limparAutoPreenchimento();
+    }
+  }
+
+  function limparAutoPreenchimento() {
+    if (camposAutoPreenchidos.has('mensalidade')) {
+      document.getElementById('mensalidade').value = '';
+      document.getElementById('mensalidade').classList.remove('auto-preenchido');
+      camposAutoPreenchidos.delete('mensalidade');
+    }
+    if (camposAutoPreenchidos.has('debito')) {
+      document.getElementById('debito').value = '';
+      document.getElementById('debito').classList.remove('auto-preenchido');
+      camposAutoPreenchidos.delete('debito');
+    }
+  }
+
+  // Marcado quando o vendedor edita manualmente — impede sobrescrever
+  function marcarManual(campo) {
+    document.getElementById(campo).classList.remove('auto-preenchido');
+    camposAutoPreenchidos.add(campo + '_manual');
+    camposAutoPreenchidos.delete(campo);
+  }
+
+  // Campo cidade: força maiúsculo sem acento + dispara busca de preço
+  let cidadeTimer;
+  function onCidadeInput() {
+    const el = document.getElementById('cidade');
+    const pos = el.selectionStart;
+    el.value = normalizar(el.value);
+    try { el.setSelectionRange(pos, pos); } catch(e) {}
+    atualizarProgresso();
+    clearTimeout(cidadeTimer);
+    cidadeTimer = setTimeout(() => buscarPreco(), 400);
+  }
+
+  // ── PILLS ──────────────────────────────────────────────────────────────────
   function selecionarPlano(campoId, valor, btnEl) {
     const pillsContainer = btnEl.closest('.plano-pills');
     const input = document.getElementById(campoId);
-    // Toggle: se clicar no já ativo, deseleciona
     if (input.value === valor) {
       pillsContainer.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
       input.value = '';
@@ -995,18 +1126,22 @@
       btnEl.classList.add('ativo');
       input.value = valor;
     }
+    // Limpa "manual" para permitir novo auto-preenchimento ao mudar produto
+    camposAutoPreenchidos.delete('mensalidade_manual');
+    camposAutoPreenchidos.delete('debito_manual');
     atualizarProgresso();
+    buscarPreco();
   }
 
-  // Restaurar pill ativo ao recarregar uma ficha
   function restaurarPill(campoId, pillsId) {
     const valor = document.getElementById(campoId).value;
     if (!valor) return;
     document.getElementById(pillsId).querySelectorAll('.pill-btn').forEach(b => {
-      if (b.textContent.replace(/\s/g,'') === valor.replace(/\s/g,'')) b.classList.add('ativo');
+      if (normalizar(b.textContent) === normalizar(valor)) b.classList.add('ativo');
     });
   }
 
+  // ── ESTADO GLOBAL ──────────────────────────────────────────────────────────
   let fichas = JSON.parse(localStorage.getItem('fichas') || '[]');
   let fichaAtual = null;
   let filtroMinhas = 'todos';
@@ -1048,6 +1183,7 @@
     atualizarContadores();
     renderDashboard();
     atualizarDoSheets(false);
+    carregarPrecos(); // carrega tabela de preços em background
   }
 
   function mudarAba(btn) {
@@ -1094,6 +1230,7 @@
     if (v.replace('-','').length === 8)
       cepTimer = setTimeout(() => buscarCep(v.replace('-','')), 600);
   }
+
   async function buscarCep(cep) {
     const st = document.getElementById('cep-status');
     st.className = 'cep-status show loading'; st.textContent = '⏳ Buscando...';
@@ -1101,12 +1238,13 @@
       const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
       const d = await r.json();
       if (d.erro) { st.className = 'cep-status show erro'; st.textContent = '❌ CEP não encontrado'; return; }
-      document.getElementById('rua').value = d.logradouro || '';
+      document.getElementById('rua').value    = d.logradouro || '';
       document.getElementById('bairro').value = d.bairro || '';
-      document.getElementById('cidade').value = d.localidade || '';
+      // Cidade: normaliza para maiúsculo sem acento
+      document.getElementById('cidade').value = normalizar(d.localidade || '');
       st.className = 'cep-status show ok'; st.textContent = '✅ Endereço preenchido!';
       atualizarProgresso();
-      setTimeout(() => st.className = 'cep-status', 3000);
+      setTimeout(() => { st.className = 'cep-status'; buscarPreco(); }, 400);
     } catch(e) { st.className = 'cep-status show erro'; st.textContent = '❌ Erro ao buscar CEP'; }
   }
 
@@ -1134,7 +1272,7 @@
 
   function fazerCheckin() {
     const btn = document.getElementById('btn-checkin');
-    if (!navigator.geolocation) { toast('❌ Geolocalização não suportada'); return; }
+    if (!navigator.geolocation) { showToast('❌ Geolocalização não suportada','error'); return; }
     btn.innerHTML = '⏳ Obtendo localização...'; btn.disabled = true;
     navigator.geolocation.getCurrentPosition(
       pos => {
@@ -1145,14 +1283,14 @@
         btn.innerHTML = `✅ Check-in: ${lat}, ${lng}`;
         btn.disabled = false;
         btn.style.background = 'linear-gradient(135deg,#16a34a,#22c55e)';
-        toast('📍 Localização capturada!');
+        showToast('📍 Localização capturada!');
         btn.onclick = () => window.open(mapUrl, '_blank');
       },
       err => {
         btn.innerHTML = '📍 Check-in — Localização do Cliente';
         btn.onclick = fazerCheckin; btn.disabled = false;
         const msgs = { 1:'❌ Permissão negada.', 2:'❌ Posição indisponível.', 3:'❌ Tempo esgotado.' };
-        toast(msgs[err.code] || '❌ Erro de localização.', 5000);
+        showToast(msgs[err.code] || '❌ Erro de localização.','error');
       },
       { enableHighAccuracy:true, timeout:15000, maximumAge:0 }
     );
@@ -1161,11 +1299,6 @@
   function vl(id) { return document.getElementById(id)?.value.trim() || ''; }
   function fmtData(d) { return (d && d !== '—') ? d : '—'; }
 
-  function toast(msg, dur=3000) {
-    const t = document.getElementById('toast');
-    t.innerHTML = msg; t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), dur);
-  }
   function setSyncStatus(tipo, msg) {
     const el = document.getElementById('sync-status');
     el.className = 'sync-status show ' + tipo; el.innerHTML = msg;
@@ -1173,7 +1306,7 @@
   function hideSyncStatus() { document.getElementById('sync-status').classList.remove('show'); }
 
   function gerarTexto() {
-    const nascStr = document.getElementById('nascimento').value;
+    const nascStr    = document.getElementById('nascimento').value;
     const movelTexto = getMovelTexto();
 
     fichaAtual = {
@@ -1266,7 +1399,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       await enviarViaImagem(SHEETS_URL + '?' + params.toString());
       btn.innerHTML = '✅ Enviado!';
       setSyncStatus('ok', '✅ Ficha enviada para o Google Sheets!');
-      toast('✅ Ficha de ' + fichaAtual.nome + ' enviada!');
+      showToast('✅ Ficha de ' + fichaAtual.nome + ' enviada!');
       setTimeout(() => { btn.innerHTML = '📤 ENVIAR'; btn.disabled = false; }, 3000);
       setTimeout(() => hideSyncStatus(), 5000);
     } catch(err) {
@@ -1323,7 +1456,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   function limpar() {
     document.querySelectorAll('#page-formulario input, #page-formulario select, #page-formulario textarea')
       .forEach(el => el.value = '');
-    // Limpar todos os pills e hidden inputs de plano
     document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
     ['plano_banda','plano_controle','plano_pos'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
     document.getElementById('status').value = 'Agendada';
@@ -1333,11 +1465,15 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     document.getElementById('btn-checkin').disabled = false;
     document.getElementById('btn-checkin').style.background = '';
     document.getElementById('btn-checkin').onclick = fazerCheckin;
+    document.getElementById('mensalidade').classList.remove('auto-preenchido');
+    document.getElementById('debito').classList.remove('auto-preenchido');
+    document.getElementById('preco-status').className = 'preco-status';
     hideSyncStatus();
     document.getElementById('cep-status').className = 'cep-status';
     document.getElementById('criar_hp').value = '';
     document.getElementById('hp-sim').className = 'hp-btn';
     document.getElementById('hp-nao').className = 'hp-btn';
+    camposAutoPreenchidos.clear();
     fichaAtual = null; checkinCoords = null;
     atualizarProgresso();
     window.scrollTo({top:0, behavior:'smooth'});
@@ -1361,7 +1497,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   }
 
   async function atualizarDoSheets(manual) {
-    const btn = document.getElementById('btn-atualizar');
+    const btn   = document.getElementById('btn-atualizar');
     const icone = document.getElementById('icone-atualizar');
     const texto = document.getElementById('texto-atualizar');
     if (btn.disabled) return;
@@ -1376,12 +1512,15 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         renderTabelaMinhas();
         renderTabelaTodas();
         renderDashboard();
-        if (manual) toast('✅ Fichas atualizadas!');
+        if (manual) showToast('✅ Fichas atualizadas!');
       } else if (manual) {
-        toast('⚠️ Não foi possível atualizar agora.');
+        showToast('⚠️ Não foi possível atualizar agora.', 'warning');
       }
+      // Recarrega preços junto com a atualização
+      tabelaPrecos = []; tabelaCidades = [];
+      await carregarPrecos();
     } catch (err) {
-      if (manual) toast('⚠️ Falha ao buscar do Google Sheets.');
+      if (manual) showToast('⚠️ Falha ao buscar do Google Sheets.', 'warning');
     } finally {
       btn.disabled = false;
       icone.classList.remove('icone-girando');
@@ -1456,8 +1595,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
             return cls ? `<span class="status-pill ${cls}">${f.status}</span>` : '—';
           })();
 
-      const deleteBtn = `<button class="btn-del" onclick="deletar(${f.id})" title="Remover">✕</button>`;
-
       return `<tr>
         <td>${lista.length - i}</td>
         <td class="td-nome">${f.nome}</td>
@@ -1474,7 +1611,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         <td>${f.data_cadastro}</td>
         <td style="white-space:nowrap">
           <button class="btn-regerar" onclick="reGerarFicha(${f.id})" title="Editar">↩</button>
-          ${deleteBtn}
+          <button class="btn-del" onclick="deletar(${f.id})" title="Remover">✕</button>
         </td>
       </tr>`;
     }).join('');
@@ -1495,7 +1632,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (idx < 0) return;
     fichas[idx].status = novoStatus;
     salvarFichas();
-    toast(`✅ Status atualizado: ${novoStatus}`);
+    showToast(`✅ Status atualizado: ${novoStatus}`);
     renderDashboard();
   }
 
@@ -1505,7 +1642,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     salvarFichas();
     renderTabelaMinhas();
     if (session.role === 'admin') renderTabelaTodas();
-    toast('🗑 Removido');
+    showToast('🗑 Removido');
   }
 
   function reGerarFicha(id) {
@@ -1518,7 +1655,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     document.getElementById('criar_hp').value = f.criar_hp||'';
     document.getElementById('hp-sim').className = 'hp-btn' + (f.criar_hp==='Sim' ? ' ativo-sim' : '');
     document.getElementById('hp-nao').className = 'hp-btn' + (f.criar_hp==='Não' ? ' ativo-nao' : '');
-    // Restaurar pills
     restaurarPill('plano_banda',    'pills-banda');
     restaurarPill('plano_controle', 'pills-controle');
     restaurarPill('plano_pos',      'pills-pos');
@@ -1683,18 +1819,18 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   }
 
   function adicionarUsuario() {
-    const name = document.getElementById('new-name').value.trim();
+    const name     = document.getElementById('new-name').value.trim();
     const username = document.getElementById('new-user').value.trim().toLowerCase();
     const password = document.getElementById('new-pass').value;
-    const role = document.getElementById('new-role').value;
-    if (!name || !username || !password) { toast('⚠️ Preencha todos os campos'); return; }
+    const role     = document.getElementById('new-role').value;
+    if (!name || !username || !password) { showToast('⚠️ Preencha todos os campos','warning'); return; }
     const all = getAllUsers();
-    if (all.some(u => u.username === username)) { toast('⚠️ Usuário já existe'); return; }
+    if (all.some(u => u.username === username)) { showToast('⚠️ Usuário já existe','warning'); return; }
     const extras = JSON.parse(localStorage.getItem('venko_users') || '[]');
     extras.push({ username, password, role, name });
     localStorage.setItem('venko_users', JSON.stringify(extras));
     ['new-name','new-user','new-pass'].forEach(id => document.getElementById(id).value = '');
-    toast('✅ Usuário ' + name + ' adicionado!');
+    showToast('✅ Usuário ' + name + ' adicionado!');
     renderUsuarios();
   }
 
@@ -1703,14 +1839,14 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     let extras = JSON.parse(localStorage.getItem('venko_users') || '[]');
     extras = extras.filter(u => u.username !== username);
     localStorage.setItem('venko_users', JSON.stringify(extras));
-    toast('🗑 Usuário removido');
+    showToast('🗑 Usuário removido');
     renderUsuarios();
   }
 
   function exportarExcel(ctx) {
     const lista = ctx === 'todas' ? fichas
       : fichas.filter(f => session.role==='admin' || f.username_vendedor===session.username);
-    if (!lista.length) { toast('⚠️ Nenhuma ficha para exportar'); return; }
+    if (!lista.length) { showToast('⚠️ Nenhuma ficha para exportar','warning'); return; }
     const cols = ['data_cadastro','vendedor','status','criar_hp','nome','cpf','rg','nascimento','mae','celular','email',
       'rua','numero','complemento','bairro','cidade','cep',
       'plano_banda','plano_controle','plano_pos','portabilidade','plano_tv','plano_fixo',
@@ -1725,7 +1861,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Fichas');
     XLSX.writeFile(wb, `venko_${ctx}_${new Date().toISOString().slice(0,10)}.xlsx`);
-    toast('📥 Excel baixado!');
+    showToast('📥 Excel baixado!');
   }
 
   init();
