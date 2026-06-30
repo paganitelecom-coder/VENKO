@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VENKO – Login</title>
+<meta name="theme-color" content="#0F766E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:        #0F766E;
+    --primary-light:  #14B8A6;
+    --grad:           linear-gradient(135deg, #0F766E, #14B8A6);
+    --cinza-bg:       #F8FAFC;
+    --white:          #FFFFFF;
+    --text:           #1E293B;
+    --muted:          #64748B;
+    --border:         #CBD5E1;
+    --radius:         12px;
+    --shadow:         0 10px 30px -10px rgba(15,118,110,.25);
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--grad);
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+
+  .login-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    width: 100%; max-width: 380px;
+    padding: 36px 32px;
+  }
+
+  .logo-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 28px; }
+  .logo {
+    width: 56px; height: 56px; border-radius: 16px;
+    background: var(--grad);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; font-weight: 800; color: white;
+  }
+  .logo-wrap h1 { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+  .logo-wrap p  { font-size: .78rem; color: var(--muted); }
+
+  label {
+    display: block; font-size: .72rem; font-weight: 600;
+    color: var(--muted); letter-spacing: .5px; text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .field { margin-bottom: 16px; }
+  input {
+    width: 100%; padding: 12px 14px;
+    font-family: 'Inter', sans-serif; font-size: .95rem;
+    color: var(--text); background: #FAFAFA;
+    border: 1px solid var(--border); border-radius: 8px;
+    outline: none; transition: border-color .2s, box-shadow .2s;
+  }
+  input:focus {
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(20,184,166,.15);
+    background: white;
+  }
+
+  .btn-login {
+    width: 100%; padding: 13px; margin-top: 6px;
+    background: var(--grad); color: white; border: none;
+    border-radius: 8px; font-family: 'Inter', sans-serif;
+    font-size: .95rem; font-weight: 700; cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-login:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(15,118,110,.35); }
+  .btn-login:disabled { opacity: .7; cursor: not-allowed; }
+
+  .erro-msg {
+    background: #fff1f2; color: #991b1b; border: 1px solid #fecdd3;
+    border-radius: 8px; padding: 10px 14px; font-size: .8rem;
+    margin-bottom: 16px; display: none;
+  }
+  .erro-msg.show { display: block; }
+
+  .icone-girando { display: inline-block; animation: girar 1s linear infinite; }
+  @keyframes girar { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="login-card">
+  <div class="logo-wrap">
+    <div class="logo">V</div>
+    <h1>VENKO</h1>
+    <p>Acesse sua conta para continuar</p>
+  </div>
+
+  <div class="erro-msg" id="erro-msg"></div>
+
+  <form id="form-login" onsubmit="return fazerLogin(event)">
+    <div class="field">
+      <label>Usuário</label>
+      <input type="text" id="username" placeholder="seu.usuario" autocomplete="username" autocapitalize="off" required>
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn-login" id="btn-login">Entrar</button>
+  </form>
+</div>
+
+<script>
+  const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53snEqtEJInEcUlDJiHkq2cY_t6e1sAvO-rb8BPvO3mDocuqqyw/exec";
+
+  // Se já existe sessão válida, pula direto pro sistema
+  if (sessionStorage.getItem('venko_session')) {
+    window.location.href = 'index.html';
+  }
+
+  async function fazerLogin(ev) {
+    ev.preventDefault();
+    const btn = document.getElementById('btn-login');
+    const erroEl = document.getElementById('erro-msg');
+    erroEl.classList.remove('show');
+
+    const username = document.getElementById('username').value.trim().toLowerCase();
+    const password = document.getElementById('password').value;
+
+    if (!username || !password) return false;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="icone-girando">⏳</span> Entrando...';
+
+    try {
+      const url = SHEETS_URL + '?action=login&username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password);
+      const resp = await fetch(url, { cache: 'no-store' });
+      const data = await resp.json();
+
+      if (data.status === 'ok' && data.user) {
+        sessionStorage.setItem('venko_session', JSON.stringify({
+          username: data.user.username,
+          name: data.user.name,
+          role: data.user.role
+        }));
+        window.location.href = 'index.html';
+      } else {
+        erroEl.textContent = '❌ ' + (data.msg || 'Usuário ou senha inválidos.');
+        erroEl.classList.add('show');
+      }
+    } catch (err) {
+      erroEl.textContent = '❌ Não foi possível conectar ao servidor. Tente novamente.';
+      erroEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Entrar';
+    }
+    return false;
+  }
+</script>
+</body>
+</html>
