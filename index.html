@@ -1105,6 +1105,14 @@
       .trim();
   }
 
+  // Deixa maiúsculo sem mexer em acentos nem remover espaços —
+  // usado para o VALOR REAL salvo (WhatsApp / Sheets / Excel).
+  // Diferente de normalizar(), que faz trim() e tira acento
+  // (isso é só para comparação com a tabela de preços/cidades).
+  function up(v) {
+    return String(v || '').toUpperCase();
+  }
+
   async function carregarPrecos() {
     if (tabelaPrecos.length && tabelaCidades.length) return;
     try {
@@ -1200,11 +1208,19 @@
     camposAutoPreenchidos.delete(campo);
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // CORREÇÃO: antes esta função chamava normalizar() a cada tecla,
+  // que faz .trim() e apagava o espaço digitado no final da string
+  // (ex.: "SÃO " virava "SAO" instantaneamente, grudando a próxima
+  // palavra: "SAOPAULO"). Agora só forçamos maiúsculas ao digitar;
+  // a normalização (remover acento/trim) continua acontecendo só
+  // na hora de comparar com a tabela, dentro de buscarPreco().
+  // ─────────────────────────────────────────────────────────────
   let cidadeTimer;
   function onCidadeInput() {
     const el = document.getElementById('cidade');
     const pos = el.selectionStart;
-    el.value = normalizar(el.value);
+    el.value = el.value.toUpperCase();
     try { el.setSelectionRange(pos, pos); } catch(e) {}
     atualizarProgresso();
     clearTimeout(cidadeTimer);
@@ -1424,22 +1440,33 @@
     const movelTexto = getMovelTexto();
     const statusFicha = session.role === 'admin' ? vl('status') : 'Pendente';
 
+    // ─────────────────────────────────────────────────────────
+    // CORREÇÃO: campos de texto livre agora passam por up()
+    // (maiúsculas) para garantir que o valor REAL salvo em
+    // fichaAtual — usado no texto do WhatsApp, no envio ao
+    // Google Sheets e na exportação Excel — fique em maiúsculo,
+    // e não só visualmente via CSS text-transform.
+    // 'status' e 'criar_hp' ficam de fora porque são valores
+    // fixos de select/botão usados em comparações (f.status===
+    // 'Concluída', classes de cor, filtros, dashboard etc.) —
+    // maiusculá-los quebraria essas comparações.
+    // ─────────────────────────────────────────────────────────
     fichaAtual = {
       id: Date.now(),
       data_cadastro: new Date().toLocaleDateString('pt-BR'),
       username_vendedor: session.username,
-      vendedor: vl('vendedor'), status: statusFicha,
+      vendedor: up(vl('vendedor')), status: statusFicha,
       criar_hp: document.getElementById('criar_hp')?.value || '',
-      nome: vl('nome'), cpf: vl('cpf'), rg: vl('rg'),
-      nascimento: fmtData(nascStr), mae: vl('mae'),
-      celular: vl('celular'), sms: vl('sms'), email: vl('email'),
-      rua: vl('rua'), numero: vl('numero'), complemento: vl('complemento'),
-      bairro: vl('bairro'), cidade: vl('cidade'), cep: vl('cep'),
+      nome: up(vl('nome')), cpf: vl('cpf'), rg: up(vl('rg')),
+      nascimento: fmtData(nascStr), mae: up(vl('mae')),
+      celular: vl('celular'), sms: vl('sms'), email: up(vl('email')),
+      rua: up(vl('rua')), numero: up(vl('numero')), complemento: up(vl('complemento')),
+      bairro: up(vl('bairro')), cidade: up(vl('cidade')), cep: vl('cep'),
       plano_banda: vl('plano_banda'), plano_controle: vl('plano_controle'),
-      plano_pos: vl('plano_pos'), portabilidade: vl('portabilidade'),
-      plano_movel: movelTexto, plano_tv: vl('plano_tv'), plano_fixo: vl('plano_fixo'),
-      mensalidade: vl('mensalidade'), debito: vl('debito'), taxa: vl('taxa'),
-      vencimento: vl('vencimento'), periodo: vl('periodo'), obs: vl('obs'),
+      plano_pos: vl('plano_pos'), portabilidade: up(vl('portabilidade')),
+      plano_movel: up(movelTexto), plano_tv: vl('plano_tv'), plano_fixo: vl('plano_fixo'),
+      mensalidade: vl('mensalidade'), debito: vl('debito'), taxa: up(vl('taxa')),
+      vencimento: up(vl('vencimento')), periodo: up(vl('periodo')), obs: up(vl('obs')),
       checkin_lat: checkinCoords?.lat || '',
       checkin_lng: checkinCoords?.lng || '',
       checkin_url: checkinCoords ? `https://www.google.com/maps?q=${checkinCoords.lat},${checkinCoords.lng}` : ''
