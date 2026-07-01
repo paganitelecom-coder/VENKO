@@ -791,8 +791,8 @@
         <div>
           <label>Valor Promocional</label>
           <div class="input-wrap">
-            <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('debito')">
-            <button class="clear-btn" onclick="limparCampo('debito');marcarManual('debito')" tabindex="-1">✕</button>
+            <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso()">
+            <button class="clear-btn" onclick="limparCampo('debito')" tabindex="-1">✕</button>
           </div>
         </div>
         <div>
@@ -1092,7 +1092,7 @@
   async function reenviarPendentes() { return reenviarFila(); }
 
   // ══════════════════════════════════════════════════════════════
-  // SISTEMA DE PREÇOS AUTOMÁTICO
+  // SISTEMA DE PREÇOS AUTOMÁTICO (NOVA LÓGICA — por serviço)
   // ══════════════════════════════════════════════════════════════
   let tabelaPrecos  = [];
   let tabelaCidades = [];
@@ -1132,17 +1132,41 @@
     return found ? normalizar(found.GRUPO) : null;
   }
 
+  // Converte um valor de célula ("R$ 79,90", "79.90", 79.9...) em número.
+  function normalizarValor(v) {
+    if (v === undefined || v === null || v === '') return null;
+    const s = String(v).replace(/[^\d,.\-]/g,'').replace(',', '.');
+    const n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  }
+
+  function formatarValor(n) {
+    return 'R$ ' + n.toFixed(2).replace('.', ',');
+  }
+
+  // Busca o preço de um serviço (TIPO/OPCAO/GRUPO) numa coluna específica
+  // da tabela nova. Aceita GRUPO = "TODOS" na planilha como coringa
+  // (usado por CONTROLE, POS e TV).
+  function getPrecoServico(tipo, opcao, grupo, coluna) {
+    const row = tabelaPrecos.find(r =>
+      normalizar(r.TIPO)  === tipo &&
+      normalizar(r.OPCAO) === normalizar(opcao) &&
+      (normalizar(r.GRUPO) === grupo || normalizar(r.GRUPO) === 'TODOS')
+    );
+    if (!row) return null;
+    return normalizarValor(row[coluna]);
+  }
+
   function buscarPreco() {
-    const cidade  = normalizar(document.getElementById('cidade').value);
-    const banda   = normalizar(document.getElementById('plano_banda').value);
-    const controle= normalizar(document.getElementById('plano_controle').value);
-    const pos     = normalizar(document.getElementById('plano_pos').value);
-    const tv      = normalizar(document.getElementById('plano_tv').value);
-    const fixo    = normalizar(document.getElementById('plano_fixo').value);
+    const cidade   = normalizar(document.getElementById('cidade').value);
+    const banda    = normalizar(document.getElementById('plano_banda').value);
+    const controle = normalizar(document.getElementById('plano_controle').value);
+    const pos      = normalizar(document.getElementById('plano_pos').value);
+    const tv       = normalizar(document.getElementById('plano_tv').value);
 
     const statusEl = document.getElementById('preco-status');
 
-    const temProduto = banda || controle || pos || tv || fixo;
+    const temProduto = banda || controle || pos || tv;
     if (!temProduto || !cidade) {
       statusEl.className = 'preco-status';
       limparAutoPreenchimento();
@@ -1157,36 +1181,61 @@
       return;
     }
 
-    const match = tabelaPrecos.find(row => {
-      return normalizar(row.BANDA_LARGA) === banda
-          && normalizar(row.CONTROLE)    === controle
-          && normalizar(row.POS)         === pos
-          && normalizar(row.TV)          === tv
-          && normalizar(row.FIXO)        === fixo
-          && normalizar(row.GRUPO)       === grupo;
-    });
+    const temMovel = !!(controle || pos);   // Controle OU Pós contratado
+    const temBanda = !!banda;
+    const temTv    = !!tv;
 
-    if (match) {
-      const total = match.VALOR_TOTAL || '';
-      const promo = match.VALOR_PROMOCIONAL || '';
-      if (!camposAutoPreenchidos.has('mensalidade_manual')) {
-        document.getElementById('mensalidade').value = total;
-        document.getElementById('mensalidade').classList.add('auto-preenchido');
-        camposAutoPreenchidos.add('mensalidade');
-      }
-      if (!camposAutoPreenchidos.has('debito_manual')) {
-        document.getElementById('debito').value = promo;
-        document.getElementById('debito').classList.add('auto-preenchido');
-        camposAutoPreenchidos.add('debito');
-      }
-      statusEl.className = 'preco-status show ok';
-      statusEl.innerHTML = `✅ Preço encontrado — grupo <strong>${grupo}</strong>. Edite os campos se precisar ajustar.`;
-      atualizarProgresso();
-    } else {
-      statusEl.className = 'preco-status show pendente';
-      statusEl.innerHTML = `⚠️ Combinação não encontrada para o grupo <strong>${grupo}</strong> — preencha o valor manualmente.`;
-      limparAutoPreenchimento();
+    let total = 0, algumEncontrado = false, algumFaltando = false;
+
+    // ── BANDA LARGA ──
+    // TV sozinho não desconta a banda; só desconta se tiver Controle/Pós junto.
+    if (temBanda) {
+      const coluna = (temMovel && temTv) ? 'VALOR_COM_MOVEL_E_TV'
+                   : temMovel             ? 'VALOR_COM_MOVEL'
+                   :                        'VALOR_SOZINHO';
+      const v = getPrecoServico('BANDA_LARGA', banda, grupo, coluna);
+      if (v !== null) { total += v; algumEncontrado = true; } else algumFaltando = true;
     }
+
+    // ── CONTROLE / PÓS ── (preço fixo, não varia por combinação)
+    if (controle) {
+      const v = getPrecoServico('CONTROLE', controle, grupo, 'VALOR_SOZINHO');
+      if (v !== null) { total += v; algumEncontrado = true; } else algumFaltando = true;
+    }
+    if (pos) {
+      const v = getPrecoServico('POS', pos, grupo, 'VALOR_SOZINHO');
+      if (v !== null) { total += v; algumEncontrado = true; } else algumFaltando = true;
+    }
+
+    // ── TV ──
+    // Desconta se tiver Banda OU Controle/Pós; desconta mais se tiver os dois.
+    if (temTv) {
+      const coluna = (temBanda && temMovel) ? 'VALOR_COM_MOVEL_E_TV'
+                   : (temBanda || temMovel) ? 'VALOR_COM_MOVEL'
+                   :                          'VALOR_SOZINHO';
+      const v = getPrecoServico('TV', tv, grupo, coluna);
+      if (v !== null) { total += v; algumEncontrado = true; } else algumFaltando = true;
+    }
+
+    if (!algumEncontrado) {
+      statusEl.className = 'preco-status show pendente';
+      statusEl.innerHTML = `⚠️ Nenhum preço encontrado para o grupo <strong>${grupo}</strong> — preencha manualmente.`;
+      limparAutoPreenchimento();
+      return;
+    }
+
+    if (!camposAutoPreenchidos.has('mensalidade_manual')) {
+      document.getElementById('mensalidade').value = formatarValor(total);
+      document.getElementById('mensalidade').classList.add('auto-preenchido');
+      camposAutoPreenchidos.add('mensalidade');
+    }
+
+    statusEl.className = algumFaltando ? 'preco-status show pendente' : 'preco-status show ok';
+    statusEl.innerHTML = algumFaltando
+      ? `⚠️ Preço calculado parcialmente (grupo <strong>${grupo}</strong>) — algum serviço não encontrado na tabela.`
+      : `✅ Preço calculado automaticamente — grupo <strong>${grupo}</strong>. Edite os campos se precisar ajustar.`;
+
+    atualizarProgresso();
   }
 
   function limparAutoPreenchimento() {
@@ -1194,11 +1243,6 @@
       document.getElementById('mensalidade').value = '';
       document.getElementById('mensalidade').classList.remove('auto-preenchido');
       camposAutoPreenchidos.delete('mensalidade');
-    }
-    if (camposAutoPreenchidos.has('debito')) {
-      document.getElementById('debito').value = '';
-      document.getElementById('debito').classList.remove('auto-preenchido');
-      camposAutoPreenchidos.delete('debito');
     }
   }
 
@@ -1240,7 +1284,6 @@
       input.value = valor;
     }
     camposAutoPreenchidos.delete('mensalidade_manual');
-    camposAutoPreenchidos.delete('debito_manual');
     atualizarProgresso();
     buscarPreco();
   }
@@ -1604,7 +1647,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     document.getElementById('btn-checkin').style.background = '';
     document.getElementById('btn-checkin').onclick = fazerCheckin;
     document.getElementById('mensalidade').classList.remove('auto-preenchido');
-    document.getElementById('debito').classList.remove('auto-preenchido');
     document.getElementById('preco-status').className = 'preco-status';
     hideSyncStatus();
     document.getElementById('cep-status').className = 'cep-status';
