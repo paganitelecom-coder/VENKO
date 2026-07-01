@@ -1622,14 +1622,36 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     atualizarContadores();
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // CORREÇÃO: antes esta função só ADICIONAVA/ATUALIZAVA fichas
+  // vindas do Sheets, nunca removia nada localmente — por isso
+  // uma ficha excluída pelo admin continuava aparecendo pro
+  // vendedor depois de sincronizar. Agora, qualquer ficha local
+  // que não veio na lista remota E não está na fila de reenvio
+  // (ou seja, já foi sincronizada em algum momento e não existe
+  // mais na planilha) é removida do localStorage também.
+  // ─────────────────────────────────────────────────────────────
   function mesclarFichas(remotas) {
+    const remotoIds    = new Set(remotas.map(f => String(f.id)));
+    const pendentesIds = new Set(filaReenvio.map(f => String(f.id)));
+
     const mapa = new Map();
-    fichas.forEach(f => mapa.set(String(f.id), f));
+    fichas.forEach(f => {
+      const idStr = String(f.id);
+      // mantém a ficha local só se ela ainda existe na planilha
+      // ou se ainda está pendente de envio (nunca chegou lá)
+      if (remotoIds.has(idStr) || pendentesIds.has(idStr)) {
+        mapa.set(idStr, f);
+      }
+      // caso contrário: foi excluída na planilha -> descarta local também
+    });
+
     remotas.forEach(f => {
       const idStr = String(f.id);
       const local = mapa.get(idStr);
       mapa.set(idStr, { ...local, ...f, id: local ? local.id : (Number(f.id) || f.id) });
     });
+
     fichas = Array.from(mapa.values());
     salvarFichas();
   }
@@ -1715,6 +1737,9 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       wrap.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>Nenhuma ficha encontrada.</p></div>`;
       return;
     }
+    // Apenas administradores podem excluir — a exclusão é
+    // definitiva e remove a linha direto da planilha do Sheets.
+    const podeExcluir = session.role === 'admin';
     const rows = lista.slice().reverse().map((f, i) => {
       const localCell = f.checkin_url ? `<a href="${f.checkin_url}" target="_blank">📍 Ver</a>` : '<span style="color:#c0c8d0">—</span>';
       const movelCell = [
@@ -1750,7 +1775,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         <td>${f.data_cadastro}</td>
         <td style="white-space:nowrap">
           <button class="btn-regerar" onclick="reGerarFicha(${f.id})" title="Editar">↩</button>
-          <button class="btn-del" onclick="deletar(${f.id})" title="Remover">✕</button>
+          ${podeExcluir ? `<button class="btn-del" onclick="deletar(${f.id})" title="Excluir da planilha">✕</button>` : ''}
         </td>
       </tr>`;
     }).join('');
@@ -1776,13 +1801,41 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     renderDashboard();
   }
 
-  function deletar(id) {
-    if (!confirm('Remover do histórico local?')) return;
-    fichas = fichas.filter(f => f.id !== id);
-    salvarFichas();
-    renderTabelaMinhas();
-    if (session.role === 'admin') renderTabelaTodas();
-    showToast('🗑 Removido');
+  // ─────────────────────────────────────────────────────────────
+  // EXCLUSÃO DEFINITIVA — remove a linha na planilha do Google
+  // Sheets (via action=deletar no Apps Script) e, em caso de
+  // sucesso, remove também do localStorage deste dispositivo.
+  // Como o próximo sync (atualizarDoSheets -> mesclarFichas) não
+  // vai mais encontrar essa ficha na planilha, ela desaparece
+  // automaticamente de "Minhas Vendas" e "Desempenho" para o
+  // vendedor também, sem que ele precise fazer nada.
+  // ─────────────────────────────────────────────────────────────
+  async function deletar(id) {
+    if (session.role !== 'admin') {
+      showToast('⚠️ Apenas administradores podem excluir fichas.', 'warning');
+      return;
+    }
+    if (!confirm('Excluir esta ficha da planilha para TODOS os usuários? Esta ação não pode ser desfeita.')) return;
+
+    showToast('🗑 Excluindo da planilha...', 'info', 2500);
+
+    try {
+      const resp = await fetch(SHEETS_URL + '?action=deletar&id=' + encodeURIComponent(id), { cache: 'no-store' });
+      const dados = await resp.json();
+
+      if (dados.status === 'ok') {
+        fichas = fichas.filter(f => String(f.id) !== String(id));
+        salvarFichas();
+        renderTabelaMinhas();
+        renderTabelaTodas();
+        renderDashboard();
+        showToast('🗑 Ficha excluída da planilha com sucesso!');
+      } else {
+        showToast('❌ ' + (dados.msg || 'Não foi possível excluir a ficha.'), 'error');
+      }
+    } catch (err) {
+      showToast('❌ Falha de conexão ao excluir. Tente novamente.', 'error');
+    }
   }
 
   function reGerarFicha(id) {
