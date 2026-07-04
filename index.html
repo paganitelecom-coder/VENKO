@@ -154,6 +154,7 @@
   }
   .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary-light); }
   .tab-btn[data-role="admin"] { display: none; }
+  .admin-only { display: none; }
 
   .page { display: none; padding: 24px 16px 60px; }
   .page.active { display: block; }
@@ -546,6 +547,7 @@
   <button class="tab-btn active" data-tab="formulario" onclick="mudarAba(this)">📋 Nova Ficha</button>
   <button class="tab-btn" data-tab="historico" onclick="mudarAba(this)">📊 Minhas Vendas</button>
   <button class="tab-btn" data-tab="dashboard" onclick="mudarAba(this)">📈 Desempenho</button>
+  <button class="tab-btn" data-tab="faltas" onclick="mudarAba(this)">📆 Faltas/Adiant.</button>
   <button class="tab-btn" data-tab="todas" data-role="admin" onclick="mudarAba(this)">👥 Todas as Fichas</button>
   <button class="tab-btn" data-tab="usuarios" data-role="admin" onclick="mudarAba(this)">⚙️ Usuários</button>
 </div>
@@ -726,6 +728,20 @@
         <input class="plano-hidden" type="text" id="plano_banda">
       </div>
 
+      <!-- 🔀 MESH (adicional à Banda Larga) -->
+      <div class="servico-row">
+        <div class="servico-label">🔀 Mesh</div>
+        <div>
+          <div class="plano-pills" id="pills-mesh">
+            <button class="pill-btn" data-val="2" onclick="selecionarMesh('2',this)">2 un</button>
+            <button class="pill-btn" data-val="3" onclick="selecionarMesh('3',this)">3 un</button>
+            <button class="pill-btn" data-val="4" onclick="selecionarMesh('4',this)">4 un</button>
+          </div>
+          <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">R$ 15,00 por unidade — somado automaticamente ao valor total</div>
+        </div>
+        <input class="plano-hidden" type="text" id="plano_mesh">
+      </div>
+
       <!-- 📱 CONTROLE -->
       <div class="servico-row">
         <div class="servico-label">📱 Controle</div>
@@ -890,6 +906,75 @@
     <h3>Produtos Mais Vendidos</h3>
     <div id="bars-produtos" style="background:var(--white);padding:18px 20px;border-radius:var(--radius);box-shadow:var(--shadow);"></div>
   </div>
+</div>
+
+<!-- ═══ ABA: FALTAS / ADIANTAMENTOS ═══ -->
+<div class="page" id="page-faltas">
+  <div class="page-header">
+    <div><h1>Faltas &amp; Adiantamentos</h1><p id="faltas-sub">Carregando...</p></div>
+  </div>
+
+  <div class="dash-grid" id="kpis-faltas"></div>
+
+  <div class="card admin-only">
+    <div class="card-header">📅 Registrar Falta</div>
+    <div class="card-body">
+      <div>
+        <label>Vendedor</label>
+        <select id="falta-vendedor"></select>
+      </div>
+      <div class="grid row-2">
+        <div>
+          <label>Data da Falta</label>
+          <input type="text" id="falta-data" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this)">
+        </div>
+        <div>
+          <label>Motivo (opcional)</label>
+          <input type="text" id="falta-motivo" placeholder="Ex: Atestado médico">
+        </div>
+      </div>
+      <button class="btn-add-user" style="width:100%;" onclick="adicionarFalta()">➕ Registrar Falta</button>
+    </div>
+  </div>
+
+  <div class="card admin-only">
+    <div class="card-header">💵 Registrar Adiantamento</div>
+    <div class="card-body">
+      <div>
+        <label>Vendedor</label>
+        <select id="adiant-vendedor"></select>
+      </div>
+      <div class="grid row-2">
+        <div>
+          <label>Data do Adiantamento</label>
+          <input type="text" id="adiant-data" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this)">
+        </div>
+        <div>
+          <label>Valor</label>
+          <input type="text" id="adiant-valor" placeholder="R$ 0,00">
+        </div>
+      </div>
+      <div>
+        <label>Observação (opcional)</label>
+        <input type="text" id="adiant-obs" placeholder="Ex: Adiantamento quinzenal">
+      </div>
+      <button class="btn-add-user" style="width:100%;" onclick="adicionarAdiantamento()">➕ Registrar Adiantamento</button>
+    </div>
+  </div>
+
+  <div class="planilha-header" style="max-width:720px;margin-left:auto;margin-right:auto;">
+    <div class="planilha-titulo">
+      <h2>📅 Faltas <span class="badge" id="badge-faltas">0</span></h2>
+    </div>
+  </div>
+  <div id="tabela-faltas" style="max-width:720px;margin:0 auto 24px;"></div>
+
+  <div class="planilha-header" style="max-width:720px;margin-left:auto;margin-right:auto;">
+    <div class="planilha-titulo">
+      <h2>💵 Adiantamentos <span class="badge" id="badge-adiant">0</span></h2>
+    </div>
+  </div>
+  <div id="tabela-adiantamentos" style="max-width:720px;margin:0 auto;"></div>
 </div>
 
 <!-- ═══ ABA: TODAS AS FICHAS (admin) ═══ -->
@@ -1165,6 +1250,8 @@
     const controle = normalizar(document.getElementById('plano_controle').value);
     const pos      = normalizar(document.getElementById('plano_pos').value);
     const tv       = normalizar(document.getElementById('plano_tv').value);
+    const meshQtd  = parseInt(document.getElementById('plano_mesh').value) || 0;
+    const meshValor = meshQtd * 15;
 
     const statusEl = document.getElementById('preco-status');
 
@@ -1219,6 +1306,12 @@
       if (v !== null) { total += v; algumEncontrado = true; } else algumFaltando = true;
     }
 
+    // ── MESH ── (serviço adicional, preço fixo de R$15,00 por unidade)
+    if (meshQtd > 0) {
+      total += meshValor;
+      algumEncontrado = true;
+    }
+
     if (!algumEncontrado) {
       statusEl.className = 'preco-status show pendente';
       statusEl.innerHTML = `⚠️ Nenhum preço encontrado para o grupo <strong>${grupo}</strong> — preencha manualmente.`;
@@ -1232,10 +1325,11 @@
       camposAutoPreenchidos.add('mensalidade');
     }
 
+    const meshTexto = meshQtd > 0 ? ` + Mesh ${meshQtd}x (R$ ${meshValor.toFixed(2).replace('.', ',')})` : '';
     statusEl.className = algumFaltando ? 'preco-status show pendente' : 'preco-status show ok';
     statusEl.innerHTML = algumFaltando
-      ? `⚠️ Preço calculado parcialmente (grupo <strong>${grupo}</strong>) — algum serviço não encontrado na tabela.`
-      : `✅ Preço calculado automaticamente — grupo <strong>${grupo}</strong>. Edite os campos se precisar ajustar.`;
+      ? `⚠️ Preço calculado parcialmente (grupo <strong>${grupo}</strong>)${meshTexto} — algum serviço não encontrado na tabela.`
+      : `✅ Preço calculado automaticamente — grupo <strong>${grupo}</strong>${meshTexto}. Edite os campos se precisar ajustar.`;
 
     atualizarProgresso();
   }
@@ -1290,11 +1384,37 @@
     buscarPreco();
   }
 
+  // Mesh usa seleção própria (quantidade, não texto de plano) mas segue o
+  // mesmo padrão visual/comportamento de toggle das outras pills.
+  function selecionarMesh(qtd, btnEl) {
+    const pillsContainer = btnEl.closest('.plano-pills');
+    const input = document.getElementById('plano_mesh');
+    if (input.value === qtd) {
+      pillsContainer.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
+      input.value = '';
+    } else {
+      pillsContainer.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
+      btnEl.classList.add('ativo');
+      input.value = qtd;
+    }
+    camposAutoPreenchidos.delete('mensalidade_manual');
+    atualizarProgresso();
+    buscarPreco();
+  }
+
   function restaurarPill(campoId, pillsId) {
     const valor = document.getElementById(campoId).value;
     if (!valor) return;
     document.getElementById(pillsId).querySelectorAll('.pill-btn').forEach(b => {
       if (normalizar(b.textContent) === normalizar(valor)) b.classList.add('ativo');
+    });
+  }
+
+  function restaurarMesh() {
+    const valor = document.getElementById('plano_mesh').value;
+    if (!valor) return;
+    document.getElementById('pills-mesh').querySelectorAll('.pill-btn').forEach(b => {
+      if (b.dataset.val === String(valor)) b.classList.add('ativo');
     });
   }
 
@@ -1304,6 +1424,12 @@
   let filtroMinhas = 'todos';
   let filtroTodas  = 'todos';
   let checkinCoords = null;
+
+  // ── FALTAS / ADIANTAMENTOS ───────────────────────────────────────────────
+  let faltas = JSON.parse(localStorage.getItem('venko_faltas') || '[]');
+  let adiantamentos = JSON.parse(localStorage.getItem('venko_adiantamentos') || '[]');
+  let filaFaltas = JSON.parse(localStorage.getItem('venko_fila_faltas') || '[]');
+  let filaAdiantamentos = JSON.parse(localStorage.getItem('venko_fila_adiantamentos') || '[]');
 
   function init() {
     if (!checkAuth()) return;
@@ -1323,6 +1449,10 @@
     document.querySelectorAll('.tab-btn[data-role="admin"]').forEach(btn => {
       btn.style.display = session.role === 'admin' ? '' : 'none';
     });
+    document.querySelectorAll('.admin-only').forEach(el => {
+      el.style.display = session.role === 'admin' ? '' : 'none';
+    });
+    if (session.role === 'admin') preencherSelectsVendedor();
     document.getElementById('vendedor').value = session.name;
 
     const statusSel = document.getElementById('status');
@@ -1353,6 +1483,7 @@
 
     atualizarContadores();
     renderDashboard();
+    renderFaltasAdiantamentos();
     atualizarDoSheets(false);
     carregarPrecos();
 
@@ -1370,6 +1501,7 @@
     btn.classList.add('active');
     if (aba === 'historico')  renderTabelaMinhas();
     if (aba === 'dashboard')  renderDashboard();
+    if (aba === 'faltas')     renderFaltasAdiantamentos();
     if (aba === 'todas')      renderTabelaTodas();
     if (aba === 'usuarios')   renderUsuarios();
   }
@@ -1507,7 +1639,7 @@
       celular: vl('celular'), sms: vl('sms'), email: up(vl('email')),
       rua: up(vl('rua')), numero: up(vl('numero')), complemento: up(vl('complemento')),
       bairro: up(vl('bairro')), cidade: up(vl('cidade')), cep: vl('cep'),
-      plano_banda: vl('plano_banda'), plano_controle: vl('plano_controle'),
+      plano_banda: vl('plano_banda'), plano_mesh: vl('plano_mesh'), plano_controle: vl('plano_controle'),
       plano_pos: vl('plano_pos'), portabilidade: up(vl('portabilidade')),
       plano_movel: up(movelTexto), plano_tv: vl('plano_tv'), plano_fixo: vl('plano_fixo'),
       mensalidade: vl('mensalidade'), debito: vl('debito'), taxa: up(vl('taxa')),
@@ -1519,6 +1651,7 @@
 
     const servicosAtivos = [
       { label:'🌐 Banda Larga', val: fichaAtual.plano_banda },
+      { label:'🔀 Mesh',        val: fichaAtual.plano_mesh ? fichaAtual.plano_mesh + ' UN' : '' },
       { label:'📱 Controle',    val: fichaAtual.plano_controle },
       { label:'📱 Pós',         val: fichaAtual.plano_pos },
       { label:'📺 TV',          val: fichaAtual.plano_tv },
@@ -1636,7 +1769,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     document.querySelectorAll('#page-formulario input, #page-formulario select, #page-formulario textarea')
       .forEach(el => el.value = '');
     document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
-    ['plano_banda','plano_controle','plano_pos','plano_tv','plano_fixo'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+    ['plano_banda','plano_mesh','plano_controle','plano_pos','plano_tv','plano_fixo'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
     if (session.role === 'admin') {
       document.getElementById('status').value = 'Agendada';
     } else {
@@ -1722,8 +1855,12 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       }
       tabelaPrecos = []; tabelaCidades = [];
       await carregarPrecos();
-      // Aproveita para tentar reenviar fila
+      // Sincroniza faltas e adiantamentos também
+      await atualizarFaltasAdiantamentosDoSheets();
+      // Aproveita para tentar reenviar filas
       if (filaReenvio.length > 0) reenviarFila();
+      if (filaFaltas.length > 0) reenviarFilaFaltas();
+      if (filaAdiantamentos.length > 0) reenviarFilaAdiantamentos();
     } catch (err) {
       if (manual) showToast('⚠️ Falha ao buscar do Google Sheets.', 'warning');
     } finally {
@@ -1809,7 +1946,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         ${isAdmin ? `<td>${f.vendedor||'—'}</td>` : ''}
         <td>${f.celular}</td>
         <td>${f.cidade}</td>
-        <td class="td-plano">${f.plano_banda||'—'}</td>
+        <td class="td-plano">${f.plano_banda||'—'}${f.plano_mesh ? ' + Mesh '+f.plano_mesh : ''}</td>
         <td class="td-plano">${movelCell}</td>
         <td class="td-plano">${f.plano_tv||'—'}</td>
         <td class="td-valor">${f.mensalidade}</td>
@@ -1887,7 +2024,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (!f) return;
     fichaAtual = f;
     checkinCoords = f.checkin_lat ? { lat: f.checkin_lat, lng: f.checkin_lng } : null;
-    const map = ['vendedor','status','nome','cpf','rg','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_controle','plano_pos','portabilidade','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','obs'];
+    const map = ['vendedor','status','nome','cpf','rg','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','portabilidade','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','obs'];
     map.forEach(k => {
       const el = document.getElementById(k);
       if (!el) return;
@@ -1898,6 +2035,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     document.getElementById('hp-sim').className = 'hp-btn' + (f.criar_hp==='Sim' ? ' ativo-sim' : '');
     document.getElementById('hp-nao').className = 'hp-btn' + (f.criar_hp==='Não' ? ' ativo-nao' : '');
     restaurarPill('plano_banda',    'pills-banda');
+    restaurarMesh();
     restaurarPill('plano_controle', 'pills-controle');
     restaurarPill('plano_pos',      'pills-pos');
     restaurarPill('plano_tv',       'pills-tv');
@@ -1991,6 +2129,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       ['plano_banda','plano_controle','plano_pos','plano_tv','plano_fixo'].forEach(k => {
         if (f[k]) { prodCount[f[k]] = (prodCount[f[k]]||0) + 1; }
       });
+      if (f.plano_mesh) { prodCount['Mesh ' + f.plano_mesh] = (prodCount['Mesh ' + f.plano_mesh]||0) + 1; }
     });
     const prods = Object.entries(prodCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
     const maxProd = prods.length ? prods[0][1] : 1;
@@ -2004,6 +2143,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       : '<p style="color:var(--muted);font-size:.82rem;text-align:center;padding:20px 0">Nenhum produto registrado ainda.</p>';
 
     if (session.role === 'admin') renderRankingAdmin();
+    renderDashboardFaltasAdiantamentos();
   }
 
   function renderRankingAdmin() {
@@ -2093,11 +2233,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (!lista.length) { showToast('⚠️ Nenhuma ficha para exportar','warning'); return; }
     const cols = ['data_cadastro','vendedor','status','criar_hp','nome','cpf','rg','nascimento','mae','celular','sms','email',
       'rua','numero','complemento','bairro','cidade','cep',
-      'plano_banda','plano_controle','plano_pos','portabilidade','plano_tv','plano_fixo',
+      'plano_banda','plano_mesh','plano_controle','plano_pos','portabilidade','plano_tv','plano_fixo',
       'mensalidade','debito','taxa','vencimento','periodo','obs','checkin_url'];
     const headers = ['Data','Vendedor','Status','Criar HP','Nome','CPF','RG','Nascimento','Mãe','WhatsApp','SMS','E-mail',
       'Rua','Número','Complemento','Bairro','Cidade','CEP',
-      'Banda Larga','Controle','Pós','Portabilidade','TV','Fixo',
+      'Banda Larga','Mesh','Controle','Pós','Portabilidade','TV','Fixo',
       'Valor Total','Val. Promocional','Taxa Inst.','Vencimento','Período','Observações','Localização'];
     const data = [headers, ...lista.map(f => cols.map(c => f[c]||''))];
     const ws = XLSX.utils.aoa_to_sheet(data);
@@ -2106,6 +2246,261 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     XLSX.utils.book_append_sheet(wb, ws, 'Fichas');
     XLSX.writeFile(wb, `venko_${ctx}_${new Date().toISOString().slice(0,10)}.xlsx`);
     showToast('📥 Excel baixado!');
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // FALTAS / ADIANTAMENTOS
+  // ══════════════════════════════════════════════════════════════
+  function preencherSelectsVendedor() {
+    const users = getAllUsers();
+    const opts = users.map(u => `<option value="${u.username}">${u.name}</option>`).join('');
+    const selF = document.getElementById('falta-vendedor');
+    const selA = document.getElementById('adiant-vendedor');
+    if (selF) selF.innerHTML = opts;
+    if (selA) selA.innerHTML = opts;
+  }
+  function getVendedorSelecionado(selectId) {
+    const sel = document.getElementById(selectId);
+    const username = sel ? sel.value : session.username;
+    const users = getAllUsers();
+    const user = users.find(u => u.username === username);
+    return { username: username || session.username, nome: user ? user.name : session.name };
+  }
+
+  function salvarFaltasLocal() { localStorage.setItem('venko_faltas', JSON.stringify(faltas)); }
+  function salvarAdiantamentosLocal() { localStorage.setItem('venko_adiantamentos', JSON.stringify(adiantamentos)); }
+  function salvarFilaFaltas() { localStorage.setItem('venko_fila_faltas', JSON.stringify(filaFaltas)); }
+  function salvarFilaAdiantamentos() { localStorage.setItem('venko_fila_adiantamentos', JSON.stringify(filaAdiantamentos)); }
+
+  async function enviarRegistroSheets(action, registro) {
+    const params = new URLSearchParams();
+    params.append('action', action);
+    Object.entries(registro).forEach(([k, v]) => params.append(k, v || ''));
+    const url = SHEETS_URL + '?' + params.toString();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      await fetch(url, { method: 'GET', mode: 'no-cors', signal: controller.signal });
+      clearTimeout(timeout);
+      return true;
+    } catch (err) {
+      clearTimeout(timeout);
+      return await enviarViaImagem(url);
+    }
+  }
+
+  function adicionarFalta() {
+    if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem registrar faltas.', 'warning'); return; }
+    const data   = vl('falta-data');
+    const motivo = up(vl('falta-motivo'));
+    if (!data) { showToast('⚠️ Informe a data da falta', 'warning'); return; }
+    const alvo = getVendedorSelecionado('falta-vendedor');
+    const registro = {
+      id: Date.now(),
+      data_registro: new Date().toLocaleDateString('pt-BR'),
+      username: alvo.username,
+      vendedor: up(alvo.nome),
+      data, motivo
+    };
+    faltas.push(registro);
+    salvarFaltasLocal();
+    document.getElementById('falta-data').value = '';
+    document.getElementById('falta-motivo').value = '';
+    renderFaltasAdiantamentos();
+    renderDashboardFaltasAdiantamentos();
+    showToast('✅ Falta registrada!');
+    enviarRegistroSheets('addFalta', registro).then(ok => {
+      if (!ok && !filaFaltas.find(f => String(f.id) === String(registro.id))) {
+        filaFaltas.push(registro); salvarFilaFaltas();
+        showToast('⚠️ Falta salva localmente — sem conexão com o Sheets.', 'warning');
+      }
+    });
+  }
+
+  function adicionarAdiantamento() {
+    if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem registrar adiantamentos.', 'warning'); return; }
+    const data  = vl('adiant-data');
+    const valor = vl('adiant-valor');
+    const obs   = up(vl('adiant-obs'));
+    if (!data || !valor) { showToast('⚠️ Informe a data e o valor', 'warning'); return; }
+    const alvo = getVendedorSelecionado('adiant-vendedor');
+    const registro = {
+      id: Date.now(),
+      data_registro: new Date().toLocaleDateString('pt-BR'),
+      username: alvo.username,
+      vendedor: up(alvo.nome),
+      data, valor, obs
+    };
+    adiantamentos.push(registro);
+    salvarAdiantamentosLocal();
+    document.getElementById('adiant-data').value = '';
+    document.getElementById('adiant-valor').value = '';
+    document.getElementById('adiant-obs').value = '';
+    renderFaltasAdiantamentos();
+    renderDashboardFaltasAdiantamentos();
+    showToast('✅ Adiantamento registrado!');
+    enviarRegistroSheets('addAdiantamento', registro).then(ok => {
+      if (!ok && !filaAdiantamentos.find(f => String(f.id) === String(registro.id))) {
+        filaAdiantamentos.push(registro); salvarFilaAdiantamentos();
+        showToast('⚠️ Adiantamento salvo localmente — sem conexão com o Sheets.', 'warning');
+      }
+    });
+  }
+
+  async function reenviarFilaFaltas() {
+    if (!filaFaltas.length) return;
+    const nova = [];
+    for (const r of filaFaltas) { const ok = await enviarRegistroSheets('addFalta', r); if (!ok) nova.push(r); }
+    filaFaltas = nova; salvarFilaFaltas();
+  }
+  async function reenviarFilaAdiantamentos() {
+    if (!filaAdiantamentos.length) return;
+    const nova = [];
+    for (const r of filaAdiantamentos) { const ok = await enviarRegistroSheets('addAdiantamento', r); if (!ok) nova.push(r); }
+    filaAdiantamentos = nova; salvarFilaAdiantamentos();
+  }
+
+  function mesclarFaltas(remotas) {
+    const remotoIds = new Set(remotas.map(f => String(f.id)));
+    const pendentesIds = new Set(filaFaltas.map(f => String(f.id)));
+    const mapa = new Map();
+    faltas.forEach(f => { if (remotoIds.has(String(f.id)) || pendentesIds.has(String(f.id))) mapa.set(String(f.id), f); });
+    remotas.forEach(f => mapa.set(String(f.id), { ...mapa.get(String(f.id)), ...f }));
+    faltas = Array.from(mapa.values());
+    salvarFaltasLocal();
+  }
+  function mesclarAdiantamentos(remotas) {
+    const remotoIds = new Set(remotas.map(f => String(f.id)));
+    const pendentesIds = new Set(filaAdiantamentos.map(f => String(f.id)));
+    const mapa = new Map();
+    adiantamentos.forEach(f => { if (remotoIds.has(String(f.id)) || pendentesIds.has(String(f.id))) mapa.set(String(f.id), f); });
+    remotas.forEach(f => mapa.set(String(f.id), { ...mapa.get(String(f.id)), ...f }));
+    adiantamentos = Array.from(mapa.values());
+    salvarAdiantamentosLocal();
+  }
+
+  async function atualizarFaltasAdiantamentosDoSheets() {
+    try {
+      const [rF, rA] = await Promise.all([
+        fetch(SHEETS_URL + '?action=faltas', { cache: 'no-store' }).then(r => r.json()).catch(() => null),
+        fetch(SHEETS_URL + '?action=adiantamentos', { cache: 'no-store' }).then(r => r.json()).catch(() => null)
+      ]);
+      if (rF && rF.status === 'ok' && Array.isArray(rF.faltas)) mesclarFaltas(rF.faltas);
+      if (rA && rA.status === 'ok' && Array.isArray(rA.adiantamentos)) mesclarAdiantamentos(rA.adiantamentos);
+      renderFaltasAdiantamentos();
+      renderDashboardFaltasAdiantamentos();
+    } catch (e) {}
+  }
+
+  async function deletarFalta(id) {
+    if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem excluir.', 'warning'); return; }
+    if (!confirm('Excluir este registro de falta?')) return;
+    try {
+      const resp = await fetch(SHEETS_URL + '?action=deletarFalta&id=' + encodeURIComponent(id), { cache: 'no-store' });
+      const dados = await resp.json();
+      if (dados.status === 'ok') {
+        faltas = faltas.filter(f => String(f.id) !== String(id));
+        salvarFaltasLocal(); renderFaltasAdiantamentos(); renderDashboardFaltasAdiantamentos();
+        showToast('🗑 Falta excluída!');
+      } else { showToast('❌ Não foi possível excluir.', 'error'); }
+    } catch (e) { showToast('❌ Falha de conexão ao excluir.', 'error'); }
+  }
+  async function deletarAdiantamento(id) {
+    if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem excluir.', 'warning'); return; }
+    if (!confirm('Excluir este registro de adiantamento?')) return;
+    try {
+      const resp = await fetch(SHEETS_URL + '?action=deletarAdiantamento&id=' + encodeURIComponent(id), { cache: 'no-store' });
+      const dados = await resp.json();
+      if (dados.status === 'ok') {
+        adiantamentos = adiantamentos.filter(f => String(f.id) !== String(id));
+        salvarAdiantamentosLocal(); renderFaltasAdiantamentos(); renderDashboardFaltasAdiantamentos();
+        showToast('🗑 Adiantamento excluído!');
+      } else { showToast('❌ Não foi possível excluir.', 'error'); }
+    } catch (e) { showToast('❌ Falha de conexão ao excluir.', 'error'); }
+  }
+
+  function renderFaltasAdiantamentos() {
+    document.getElementById('faltas-sub').textContent = session.role === 'admin'
+      ? 'Registre e acompanhe faltas e adiantamentos de toda a equipe'
+      : `Acompanhe aqui suas faltas e adiantamentos registrados pelo administrador, ${session.name.split(' ')[0]}.`;
+
+    const minhasFaltas = faltas.filter(f => session.role==='admin' || f.username===session.username);
+    const meusAdiant    = adiantamentos.filter(f => session.role==='admin' || f.username===session.username);
+    const podeExcluir = session.role === 'admin';
+
+    document.getElementById('badge-faltas').textContent = minhasFaltas.length;
+    document.getElementById('badge-adiant').textContent = meusAdiant.length;
+
+    const wrapF = document.getElementById('tabela-faltas');
+    if (!minhasFaltas.length) {
+      wrapF.innerHTML = `<div class="empty-state"><div class="icon">📅</div><p>Nenhuma falta registrada.</p></div>`;
+    } else {
+      const rows = minhasFaltas.slice().reverse().map(f => `<tr>
+        <td>${f.data}</td>
+        ${session.role==='admin' ? `<td>${f.vendedor}</td>` : ''}
+        <td>${f.motivo || '—'}</td>
+        <td>${f.data_registro}</td>
+        ${podeExcluir ? `<td><button class="btn-del" onclick="deletarFalta(${f.id})" title="Excluir">✕</button></td>` : ''}
+      </tr>`).join('');
+      wrapF.innerHTML = `<div class="tabela-wrap"><table>
+        <thead><tr><th>Data</th>${session.role==='admin'?'<th>Vendedor</th>':''}<th>Motivo</th><th>Registrado em</th>${podeExcluir?'<th></th>':''}</tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+    }
+
+    const wrapA = document.getElementById('tabela-adiantamentos');
+    if (!meusAdiant.length) {
+      wrapA.innerHTML = `<div class="empty-state"><div class="icon">💵</div><p>Nenhum adiantamento registrado.</p></div>`;
+    } else {
+      const rows = meusAdiant.slice().reverse().map(f => `<tr>
+        <td>${f.data}</td>
+        ${session.role==='admin' ? `<td>${f.vendedor}</td>` : ''}
+        <td class="td-valor">${f.valor}</td>
+        <td>${f.obs || '—'}</td>
+        <td>${f.data_registro}</td>
+        ${podeExcluir ? `<td><button class="btn-del" onclick="deletarAdiantamento(${f.id})" title="Excluir">✕</button></td>` : ''}
+      </tr>`).join('');
+      wrapA.innerHTML = `<div class="tabela-wrap"><table>
+        <thead><tr><th>Data</th>${session.role==='admin'?'<th>Vendedor</th>':''}<th>Valor</th><th>Obs.</th><th>Registrado em</th>${podeExcluir?'<th></th>':''}</tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+    }
+  }
+
+  // Segundo dashboard: resumo de faltas/adiantamentos dentro da aba Desempenho
+  function renderDashboardFaltasAdiantamentos() {
+    const minhasFaltas = faltas.filter(f => session.role==='admin' || f.username===session.username);
+    const meusAdiant    = adiantamentos.filter(f => session.role==='admin' || f.username===session.username);
+    const totalAdiant = meusAdiant.reduce((sum, f) => {
+      const v = parseFloat(String(f.valor||'0').replace(/[^\d.,]/g,'').replace(',','.'));
+      return sum + (isNaN(v) ? 0 : v);
+    }, 0);
+    const formatarMoeda = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+    const hoje = new Date();
+    const mesAtual = hoje.getMonth() + 1, anoAtual = hoje.getFullYear();
+    const faltasMes = minhasFaltas.filter(f => {
+      const p = (f.data||'').split('/');
+      return p.length === 3 && parseInt(p[1]) === mesAtual && parseInt(p[2]) === anoAtual;
+    }).length;
+
+    const existing = document.getElementById('kpis-faltas-resumo');
+    const section = existing || document.createElement('div');
+    section.id = 'kpis-faltas-resumo';
+    section.className = 'dash-section';
+    section.innerHTML = `
+      <h3>📆 Faltas &amp; Adiantamentos</h3>
+      <div class="dash-grid">
+        <div class="kpi-card laranja">
+          <div class="kpi-label">Faltas este mês</div>
+          <div class="kpi-value">${faltasMes}</div>
+          <div class="kpi-sub">${minhasFaltas.length} no total</div>
+        </div>
+        <div class="kpi-card vermelho">
+          <div class="kpi-label">💵 Adiantamentos</div>
+          <div class="kpi-value" style="font-size:1.3rem;">${formatarMoeda(totalAdiant)}</div>
+          <div class="kpi-sub">${meusAdiant.length} registro(s)</div>
+        </div>
+      </div>`;
+    if (!existing) document.getElementById('page-dashboard').appendChild(section);
   }
 
   init();
