@@ -1447,10 +1447,10 @@
       badge.className = 'role-badge vendor';
     }
     document.querySelectorAll('.tab-btn[data-role="admin"]').forEach(btn => {
-      btn.style.display = session.role === 'admin' ? '' : 'none';
+      btn.style.display = session.role === 'admin' ? 'inline-block' : 'none';
     });
     document.querySelectorAll('.admin-only').forEach(el => {
-      el.style.display = session.role === 'admin' ? '' : 'none';
+      el.style.display = session.role === 'admin' ? 'block' : 'none';
     });
     if (session.role === 'admin') preencherSelectsVendedor();
     document.getElementById('vendedor').value = session.name;
