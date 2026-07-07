@@ -1189,10 +1189,13 @@
   }
 
   // No Android dá pra forçar um app específico (com.whatsapp = normal,
-  // com.whatsapp.w4b = Business) via link "intent://". No iPhone e no
-  // desktop não existe essa distinção (a Apple não permite escolher o
-  // app por link), então nesses casos cai no link padrão wa.me, que abre
-  // o WhatsApp configurado como app padrão no aparelho.
+  // com.whatsapp.w4b = Business) via link "intent://". Usamos o esquema
+  // nativo "whatsapp://send" — é o link oficial de "click to chat" da
+  // Meta, reconhecido do mesmo jeito pelos dois apps (só muda o pacote
+  // de destino no intent). No iPhone e no desktop não existe essa
+  // distinção (a Apple não permite escolher o app por link), então
+  // nesses casos cai no link padrão wa.me, que abre o WhatsApp
+  // configurado como app padrão no aparelho.
   function confirmarEnvioWpp(app) {
     if (!wppAlvoAtual) return;
     const { numero, mensagem } = wppAlvoAtual;
@@ -1201,7 +1204,8 @@
 
     if (isAndroid) {
       const pkg = app === 'business' ? 'com.whatsapp.w4b' : 'com.whatsapp';
-      window.location.href = `intent://send?phone=${numero}&text=${texto}#Intent;scheme=smsto;package=${pkg};end`;
+      const fallback = encodeURIComponent(`https://wa.me/${numero}?text=${texto}`);
+      window.location.href = `intent://send/?phone=${numero}&text=${texto}#Intent;package=${pkg};scheme=whatsapp;S.browser_fallback_url=${fallback};end`;
     } else {
       window.open(`https://wa.me/${numero}?text=${texto}`, '_blank');
     }
