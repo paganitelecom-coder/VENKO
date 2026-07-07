@@ -413,6 +413,41 @@
     .btn-atalho { padding: 12px 8px; font-size: .74rem; }
   }
 
+  /* ── MODAL: ESCOLHER WHATSAPP (normal / business) ── */
+  .modal-wpp-overlay {
+    position: fixed; inset: 0; z-index: 10000;
+    background: rgba(15,23,42,.55);
+    display: none; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-wpp-overlay.show { display: flex; }
+  .modal-wpp {
+    background: var(--white); border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    width: 100%; max-width: 340px;
+    padding: 24px 20px;
+    display: flex; flex-direction: column; gap: 10px;
+    text-align: center;
+  }
+  .modal-wpp h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .modal-wpp p  { font-size: .78rem; color: var(--muted); margin-bottom: 8px; }
+  .btn-wpp-opcao {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 14px; border-radius: 10px; border: none;
+    font-family: 'Inter', sans-serif; font-size: .9rem; font-weight: 700;
+    color: white; cursor: pointer; transition: transform .15s;
+  }
+  .btn-wpp-opcao:hover { transform: translateY(-2px); }
+  .btn-wpp-opcao.normal   { background: linear-gradient(135deg, #16a34a, #22c55e); }
+  .btn-wpp-opcao.business { background: linear-gradient(135deg, #0F766E, #14B8A6); }
+  .btn-wpp-cancelar {
+    padding: 10px; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 10px;
+    font-family: 'Inter', sans-serif; font-size: .82rem; font-weight: 600;
+    cursor: pointer; margin-top: 4px; transition: all .2s;
+  }
+  .btn-wpp-cancelar:hover { border-color: #ef4444; color: #ef4444; }
+
   /* ── DASHBOARD ── */
   .dash-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -600,8 +635,8 @@
       <button class="btn-atalho btn-faltas-atalho" onclick="irParaAba('faltas')">📆 Faltas/Adiant.</button>
     </div>
     <div class="atalhos-linha">
-      <a class="btn-atalho btn-fatura" href="https://wa.me/5548988710567?text=Solicito%20fatura" target="_blank" rel="noopener">🧾 Fatura</a>
-      <a class="btn-atalho btn-visita" href="https://wa.me/5548988283770?text=Solicito%20visita%20t%C3%A9cnica" target="_blank" rel="noopener">🔧 Visita Técnica</a>
+      <button class="btn-atalho btn-fatura" onclick="abrirEscolhaWhatsApp('fatura')">🧾 Fatura</button>
+      <button class="btn-atalho btn-visita" onclick="abrirEscolhaWhatsApp('visita')">🔧 Visita Técnica</button>
     </div>
   </div>
 
@@ -1088,6 +1123,17 @@
   ⚠️ <span id="fila-count">0</span> ficha(s) pendente(s) — Toque para reenviar
 </button>
 
+<!-- Modal: escolher WhatsApp normal ou Business -->
+<div class="modal-wpp-overlay" id="modal-wpp-overlay" onclick="fecharModalWpp()">
+  <div class="modal-wpp" onclick="event.stopPropagation()">
+    <h3 id="modal-wpp-titulo">Enviar por qual WhatsApp?</h3>
+    <p>Escolha o aplicativo que deseja usar</p>
+    <button class="btn-wpp-opcao normal" onclick="confirmarEnvioWpp('normal')">💬 WhatsApp</button>
+    <button class="btn-wpp-opcao business" onclick="confirmarEnvioWpp('business')">💼 WhatsApp Business</button>
+    <button class="btn-wpp-cancelar" onclick="fecharModalWpp()">Cancelar</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1120,6 +1166,46 @@
   function logout() {
     sessionStorage.removeItem('venko_session');
     window.location.href = 'login.html';
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // MODAL: ESCOLHER WHATSAPP NORMAL OU BUSINESS
+  // ══════════════════════════════════════════════════════════════
+  const WPP_ALVOS = {
+    fatura: { numero: '5548988710567', mensagem: 'Solicito fatura',          titulo: 'Enviar solicitação de fatura por qual WhatsApp?' },
+    visita: { numero: '5548988283770', mensagem: 'Solicito visita técnica',  titulo: 'Enviar solicitação de visita por qual WhatsApp?' }
+  };
+  let wppAlvoAtual = null;
+
+  function abrirEscolhaWhatsApp(tipo) {
+    wppAlvoAtual = WPP_ALVOS[tipo];
+    if (!wppAlvoAtual) return;
+    document.getElementById('modal-wpp-titulo').textContent = wppAlvoAtual.titulo;
+    document.getElementById('modal-wpp-overlay').classList.add('show');
+  }
+
+  function fecharModalWpp() {
+    document.getElementById('modal-wpp-overlay').classList.remove('show');
+  }
+
+  // No Android dá pra forçar um app específico (com.whatsapp = normal,
+  // com.whatsapp.w4b = Business) via link "intent://". No iPhone e no
+  // desktop não existe essa distinção (a Apple não permite escolher o
+  // app por link), então nesses casos cai no link padrão wa.me, que abre
+  // o WhatsApp configurado como app padrão no aparelho.
+  function confirmarEnvioWpp(app) {
+    if (!wppAlvoAtual) return;
+    const { numero, mensagem } = wppAlvoAtual;
+    const texto = encodeURIComponent(mensagem);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+
+    if (isAndroid) {
+      const pkg = app === 'business' ? 'com.whatsapp.w4b' : 'com.whatsapp';
+      window.location.href = `intent://send?phone=${numero}&text=${texto}#Intent;scheme=smsto;package=${pkg};end`;
+    } else {
+      window.open(`https://wa.me/${numero}?text=${texto}`, '_blank');
+    }
+    fecharModalWpp();
   }
 
   function toggleDarkMode() {
