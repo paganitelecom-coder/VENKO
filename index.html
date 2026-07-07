@@ -373,6 +373,42 @@
   .fila-badge:hover { background: #d97706; transform: translateY(-2px); }
   .fila-badge.show { display: flex; }
 
+  /* ── BOTÕES FLUTUANTES: FATURA / VISITA TÉCNICA ── */
+  .acoes-flutuantes {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9998;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .btn-flutuante {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    border-radius: 30px;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-size: .82rem;
+    font-weight: 700;
+    color: white;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,.25);
+    transition: transform .18s, box-shadow .18s;
+    white-space: nowrap;
+  }
+  .btn-flutuante:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.32); }
+  .btn-fatura  { background: linear-gradient(135deg, #16a34a, #22c55e); }
+  .btn-visita  { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+
+  @media (max-width: 600px) {
+    .btn-flutuante { padding: 10px 14px; font-size: .74rem; }
+  }
+
   /* ── DASHBOARD ── */
   .dash-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1034,6 +1070,16 @@
     <h3 style="font-size:.85rem;font-weight:700;margin-bottom:14px;color:var(--text);">Usuários Cadastrados</h3>
     <div class="usuarios-grid" id="usuarios-grid"></div>
   </div>
+</div>
+
+<!-- Botões flutuantes: Fatura / Visita Técnica -->
+<div class="acoes-flutuantes">
+  <a class="btn-flutuante btn-fatura"
+     href="https://wa.me/5548988710567?text=Solicito%20fatura"
+     target="_blank" rel="noopener">🧾 Fatura</a>
+  <a class="btn-flutuante btn-visita"
+     href="https://wa.me/5548988283770?text=Solicito%20visita%20t%C3%A9cnica"
+     target="_blank" rel="noopener">🔧 Visita Técnica</a>
 </div>
 
 <!-- Badge flutuante para fichas pendentes de envio -->
