@@ -373,23 +373,25 @@
   .fila-badge:hover { background: #d97706; transform: translateY(-2px); }
   .fila-badge.show { display: flex; }
 
-  /* ── BOTÕES FLUTUANTES: FATURA / VISITA TÉCNICA ── */
-  .acoes-flutuantes {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 9998;
-    display: flex;
-    flex-direction: column;
+  /* ── ATALHOS RÁPIDOS (topo da aba Nova Ficha) ── */
+  .atalhos-topo {
+    max-width: 720px;
+    margin: 0 auto 20px;
+    display: grid;
     gap: 10px;
-    align-items: flex-end;
   }
-  .btn-flutuante {
+  .atalhos-linha {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .btn-atalho {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    padding: 12px 18px;
-    border-radius: 30px;
+    padding: 14px 10px;
+    border-radius: 10px;
     border: none;
     font-family: 'Inter', sans-serif;
     font-size: .82rem;
@@ -397,16 +399,18 @@
     color: white;
     text-decoration: none;
     cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0,0,0,.25);
-    transition: transform .18s, box-shadow .18s;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
+    transition: transform .15s, box-shadow .15s;
     white-space: nowrap;
   }
-  .btn-flutuante:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.32); }
-  .btn-fatura  { background: linear-gradient(135deg, #16a34a, #22c55e); }
-  .btn-visita  { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+  .btn-atalho:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+  .btn-desempenho    { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+  .btn-faltas-atalho { background: linear-gradient(135deg, #e67e22, #f39c12); }
+  .btn-fatura        { background: linear-gradient(135deg, #16a34a, #22c55e); }
+  .btn-visita        { background: linear-gradient(135deg, #7c3aed, #a855f7); }
 
   @media (max-width: 600px) {
-    .btn-flutuante { padding: 10px 14px; font-size: .74rem; }
+    .btn-atalho { padding: 12px 8px; font-size: .74rem; }
   }
 
   /* ── DASHBOARD ── */
@@ -590,8 +594,15 @@
 
 <!-- ═══ ABA: NOVA FICHA ═══ -->
 <div class="page active" id="page-formulario">
-  <div class="page-header">
-    <div><h1>Nova Ficha de Venda</h1><p>Preencha e gere o texto para WhatsApp</p></div>
+  <div class="atalhos-topo">
+    <div class="atalhos-linha">
+      <button class="btn-atalho btn-desempenho" onclick="irParaAba('dashboard')">📈 Desempenho</button>
+      <button class="btn-atalho btn-faltas-atalho" onclick="irParaAba('faltas')">📆 Faltas/Adiant.</button>
+    </div>
+    <div class="atalhos-linha">
+      <a class="btn-atalho btn-fatura" href="https://wa.me/5548988710567?text=Solicito%20fatura" target="_blank" rel="noopener">🧾 Fatura</a>
+      <a class="btn-atalho btn-visita" href="https://wa.me/5548988283770?text=Solicito%20visita%20t%C3%A9cnica" target="_blank" rel="noopener">🔧 Visita Técnica</a>
+    </div>
   </div>
 
   <div class="progress-bar-wrap">
@@ -1072,16 +1083,6 @@
   </div>
 </div>
 
-<!-- Botões flutuantes: Fatura / Visita Técnica -->
-<div class="acoes-flutuantes">
-  <a class="btn-flutuante btn-fatura"
-     href="https://wa.me/5548988710567?text=Solicito%20fatura"
-     target="_blank" rel="noopener">🧾 Fatura</a>
-  <a class="btn-flutuante btn-visita"
-     href="https://wa.me/5548988283770?text=Solicito%20visita%20t%C3%A9cnica"
-     target="_blank" rel="noopener">🔧 Visita Técnica</a>
-</div>
-
 <!-- Badge flutuante para fichas pendentes de envio -->
 <button class="fila-badge" id="fila-badge" onclick="reenviarFila()">
   ⚠️ <span id="fila-count">0</span> ficha(s) pendente(s) — Toque para reenviar
@@ -1537,6 +1538,13 @@
     if (filaReenvio.length > 0) {
       setTimeout(() => reenviarFila(), 3000);
     }
+  }
+
+  // Usada pelos botões de atalho (Desempenho / Faltas) no topo da Nova Ficha —
+  // encontra o botão de aba correspondente e reaproveita a lógica de mudarAba().
+  function irParaAba(tab) {
+    const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+    if (btn) mudarAba(btn);
   }
 
   function mudarAba(btn) {
