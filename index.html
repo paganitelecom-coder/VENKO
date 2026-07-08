@@ -14,16 +14,22 @@
 
   :root {
     --primary:        #C10007;
+    --primary-hover:  #A30006;
     --primary-light:  #FF4D2E;
     --grad:           linear-gradient(135deg, #C10007, #FF4D2E);
     --verde-claro:    #FEE2E2;
-    --cinza-bg:       #F8FAFC;
+    --cinza-bg:       #FFF5F4;
     --white:          #FFFFFF;
     --text:           #1E293B;
     --muted:          #64748B;
-    --border:         #CBD5E1;
-    --radius:         10px;
-    --shadow:         0 4px 6px -1px rgba(0,0,0,.05), 0 2px 4px -1px rgba(0,0,0,.03);
+    --border:         #E2E8F0;
+    --radius:         14px;
+    --radius-sm:      8px;
+    --radius-lg:      20px;
+    --space-1: 4px; --space-2: 8px; --space-3: 12px;
+    --space-4: 16px; --space-5: 24px; --space-6: 32px;
+    --shadow:         0 8px 24px -6px rgba(193,0,7,.10), 0 2px 6px rgba(0,0,0,.03);
+    --ease:           150ms cubic-bezier(.4,0,.2,1);
     --laranja:        #e67e22;
     --azul:           #2563eb;
     --roxo:           #7c3aed;
@@ -194,11 +200,13 @@
     width: 100%; padding: 11px 16px;
     font-family: 'Inter',sans-serif; font-size: .95rem;
     color: var(--text); background: #FAFAFA;
-    border: 1px solid var(--border); border-radius: 6px;
-    outline: none; transition: border-color .2s, box-shadow .2s;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    outline: none; transition: border-color var(--ease), box-shadow var(--ease), background var(--ease);
     text-transform: uppercase;
   }
-  input:focus, select:focus {
+  input:hover, select:hover { border-color: #CBD5E1; }
+  input:focus, select:focus,
+  input:focus-visible, select:focus-visible {
     border-color: var(--primary-light);
     box-shadow: 0 0 0 3px rgba(255, 77, 46,.15);
     background: white;
@@ -252,8 +260,10 @@
     width: 100%; max-width: 720px; margin: 0 auto 12px;
     padding: 15px; border: none; border-radius: var(--radius);
     font-family: 'Inter',sans-serif; font-size: 1rem; font-weight: 700;
-    cursor: pointer; transition: transform .15s, box-shadow .15s;
+    cursor: pointer; transition: transform var(--ease), box-shadow var(--ease), filter var(--ease);
   }
+  .btn-primary:active { transform: translateY(0); filter: brightness(.96); }
+  .btn-primary:focus-visible { outline: 3px solid rgba(255,77,46,.5); outline-offset: 2px; }
   .btn-gerar { background: var(--grad); color: white; box-shadow: 0 4px 18px rgba(193, 0, 7,.35); }
   .btn-gerar:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(193, 0, 7,.45); }
   .btn-checkin { background: linear-gradient(135deg,#e67e22,#f39c12); color:white; box-shadow:0 4px 18px rgba(230,126,34,.3); margin-bottom:8px; }
@@ -599,7 +609,7 @@
 <body>
 
 <!-- ── TOPBAR ── -->
-<div class="topbar">
+<header class="topbar">
   <div class="topbar-left">
     <div class="topbar-logo"><img src="logo-carrera.png" alt="Carrera Telecom"></div>
     <span class="topbar-title">CARRERA TELECOM</span>
@@ -610,23 +620,24 @@
       <span id="user-name">—</span>
       <span class="role-badge" id="role-badge">—</span>
     </div>
-    <button class="btn-dark-toggle" onclick="toggleDarkMode()" title="Dark Mode">🌙</button>
+    <button class="btn-dark-toggle" onclick="toggleDarkMode()" title="Dark Mode" aria-label="Alternar modo escuro">🌙</button>
     <button class="btn-atualizar" id="btn-atualizar" onclick="atualizarDoSheets(true)">
       <span id="icone-atualizar">🔄</span> <span id="texto-atualizar">Atualizar</span>
     </button>
     <button class="btn-logout" onclick="logout()">Sair</button>
   </div>
-</div>
+</header>
+
 
 <!-- ── TABS ── -->
-<div class="tabs" id="tabs">
+<nav class="tabs" id="tabs" aria-label="Navegação principal">
   <button class="tab-btn active" data-tab="formulario" onclick="mudarAba(this)">📋 Nova Ficha</button>
   <button class="tab-btn" data-tab="historico" onclick="mudarAba(this)">📊 Minhas Vendas</button>
   <button class="tab-btn" data-tab="dashboard" onclick="mudarAba(this)">📈 Desempenho</button>
   <button class="tab-btn" data-tab="faltas" onclick="mudarAba(this)">📆 Faltas/Adiant.</button>
   <button class="tab-btn" data-tab="todas" data-role="admin" onclick="mudarAba(this)">👥 Todas as Fichas</button>
   <button class="tab-btn" data-tab="usuarios" data-role="admin" onclick="mudarAba(this)">⚙️ Usuários</button>
-</div>
+</nav>
 
 <!-- ═══ ABA: NOVA FICHA ═══ -->
 <div class="page active" id="page-formulario">
