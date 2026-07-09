@@ -1277,7 +1277,7 @@
     }
   }
 
-  // ── Envia via fetch no-cors (correto para Apps Script + GitHub Pages) ────
+  // ── Envia via fetch com leitura real da resposta (detecta falha de verdade) ────
   async function enviarParaSheets(ficha) {
     const params = new URLSearchParams();
     Object.entries(ficha).forEach(([k, v]) => params.append(k, v || ''));
@@ -1286,13 +1286,19 @@
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-      await fetch(url, { method: 'GET', mode: 'no-cors', signal: controller.signal });
+      const resp = await fetch(url, { method: 'GET', signal: controller.signal, cache: 'no-store' });
       clearTimeout(timeout);
-      return true;
+      const dados = await resp.json();
+      // success:true cobre inserção nova E reenvio de duplicata (já estava salva) —
+      // ambos os casos significam "está garantido na planilha".
+      return !!(dados && dados.success);
     } catch (err) {
       clearTimeout(timeout);
-      // Fallback via iframe
-      return await enviarViaImagem(url);
+      // Rede falhou / CORS bloqueado nesse aparelho: tenta fallback via iframe.
+      // Esse caminho não confirma sucesso real, então a ficha continua na fila
+      // até um reenvio bem-sucedido com leitura de resposta confirmar.
+      await enviarViaImagem(url);
+      return false;
     }
   }
 
@@ -2478,12 +2484,14 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-      await fetch(url, { method: 'GET', mode: 'no-cors', signal: controller.signal });
+      const resp = await fetch(url, { method: 'GET', signal: controller.signal, cache: 'no-store' });
       clearTimeout(timeout);
-      return true;
+      const dados = await resp.json();
+      return !!(dados && dados.status === 'ok');
     } catch (err) {
       clearTimeout(timeout);
-      return await enviarViaImagem(url);
+      await enviarViaImagem(url);
+      return false;
     }
   }
 
