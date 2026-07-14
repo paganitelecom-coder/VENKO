@@ -635,6 +635,7 @@
   <button class="tab-btn" data-tab="historico" onclick="mudarAba(this)">📊 Minhas Vendas</button>
   <button class="tab-btn" data-tab="dashboard" onclick="mudarAba(this)">📈 Desempenho</button>
   <button class="tab-btn" data-tab="faltas" onclick="mudarAba(this)">📆 Faltas/Adiant.</button>
+  <button class="tab-btn" data-tab="metas" onclick="mudarAba(this)">🎯 Metas</button>
   <button class="tab-btn" data-tab="todas" data-role="admin" onclick="mudarAba(this)">👥 Todas as Fichas</button>
   <button class="tab-btn" data-tab="usuarios" data-role="admin" onclick="mudarAba(this)">⚙️ Usuários</button>
 </nav>
@@ -1069,6 +1070,26 @@
     </div>
   </div>
   <div id="tabela-adiantamentos" style="max-width:720px;margin:0 auto;"></div>
+</div>
+
+<!-- ═══ ABA: METAS ═══ -->
+<div class="page" id="page-metas">
+  <div class="page-header">
+    <div><h1>🎯 Metas</h1><p id="metas-sub">Carregando...</p></div>
+  </div>
+
+  <!-- KPIs do vendedor logado -->
+  <div class="dash-grid" id="kpis-metas"></div>
+
+  <!-- Tabela com todos os vendedores (somente admin) -->
+  <div class="admin-only" style="margin-top:20px;">
+    <div class="planilha-header" style="max-width:720px;margin-left:auto;margin-right:auto;">
+      <div class="planilha-titulo">
+        <h2>📊 Metas da Equipe <span class="badge" id="badge-metas">0</span></h2>
+      </div>
+    </div>
+    <div id="tabela-metas" style="max-width:720px;margin:0 auto;"></div>
+  </div>
 </div>
 
 <!-- ═══ ABA: TODAS AS FICHAS (admin) ═══ -->
@@ -1595,6 +1616,9 @@
   let filaFaltas = JSON.parse(localStorage.getItem('venko_fila_faltas') || '[]');
   let filaAdiantamentos = JSON.parse(localStorage.getItem('venko_fila_adiantamentos') || '[]');
 
+  // ── METAS ─────────────────────────────────────────────────────────────────
+  let metas = [];
+
   function init() {
     if (!checkAuth()) return;
     document.getElementById('user-name').textContent = session.name;
@@ -1651,6 +1675,7 @@
     atualizarDoSheets(false);
     carregarPrecos();
     carregarUsuarios();
+    carregarMetas();
 
     // Tenta reenviar fila automaticamente ao carregar
     if (filaReenvio.length > 0) {
@@ -1676,6 +1701,7 @@
     if (aba === 'faltas')     renderFaltasAdiantamentos();
     if (aba === 'todas')      renderTabelaTodas();
     if (aba === 'usuarios')   renderUsuarios();
+    if (aba === 'metas')      renderMetas();
   }
 
   function selecionarHP(val) {
@@ -2029,6 +2055,8 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       await carregarPrecos();
       // Sincroniza faltas e adiantamentos também
       await atualizarFaltasAdiantamentosDoSheets();
+      // Sincroniza metas também
+      await carregarMetas();
       // Aproveita para tentar reenviar filas
       if (filaReenvio.length > 0) reenviarFila();
       if (filaFaltas.length > 0) reenviarFilaFaltas();
@@ -2707,6 +2735,118 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         </div>
       </div>`;
     if (!existing) document.getElementById('page-dashboard').appendChild(section);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // METAS
+  // ══════════════════════════════════════════════════════════════
+  function normalizarMoedaNum(v) {
+    const n = parseFloat(String(v || '0').replace(/[^\d.,\-]/g,'').replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+  }
+  function formatarMoedaMetas(val) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  }
+
+  async function carregarMetas() {
+    try {
+      const resp = await fetch(SHEETS_URL + '?action=metas', { cache: 'no-store' });
+      const dados = await resp.json();
+      if (dados.status === 'ok' && Array.isArray(dados.metas)) {
+        metas = dados.metas;
+        if (document.getElementById('page-metas')?.classList.contains('active')) renderMetas();
+      }
+    } catch (e) {}
+  }
+
+  function getMinhaMeta() {
+    // tenta casar pelo nome de exibição (como está na planilha META),
+    // com fallback pro username, caso a coluna VENDEDOR use o login.
+    return metas.find(m => {
+      const v = m.vendedor || m.VENDEDOR || '';
+      return normalizar(v) === normalizar(session.name) || normalizar(v) === normalizar(session.username);
+    });
+  }
+
+  function renderMetas() {
+    document.getElementById('metas-sub').textContent = session.role === 'admin'
+      ? 'Acompanhamento de metas de toda a equipe'
+      : `Acompanhe sua meta de receita, ${session.name.split(' ')[0]}.`;
+
+    const minha = getMinhaMeta();
+    const kpisWrap = document.getElementById('kpis-metas');
+
+    if (!minha) {
+      kpisWrap.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="icon">🎯</div><p>Nenhuma meta cadastrada ainda${session.role==='admin' ? '' : ' pro seu usuário'}.</p></div>`;
+    } else {
+      const meta        = normalizarMoedaNum(minha.meta_receita ?? minha['META RECEITA'] ?? minha.META_RECEITA);
+      const atingimento = normalizarMoedaNum(minha.atingimento ?? minha.ATINGIMENTO);
+      const diasTrab    = minha.dias_trabalhados ?? minha['DIAS TRABALHADOS'] ?? minha.DIAS_TRABALHADOS ?? 0;
+      const diasUteis   = minha.dias_uteis ?? minha['DIAS UTEIS'] ?? minha.DIAS_UTEIS ?? 0;
+      const projecao    = normalizarMoedaNum(minha.projecao ?? minha.PROJECAO);
+      const pct         = meta > 0 ? Math.round((atingimento / meta) * 100) : 0;
+      const pctProj     = meta > 0 ? Math.round((projecao / meta) * 100) : 0;
+
+      kpisWrap.innerHTML = `
+        <div class="kpi-card roxo">
+          <div class="kpi-label">🎯 Meta de Receita</div>
+          <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(meta)}</div>
+          <div class="kpi-sub">meta do período</div>
+        </div>
+        <div class="kpi-card verde">
+          <div class="kpi-label">✅ Atingimento</div>
+          <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(atingimento)}</div>
+          <div class="kpi-sub">${pct}% da meta</div>
+        </div>
+        <div class="kpi-card azul">
+          <div class="kpi-label">📈 Projeção</div>
+          <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(projecao)}</div>
+          <div class="kpi-sub">${pctProj}% da meta projetado</div>
+        </div>
+        <div class="kpi-card laranja">
+          <div class="kpi-label">📅 Dias Trabalhados</div>
+          <div class="kpi-value">${diasTrab}/${diasUteis}</div>
+          <div class="kpi-sub">dias úteis no período</div>
+        </div>
+        <div style="grid-column:1/-1;background:var(--white);padding:18px 20px;border-radius:var(--radius);box-shadow:var(--shadow);">
+          <div class="bar-wrap" style="margin-bottom:0;">
+            <div class="bar-label">Meta</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.min(pct,100)}%;background:${pct>=100?'#16a34a':'var(--grad)'}"></div></div>
+            <div class="bar-val">${pct}%</div>
+          </div>
+        </div>
+      `;
+    }
+
+    if (session.role === 'admin') {
+      document.getElementById('badge-metas').textContent = metas.length;
+      const wrap = document.getElementById('tabela-metas');
+      if (!metas.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="icon">🎯</div><p>Nenhuma meta cadastrada na planilha.</p></div>`;
+        return;
+      }
+      const rows = metas.map(m => {
+        const nome        = m.vendedor || m.VENDEDOR || '—';
+        const meta        = normalizarMoedaNum(m.meta_receita ?? m['META RECEITA'] ?? m.META_RECEITA);
+        const atingimento = normalizarMoedaNum(m.atingimento ?? m.ATINGIMENTO);
+        const diasTrab    = m.dias_trabalhados ?? m['DIAS TRABALHADOS'] ?? m.DIAS_TRABALHADOS ?? 0;
+        const diasUteis   = m.dias_uteis ?? m['DIAS UTEIS'] ?? m.DIAS_UTEIS ?? 0;
+        const projecao    = normalizarMoedaNum(m.projecao ?? m.PROJECAO);
+        const pct         = meta > 0 ? Math.round((atingimento / meta) * 100) : 0;
+        return `<tr>
+          <td class="td-nome">${nome}</td>
+          <td class="td-valor">${formatarMoedaMetas(meta)}</td>
+          <td class="td-valor">${formatarMoedaMetas(atingimento)}</td>
+          <td>${pct}%</td>
+          <td>${diasTrab}/${diasUteis}</td>
+          <td class="td-valor">${formatarMoedaMetas(projecao)}</td>
+        </tr>`;
+      }).join('');
+      wrap.innerHTML = `<div class="tabela-wrap"><table>
+        <thead><tr><th>Vendedor</th><th>Meta</th><th>Atingimento</th><th>%</th><th>Dias</th><th>Projeção</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    }
   }
 
   init();
