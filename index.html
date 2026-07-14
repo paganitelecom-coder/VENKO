@@ -1385,16 +1385,38 @@
     return String(v || '').toUpperCase();
   }
 
-  async function carregarPrecos() {
-    if (tabelaPrecos.length && tabelaCidades.length) return;
+  // (carregarPrecos removida — a busca de preços/cidades agora
+  // acontece dentro do bootstrap único, veja carregarBootstrap() logo abaixo)
+
+  // ══════════════════════════════════════════════════════════════
+  // BOOTSTRAP — carrega tudo que o app precisa (fichas, preços,
+  // cidades, usuários, faltas, adiantamentos, metas) numa ÚNICA
+  // chamada ao Sheets, em vez de 7 requisições separadas. Usado
+  // tanto no carregamento inicial (init) quanto no botão Atualizar.
+  // Retorna true se conseguiu buscar do servidor, false se falhou
+  // (nesse caso quem chamou decide se quer avisar o usuário).
+  // ══════════════════════════════════════════════════════════════
+  async function carregarBootstrap() {
     try {
-      const [rPrecos, rCidades] = await Promise.all([
-        fetch(SHEETS_URL + '?action=precos', { cache: 'no-store' }).then(r => r.json()),
-        fetch(SHEETS_URL + '?action=cidades', { cache: 'no-store' }).then(r => r.json())
-      ]);
-      if (rPrecos.status === 'ok')   tabelaPrecos  = rPrecos.precos   || [];
-      if (rCidades.status === 'ok')  tabelaCidades = rCidades.cidades  || [];
-    } catch(e) {}
+      const resp = await fetch(SHEETS_URL + '?action=bootstrap', { cache: 'no-store' });
+      const dados = await resp.json();
+      if (dados.status !== 'ok') return false;
+
+      if (Array.isArray(dados.fichas))        mesclarFichas(dados.fichas);
+      if (Array.isArray(dados.precos))        tabelaPrecos = dados.precos;
+      if (Array.isArray(dados.cidades))       tabelaCidades = dados.cidades;
+      if (Array.isArray(dados.usuarios)) {
+        usuariosCache = dados.usuarios;
+        localStorage.setItem('venko_usuarios_cache', JSON.stringify(usuariosCache));
+      }
+      if (Array.isArray(dados.faltas))        mesclarFaltas(dados.faltas);
+      if (Array.isArray(dados.adiantamentos)) mesclarAdiantamentos(dados.adiantamentos);
+      if (Array.isArray(dados.metas))         metas = dados.metas;
+
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   function getGrupoCidade(cidade) {
@@ -1672,10 +1694,19 @@
     atualizarContadores();
     renderDashboard();
     renderFaltasAdiantamentos();
-    atualizarDoSheets(false);
-    carregarPrecos();
-    carregarUsuarios();
-    carregarMetas();
+
+    // Uma única chamada ao Sheets carrega fichas, preços, cidades,
+    // usuários, faltas, adiantamentos e metas — no lugar das 7
+    // chamadas separadas que existiam antes.
+    carregarBootstrap().then(ok => {
+      renderTabelaMinhas();
+      renderTabelaTodas();
+      renderDashboard();
+      renderFaltasAdiantamentos();
+      if (session.role === 'admin') preencherSelectsVendedor();
+      if (document.getElementById('page-usuarios')?.classList.contains('active')) renderUsuarios();
+      if (document.getElementById('page-metas')?.classList.contains('active')) renderMetas();
+    });
 
     // Tenta reenviar fila automaticamente ao carregar
     if (filaReenvio.length > 0) {
@@ -2040,24 +2071,23 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     icone.classList.add('icone-girando');
     if (manual) texto.textContent = 'Atualizando...';
     try {
-      const resp = await fetch(SHEETS_URL + '?action=listar', { cache: 'no-store' });
-      const dados = await resp.json();
-      if (dados.status === 'ok' && Array.isArray(dados.fichas)) {
-        mesclarFichas(dados.fichas);
+      // Bootstrap único: fichas + preços + cidades + usuários + faltas + adiantamentos + metas
+      const ok = await carregarBootstrap();
+
+      if (ok) {
         renderTabelaMinhas();
         renderTabelaTodas();
         renderDashboard();
-        if (manual) showToast('✅ Fichas atualizadas!');
+        renderFaltasAdiantamentos();
+        if (session.role === 'admin') preencherSelectsVendedor();
+        if (document.getElementById('page-usuarios')?.classList.contains('active')) renderUsuarios();
+        if (document.getElementById('page-metas')?.classList.contains('active')) renderMetas();
+        if (manual) showToast('✅ Dados atualizados!');
       } else if (manual) {
         showToast('⚠️ Não foi possível atualizar agora.', 'warning');
       }
-      tabelaPrecos = []; tabelaCidades = [];
-      await carregarPrecos();
-      // Sincroniza faltas e adiantamentos também
-      await atualizarFaltasAdiantamentosDoSheets();
-      // Sincroniza metas também
-      await carregarMetas();
-      // Aproveita para tentar reenviar filas
+
+      // Aproveita para tentar reenviar filas pendentes
       if (filaReenvio.length > 0) reenviarFila();
       if (filaFaltas.length > 0) reenviarFilaFaltas();
       if (filaAdiantamentos.length > 0) reenviarFilaAdiantamentos();
@@ -2613,18 +2643,8 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     salvarAdiantamentosLocal();
   }
 
-  async function atualizarFaltasAdiantamentosDoSheets() {
-    try {
-      const [rF, rA] = await Promise.all([
-        fetch(SHEETS_URL + '?action=faltas', { cache: 'no-store' }).then(r => r.json()).catch(() => null),
-        fetch(SHEETS_URL + '?action=adiantamentos', { cache: 'no-store' }).then(r => r.json()).catch(() => null)
-      ]);
-      if (rF && rF.status === 'ok' && Array.isArray(rF.faltas)) mesclarFaltas(rF.faltas);
-      if (rA && rA.status === 'ok' && Array.isArray(rA.adiantamentos)) mesclarAdiantamentos(rA.adiantamentos);
-      renderFaltasAdiantamentos();
-      renderDashboardFaltasAdiantamentos();
-    } catch (e) {}
-  }
+  // (atualizarFaltasAdiantamentosDoSheets removida — faltas e
+  // adiantamentos agora chegam junto no bootstrap único)
 
   async function deletarFalta(id) {
     if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem excluir.', 'warning'); return; }
@@ -2748,16 +2768,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   }
 
-  async function carregarMetas() {
-    try {
-      const resp = await fetch(SHEETS_URL + '?action=metas', { cache: 'no-store' });
-      const dados = await resp.json();
-      if (dados.status === 'ok' && Array.isArray(dados.metas)) {
-        metas = dados.metas;
-        if (document.getElementById('page-metas')?.classList.contains('active')) renderMetas();
-      }
-    } catch (e) {}
-  }
+  // (carregarMetas removida — metas agora chegam junto no bootstrap único)
 
   function getMinhaMeta() {
     // tenta casar pelo nome de exibição (como está na planilha META),
