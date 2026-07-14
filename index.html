@@ -54,12 +54,17 @@
   body.dark-mode .plano-pills .pill-btn.ativo { background: #C10007; border-color: #FF4D2E; color: white; }
   body.dark-mode .plano-pills .pill-btn:hover:not(.ativo) { background: #3a1e1e; border-color: #C10007; color: #FF9B8A; }
   body.dark-mode .preco-auto-badge { background: #4e1414; color: #FF9B8A; border-color: #C10007; }
+  body.dark-mode .bottom-nav { background: #1e293b; border-top-color: #334155; }
+  body.dark-mode .modal-mais { background: #1e293b; }
+  body.dark-mode .mais-menu-item { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+  body.dark-mode .mini-resumo-card { background: #1e293b; }
 
   body {
     font-family: 'Inter', sans-serif;
     background: var(--cinza-bg);
     min-height: 100vh;
     color: var(--text);
+    padding-bottom: 78px;
   }
 
   /* ── TOPBAR ── */
@@ -146,7 +151,7 @@
   .btn-atualizar .icone-girando { display: inline-block; animation: girar 1s linear infinite; }
   @keyframes girar { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-  /* ── TABS ── */
+  /* ── TABS (legado, não usado na navegação principal) ── */
   .tabs {
     background: var(--white); display: flex; overflow-x: auto;
     border-bottom: 1px solid var(--border); scrollbar-width: none;
@@ -163,8 +168,72 @@
   .tab-btn[data-role="admin"] { display: none; }
   .admin-only { display: none; }
 
-  .page { display: none; padding: 24px 16px 60px; }
+  .page { display: none; padding: 24px 16px 100px; }
   .page.active { display: block; }
+
+  /* ── BOTTOM NAV (navegação principal, estilo app mobile) ── */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 500;
+    background: var(--white); border-top: 1px solid var(--border);
+    display: flex;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    box-shadow: 0 -2px 14px rgba(0,0,0,.07);
+  }
+  .bn-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; padding: 9px 4px 10px; background: none; border: none; cursor: pointer;
+    font-family: 'Inter', sans-serif; color: var(--muted); transition: color .15s, transform .1s;
+  }
+  .bn-icon { font-size: 1.32rem; line-height: 1; }
+  .bn-label { font-size: .63rem; font-weight: 700; letter-spacing: .2px; }
+  .bn-item.active { color: var(--primary); }
+  .bn-item:active { transform: scale(.93); }
+
+  /* ── MODAL: MAIS OPÇÕES ── */
+  .modal-mais-overlay {
+    position: fixed; inset: 0; z-index: 10000;
+    background: rgba(15,23,42,.55);
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .modal-mais-overlay.show { display: flex; }
+  .modal-mais {
+    background: var(--white); border-radius: 20px 20px 0 0;
+    box-shadow: 0 -10px 40px rgba(0,0,0,.25);
+    width: 100%; max-width: 480px;
+    padding: 8px 16px calc(18px + env(safe-area-inset-bottom, 0));
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .modal-mais h3 { font-size: .92rem; font-weight: 700; color: var(--text); padding: 12px 6px 6px; }
+  .mais-menu-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 14px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--cinza-bg); font-family: 'Inter', sans-serif; font-size: .88rem; font-weight: 600;
+    color: var(--text); cursor: pointer; text-align: left; transition: all .15s; width: 100%;
+  }
+  .mais-menu-item:hover { border-color: var(--primary-light); background: var(--verde-claro); color: var(--primary); }
+  .mais-menu-item.admin-only { display: none; }
+  .btn-mais-fechar {
+    padding: 12px; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 10px;
+    font-family: 'Inter', sans-serif; font-size: .85rem; font-weight: 600;
+    cursor: pointer; margin-top: 4px; transition: all .2s;
+  }
+  .btn-mais-fechar:hover { border-color: #ef4444; color: #ef4444; }
+
+  /* ── MINI-RESUMO (tela Nova Ficha) ── */
+  .mini-resumo {
+    max-width: 720px; margin: 0 auto 18px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    cursor: pointer;
+  }
+  .mini-resumo-card {
+    background: var(--white); border-radius: 12px; box-shadow: var(--shadow);
+    padding: 12px 10px; text-align: center; border-bottom: 3px solid var(--primary-light);
+    transition: transform .15s;
+  }
+  .mini-resumo:active .mini-resumo-card { transform: scale(.97); }
+  .mini-resumo-val { font-size: 1.05rem; font-weight: 800; color: var(--text); line-height: 1.1; }
+  .mini-resumo-lbl { font-size: .62rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; margin-top: 3px; }
 
   /* ── CARDS ── */
   .card {
@@ -372,7 +441,7 @@
 
   /* ── FILA PENDENTE BADGE ── */
   .fila-badge {
-    position: fixed; bottom: 20px; left: 20px; z-index: 9998;
+    position: fixed; bottom: 78px; left: 20px; z-index: 9998;
     background: #f59e0b; color: white;
     padding: 10px 16px; border-radius: 12px;
     font-size: .8rem; font-weight: 700;
@@ -482,6 +551,10 @@
 
   .dash-section { margin-bottom: 24px; }
   .dash-section h3 { font-size:.85rem; font-weight:700; color:var(--text); margin-bottom:12px; }
+  .dash-divider {
+    max-width: 720px; margin: 28px auto 20px; border: none;
+    border-top: 1px dashed var(--border);
+  }
 
   .rank-list { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); overflow:hidden; }
   .rank-item {
@@ -596,11 +669,13 @@
 
   @media (max-width:600px) {
     .row-2, .row-3 { grid-template-columns:1fr; }
-    .page { padding:16px 12px 60px; }
+    .page { padding:16px 12px 100px; }
     .servico-row { grid-template-columns: 100px 1fr; }
     .add-user-grid { grid-template-columns:1fr; }
     .topbar-title { display:none; }
     .pill-btn { font-size: 0.68rem; padding: 4px 9px; }
+    .mini-resumo { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .mini-resumo-val { font-size: .92rem; }
   }
 </style>
 <link rel="manifest" href="manifest.json">
@@ -628,25 +703,24 @@
   </div>
 </header>
 
-
-<!-- ── TABS ── -->
-<nav class="tabs" id="tabs" aria-label="Navegação principal">
-  <button class="tab-btn active" data-tab="formulario" onclick="mudarAba(this)">📋 Nova Ficha</button>
-  <button class="tab-btn" data-tab="historico" onclick="mudarAba(this)">📊 Minhas Vendas</button>
-  <button class="tab-btn" data-tab="dashboard" onclick="mudarAba(this)">📈 Desempenho</button>
-  <button class="tab-btn" data-tab="faltas" onclick="mudarAba(this)">📆 Faltas/Adiant.</button>
-  <button class="tab-btn" data-tab="metas" onclick="mudarAba(this)">🎯 Metas</button>
-  <button class="tab-btn" data-tab="todas" data-role="admin" onclick="mudarAba(this)">👥 Todas as Fichas</button>
-  <button class="tab-btn" data-tab="usuarios" data-role="admin" onclick="mudarAba(this)">⚙️ Usuários</button>
-</nav>
-
 <!-- ═══ ABA: NOVA FICHA ═══ -->
 <div class="page active" id="page-formulario">
-  <div class="atalhos-topo">
-    <div class="atalhos-linha">
-      <button class="btn-atalho btn-desempenho" onclick="irParaAba('dashboard')">📈 Desempenho</button>
-      <button class="btn-atalho btn-faltas-atalho" onclick="irParaAba('faltas')">📆 Faltas/Adiant.</button>
+  <div class="mini-resumo" id="mini-resumo" onclick="mudarAba('dashboard')">
+    <div class="mini-resumo-card">
+      <div class="mini-resumo-val" id="mini-meta-pct">—</div>
+      <div class="mini-resumo-lbl">Meta</div>
     </div>
+    <div class="mini-resumo-card">
+      <div class="mini-resumo-val" id="mini-fichas-semana">—</div>
+      <div class="mini-resumo-lbl">Fichas / semana</div>
+    </div>
+    <div class="mini-resumo-card">
+      <div class="mini-resumo-val" id="mini-concluidas">—</div>
+      <div class="mini-resumo-lbl">Concluídas</div>
+    </div>
+  </div>
+
+  <div class="atalhos-topo">
     <div class="atalhos-linha">
       <button class="btn-atalho btn-fatura" onclick="abrirEscolhaWhatsApp('fatura')">🧾 Fatura</button>
       <button class="btn-atalho btn-visita" onclick="abrirEscolhaWhatsApp('visita')">🔧 Visita Técnica</button>
@@ -987,7 +1061,7 @@
   <div id="tabela-minhas"></div>
 </div>
 
-<!-- ═══ ABA: DESEMPENHO ═══ -->
+<!-- ═══ ABA: DESEMPENHO (inclui Metas) ═══ -->
 <div class="page" id="page-dashboard">
   <div class="page-header">
     <div><h1>Meu Desempenho</h1><p id="dash-sub">Resumo das suas vendas</p></div>
@@ -1000,6 +1074,21 @@
   <div class="dash-section">
     <h3>Produtos Mais Vendidos</h3>
     <div id="bars-produtos" style="background:var(--white);padding:18px 20px;border-radius:var(--radius);box-shadow:var(--shadow);"></div>
+  </div>
+
+  <hr class="dash-divider">
+
+  <div class="page-header" style="margin-bottom:16px;">
+    <div><h1>🎯 Metas</h1><p id="metas-sub">Carregando...</p></div>
+  </div>
+  <div class="dash-grid" id="kpis-metas"></div>
+  <div class="admin-only" style="margin-top:20px;">
+    <div class="planilha-header" style="max-width:720px;margin-left:auto;margin-right:auto;">
+      <div class="planilha-titulo">
+        <h2>📊 Metas da Equipe <span class="badge" id="badge-metas">0</span></h2>
+      </div>
+    </div>
+    <div id="tabela-metas" style="max-width:720px;margin:0 auto;"></div>
   </div>
 </div>
 
@@ -1072,26 +1161,6 @@
   <div id="tabela-adiantamentos" style="max-width:720px;margin:0 auto;"></div>
 </div>
 
-<!-- ═══ ABA: METAS ═══ -->
-<div class="page" id="page-metas">
-  <div class="page-header">
-    <div><h1>🎯 Metas</h1><p id="metas-sub">Carregando...</p></div>
-  </div>
-
-  <!-- KPIs do vendedor logado -->
-  <div class="dash-grid" id="kpis-metas"></div>
-
-  <!-- Tabela com todos os vendedores (somente admin) -->
-  <div class="admin-only" style="margin-top:20px;">
-    <div class="planilha-header" style="max-width:720px;margin-left:auto;margin-right:auto;">
-      <div class="planilha-titulo">
-        <h2>📊 Metas da Equipe <span class="badge" id="badge-metas">0</span></h2>
-      </div>
-    </div>
-    <div id="tabela-metas" style="max-width:720px;margin:0 auto;"></div>
-  </div>
-</div>
-
 <!-- ═══ ABA: TODAS AS FICHAS (admin) ═══ -->
 <div class="page" id="page-todas">
   <div class="planilha-header">
@@ -1155,6 +1224,33 @@
 <button class="fila-badge" id="fila-badge" onclick="reenviarFila()">
   ⚠️ <span id="fila-count">0</span> ficha(s) pendente(s) — Toque para reenviar
 </button>
+
+<!-- Bottom nav: navegação principal -->
+<nav class="bottom-nav" id="bottom-nav" aria-label="Navegação principal">
+  <button class="bn-item active" data-tab="formulario" onclick="mudarAba('formulario')">
+    <span class="bn-icon">📋</span><span class="bn-label">Nova Ficha</span>
+  </button>
+  <button class="bn-item" data-tab="historico" onclick="mudarAba('historico')">
+    <span class="bn-icon">📊</span><span class="bn-label">Vendas</span>
+  </button>
+  <button class="bn-item" data-tab="dashboard" onclick="mudarAba('dashboard')">
+    <span class="bn-icon">📈</span><span class="bn-label">Desempenho</span>
+  </button>
+  <button class="bn-item" id="bn-mais" onclick="abrirMaisMenu()">
+    <span class="bn-icon">☰</span><span class="bn-label">Mais</span>
+  </button>
+</nav>
+
+<!-- Modal: Mais opções -->
+<div class="modal-mais-overlay" id="modal-mais-overlay" onclick="fecharMaisMenu()">
+  <div class="modal-mais" onclick="event.stopPropagation()">
+    <h3>Mais opções</h3>
+    <button class="mais-menu-item" onclick="mudarAbaMais('faltas')">📆 Faltas / Adiantamentos</button>
+    <button class="mais-menu-item admin-only" onclick="mudarAbaMais('todas')">👥 Todas as Fichas</button>
+    <button class="mais-menu-item admin-only" onclick="mudarAbaMais('usuarios')">⚙️ Usuários</button>
+    <button class="btn-mais-fechar" onclick="fecharMaisMenu()">Fechar</button>
+  </div>
+</div>
 
 <!-- Modal: escolher WhatsApp normal ou Business -->
 <div class="modal-wpp-overlay" id="modal-wpp-overlay" onclick="fecharModalWpp()">
@@ -1656,11 +1752,9 @@
       badge.textContent = 'Vendedor';
       badge.className = 'role-badge vendor';
     }
-    document.querySelectorAll('.tab-btn[data-role="admin"]').forEach(btn => {
-      btn.style.display = session.role === 'admin' ? 'inline-block' : 'none';
-    });
     document.querySelectorAll('.admin-only').forEach(el => {
-      el.style.display = session.role === 'admin' ? 'block' : 'none';
+      const isMenuItem = el.classList.contains('mais-menu-item');
+      el.style.display = session.role === 'admin' ? (isMenuItem ? 'flex' : 'block') : 'none';
     });
     if (session.role === 'admin') preencherSelectsVendedor();
     document.getElementById('vendedor').value = session.name;
@@ -1693,7 +1787,9 @@
 
     atualizarContadores();
     renderDashboard();
+    renderMetas();
     renderFaltasAdiantamentos();
+    atualizarMiniResumo();
 
     // Uma única chamada ao Sheets carrega fichas, preços, cidades,
     // usuários, faltas, adiantamentos e metas — no lugar das 7
@@ -1702,10 +1798,11 @@
       renderTabelaMinhas();
       renderTabelaTodas();
       renderDashboard();
+      renderMetas();
       renderFaltasAdiantamentos();
+      atualizarMiniResumo();
       if (session.role === 'admin') preencherSelectsVendedor();
       if (document.getElementById('page-usuarios')?.classList.contains('active')) renderUsuarios();
-      if (document.getElementById('page-metas')?.classList.contains('active')) renderMetas();
     });
 
     // Tenta reenviar fila automaticamente ao carregar
@@ -1714,25 +1811,41 @@
     }
   }
 
-  // Usada pelos botões de atalho (Desempenho / Faltas) no topo da Nova Ficha —
-  // encontra o botão de aba correspondente e reaproveita a lógica de mudarAba().
+  // Usada pelos botões de atalho (Fatura / Visita) e por qualquer
+  // lugar que precise pular direto pra uma aba específica.
   function irParaAba(tab) {
-    const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
-    if (btn) mudarAba(btn);
+    mudarAba(tab);
   }
 
-  function mudarAba(btn) {
-    const aba = btn.dataset.tab;
+  function mudarAba(aba) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('page-' + aba).classList.add('active');
-    btn.classList.add('active');
+    const pageEl = document.getElementById('page-' + aba);
+    if (pageEl) pageEl.classList.add('active');
+
+    document.querySelectorAll('.bn-item[data-tab]').forEach(b => b.classList.remove('active'));
+    const btnMais = document.getElementById('bn-mais');
+    const bnBtn = document.querySelector('.bn-item[data-tab="' + aba + '"]');
+    if (bnBtn) { bnBtn.classList.add('active'); btnMais?.classList.remove('active'); }
+    else { btnMais?.classList.add('active'); }
+
     if (aba === 'historico')  renderTabelaMinhas();
-    if (aba === 'dashboard')  renderDashboard();
+    if (aba === 'dashboard')  { renderDashboard(); renderMetas(); }
     if (aba === 'faltas')     renderFaltasAdiantamentos();
     if (aba === 'todas')      renderTabelaTodas();
     if (aba === 'usuarios')   renderUsuarios();
-    if (aba === 'metas')      renderMetas();
+
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  function abrirMaisMenu() {
+    document.getElementById('modal-mais-overlay').classList.add('show');
+  }
+  function fecharMaisMenu() {
+    document.getElementById('modal-mais-overlay').classList.remove('show');
+  }
+  function mudarAbaMais(tab) {
+    fecharMaisMenu();
+    mudarAba(tab);
   }
 
   function selecionarHP(val) {
@@ -1957,6 +2070,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       btn.innerHTML = '✅ Enviado!';
       setSyncStatus('ok', '✅ Ficha enviada para o Google Sheets!');
       showToast('✅ Ficha de ' + fichaAtual.nome + ' enviada!');
+      atualizarMiniResumo();
     } else {
       // Adiciona à fila de reenvio
       if (!filaReenvio.find(f => String(f.id) === String(fichaAtual.id))) {
@@ -2026,6 +2140,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   function salvarFichas() {
     localStorage.setItem('fichas', JSON.stringify(fichas));
     atualizarContadores();
+    atualizarMiniResumo();
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -2078,10 +2193,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         renderTabelaMinhas();
         renderTabelaTodas();
         renderDashboard();
+        renderMetas();
         renderFaltasAdiantamentos();
+        atualizarMiniResumo();
         if (session.role === 'admin') preencherSelectsVendedor();
         if (document.getElementById('page-usuarios')?.classList.contains('active')) renderUsuarios();
-        if (document.getElementById('page-metas')?.classList.contains('active')) renderMetas();
         if (manual) showToast('✅ Dados atualizados!');
       } else if (manual) {
         showToast('⚠️ Não foi possível atualizar agora.', 'warning');
@@ -2270,10 +2386,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     restaurarPill('plano_pos',      'pills-pos');
     restaurarPill('plano_tv',       'pills-tv');
     restaurarPill('plano_fixo',     'pills-fixo');
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelector('[data-tab="formulario"]').classList.add('active');
-    document.getElementById('page-formulario').classList.add('active');
+    mudarAba('formulario');
     setTimeout(() => gerarTexto(), 100);
   }
 
@@ -2403,7 +2516,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
             <div class="rank-val">${v.total} fichas</div>
           </div>`).join('')}
       </div>`;
-    if (!existing) document.getElementById('page-dashboard').appendChild(section);
+    if (!existing) document.getElementById('page-dashboard').insertBefore(section, document.querySelector('#page-dashboard .dash-divider'));
   }
 
   function renderUsuarios() {
@@ -2754,7 +2867,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
           <div class="kpi-sub">${meusAdiant.length} registro(s)</div>
         </div>
       </div>`;
-    if (!existing) document.getElementById('page-dashboard').appendChild(section);
+    if (!existing) document.getElementById('page-dashboard').insertBefore(section, document.querySelector('#page-dashboard .dash-divider'));
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -2857,6 +2970,39 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         <thead><tr><th>Vendedor</th><th>Meta</th><th>Atingimento</th><th>%</th><th>Dias</th><th>Projeção</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>`;
+    }
+
+    atualizarMiniResumo();
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // MINI-RESUMO — cards clicáveis no topo da Nova Ficha, dão uma
+  // prévia do Desempenho/Metas sem precisar trocar de aba.
+  // ══════════════════════════════════════════════════════════════
+  function atualizarMiniResumo() {
+    if (!session) return;
+    const minha = getMinhaMeta();
+    const elMeta = document.getElementById('mini-meta-pct');
+    if (elMeta) {
+      if (minha) {
+        const meta = normalizarMoedaNum(minha.meta_receita ?? minha['META RECEITA'] ?? minha.META_RECEITA);
+        const atingimento = normalizarMoedaNum(minha.atingimento ?? minha.ATINGIMENTO);
+        const pct = meta > 0 ? Math.round((atingimento / meta) * 100) : 0;
+        elMeta.textContent = pct + '%';
+      } else {
+        elMeta.textContent = '—';
+      }
+    }
+
+    const minhas = fichas.filter(f => session.role==='admin' || f.username_vendedor===session.username);
+    const elConcluidas = document.getElementById('mini-concluidas');
+    if (elConcluidas) elConcluidas.textContent = minhas.filter(f => f.status==='Concluída').length;
+
+    const elSemana = document.getElementById('mini-fichas-semana');
+    if (elSemana) {
+      const seteDiasAtras = Date.now() - 7*24*60*60*1000;
+      const naSemana = minhas.filter(f => (Number(f.id)||0) >= seteDiasAtras).length;
+      elSemana.textContent = naSemana;
     }
   }
 
