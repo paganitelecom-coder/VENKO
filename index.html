@@ -548,12 +548,40 @@
   .kpi-label { font-size:.68rem; font-weight:700; color:var(--muted); letter-spacing:.5px; text-transform:uppercase; margin-bottom:6px; }
   .kpi-value { font-size:1.6rem; font-weight:800; color:var(--text); line-height:1; }
   .kpi-sub   { font-size:.7rem; color:var(--muted); margin-top:4px; }
+  .kpi-trend { font-size:.72rem; font-weight:700; margin-top:5px; display:flex; align-items:center; gap:4px; }
+  .kpi-trend.up   { color:#16a34a; }
+  .kpi-trend.down { color:#ef4444; }
+  .kpi-trend.flat { color:var(--muted); }
 
   .dash-section { margin-bottom: 24px; }
   .dash-section h3 { font-size:.85rem; font-weight:700; color:var(--text); margin-bottom:12px; }
   .dash-divider {
     max-width: 720px; margin: 28px auto 20px; border: none;
     border-top: 1px dashed var(--border);
+  }
+
+  /* ── FILTRO DE PERÍODO (dashboard) ── */
+  .periodo-filtros {
+    max-width: 720px; margin: 0 auto 16px;
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  }
+  .periodo-btn {
+    padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--white);
+    font-family: 'Inter',sans-serif; font-size: .74rem; font-weight: 700; cursor: pointer;
+    transition: all .2s; color: var(--muted);
+  }
+  .periodo-btn.ativo { border-color: var(--primary-light); background: var(--verde-claro); color: var(--primary); }
+  .periodo-custom {
+    display: none; align-items: center; gap: 8px; flex-wrap: wrap;
+    max-width: 720px; margin: 0 auto 16px;
+  }
+  .periodo-custom.show { display: flex; }
+  .periodo-custom input {
+    width: auto; padding: 7px 10px; font-size: .78rem; text-transform: none;
+  }
+  .periodo-custom .btn-add-user { padding: 7px 14px; font-size: .78rem; }
+  .periodo-label-atual {
+    max-width: 720px; margin: 0 auto 14px; font-size: .76rem; color: var(--muted); font-weight: 600;
   }
 
   .rank-list { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); overflow:hidden; }
@@ -1066,6 +1094,22 @@
   <div class="page-header">
     <div><h1>Meu Desempenho</h1><p id="dash-sub">Resumo das suas vendas</p></div>
   </div>
+
+  <div class="periodo-filtros" id="periodo-filtros">
+    <button class="periodo-btn" data-periodo="hoje" onclick="selecionarPeriodo('hoje')">Hoje</button>
+    <button class="periodo-btn" data-periodo="7dias" onclick="selecionarPeriodo('7dias')">7 dias</button>
+    <button class="periodo-btn" data-periodo="mes" onclick="selecionarPeriodo('mes')">Este mês</button>
+    <button class="periodo-btn ativo" data-periodo="total" onclick="selecionarPeriodo('total')">Total</button>
+    <button class="periodo-btn" data-periodo="custom" onclick="selecionarPeriodo('custom')">Personalizado</button>
+  </div>
+  <div class="periodo-custom" id="periodo-custom">
+    <input type="text" id="periodo-de" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this)">
+    <span style="font-size:.78rem;color:var(--muted);">até</span>
+    <input type="text" id="periodo-ate" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this)">
+    <button class="btn-add-user" onclick="aplicarPeriodoCustom()">Aplicar</button>
+  </div>
+  <div class="periodo-label-atual" id="periodo-label-atual"></div>
+
   <div class="dash-grid" id="kpis-vendedor"></div>
   <div class="dash-section">
     <h3>Distribuição por Status</h3>
@@ -2390,13 +2434,150 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     setTimeout(() => gerarTexto(), 100);
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // FILTRO DE PERÍODO DO DASHBOARD
+  // ══════════════════════════════════════════════════════════════
+  let filtroPeriodo = 'total';           // 'hoje' | '7dias' | 'mes' | 'total' | 'custom'
+  let periodoCustomDe  = null;           // Date (00:00) quando filtroPeriodo === 'custom'
+  let periodoCustomAte = null;           // Date (23:59:59) quando filtroPeriodo === 'custom'
+
+  // data_cadastro é salvo como "DD/MM/AAAA" (toLocaleDateString('pt-BR')).
+  function parseDataCadastro(str) {
+    if (!str) return null;
+    const p = String(str).split('/');
+    if (p.length !== 3) return null;
+    const d = parseInt(p[0], 10), m = parseInt(p[1], 10), y = parseInt(p[2], 10);
+    if (!d || !m || !y) return null;
+    return new Date(y, m - 1, d, 0, 0, 0, 0);
+  }
+
+  function inicioDoDia(date) {
+    const d = new Date(date);
+    d.setHours(0,0,0,0);
+    return d;
+  }
+  function fimDoDia(date) {
+    const d = new Date(date);
+    d.setHours(23,59,59,999);
+    return d;
+  }
+
+  // Retorna { inicio, fim } (ambos Date, inclusivos) para o período
+  // atualmente selecionado no dashboard, ou null para "total" (sem filtro).
+  function getRangePeriodoAtual() {
+    const hoje = new Date();
+    if (filtroPeriodo === 'hoje') {
+      return { inicio: inicioDoDia(hoje), fim: fimDoDia(hoje) };
+    }
+    if (filtroPeriodo === '7dias') {
+      const inicio = inicioDoDia(new Date(hoje.getTime() - 6*24*60*60*1000)); // hoje + 6 dias atrás = 7 dias
+      return { inicio, fim: fimDoDia(hoje) };
+    }
+    if (filtroPeriodo === 'mes') {
+      const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1, 0,0,0,0);
+      return { inicio, fim: fimDoDia(hoje) };
+    }
+    if (filtroPeriodo === 'custom' && periodoCustomDe && periodoCustomAte) {
+      return { inicio: inicioDoDia(periodoCustomDe), fim: fimDoDia(periodoCustomAte) };
+    }
+    return null; // total
+  }
+
+  // Dado um range { inicio, fim }, devolve o range imediatamente anterior
+  // com a MESMA duração — usado para calcular a comparação (↑/↓ vs período anterior).
+  function getRangeAnterior(range) {
+    const duracaoMs = range.fim.getTime() - range.inicio.getTime();
+    const fimAnterior = new Date(range.inicio.getTime() - 1); // 1ms antes do início atual
+    const inicioAnterior = new Date(fimAnterior.getTime() - duracaoMs);
+    return { inicio: inicioAnterior, fim: fimAnterior };
+  }
+
+  function filtrarFichasPorRange(lista, range) {
+    if (!range) return lista; // 'total' -> sem filtro
+    return lista.filter(f => {
+      const d = parseDataCadastro(f.data_cadastro);
+      if (!d) return false;
+      return d >= range.inicio && d <= range.fim;
+    });
+  }
+
+  function selecionarPeriodo(periodo) {
+    filtroPeriodo = periodo;
+    document.querySelectorAll('.periodo-btn').forEach(b => b.classList.toggle('ativo', b.dataset.periodo === periodo));
+    document.getElementById('periodo-custom').classList.toggle('show', periodo === 'custom');
+    if (periodo !== 'custom') {
+      renderDashboard();
+    } else if (periodoCustomDe && periodoCustomAte) {
+      renderDashboard();
+    }
+  }
+
+  function parseDataBR(str) {
+    const p = String(str||'').split('/');
+    if (p.length !== 3) return null;
+    const d = parseInt(p[0],10), m = parseInt(p[1],10), y = parseInt(p[2],10);
+    if (!d || !m || !y) return null;
+    return new Date(y, m-1, d);
+  }
+
+  function aplicarPeriodoCustom() {
+    const de  = parseDataBR(document.getElementById('periodo-de').value);
+    const ate = parseDataBR(document.getElementById('periodo-ate').value);
+    if (!de || !ate) { showToast('⚠️ Informe as duas datas (DD/MM/AAAA)','warning'); return; }
+    if (de > ate) { showToast('⚠️ A data inicial deve ser antes da final','warning'); return; }
+    periodoCustomDe = de;
+    periodoCustomAte = ate;
+    renderDashboard();
+  }
+
+  function formatarDataCurta(d) {
+    return d.toLocaleDateString('pt-BR');
+  }
+
+  function atualizarLabelPeriodo(range) {
+    const el = document.getElementById('periodo-label-atual');
+    if (!el) return;
+    if (!range) { el.textContent = '📊 Mostrando: todo o histórico'; return; }
+    el.textContent = `📊 Mostrando: ${formatarDataCurta(range.inicio)} até ${formatarDataCurta(range.fim)}`;
+  }
+
+  // Monta o HTML de tendência (↑/↓/=) comparando valor atual vs anterior.
+  // Se não há período de comparação (filtro = total) ou o anterior é 0
+  // e o atual também é 0, não mostra nada.
+  function trendHtml(atual, anterior, temComparacao) {
+    if (!temComparacao) return '';
+    if (anterior === 0) {
+      if (atual === 0) return '';
+      return `<div class="kpi-trend up">↑ novo (sem base no período anterior)</div>`;
+    }
+    const variacao = ((atual - anterior) / anterior) * 100;
+    const arred = Math.round(variacao);
+    if (arred === 0) return `<div class="kpi-trend flat">— igual ao período anterior</div>`;
+    const cls = arred > 0 ? 'up' : 'down';
+    const seta = arred > 0 ? '↑' : '↓';
+    return `<div class="kpi-trend ${cls}">${seta} ${Math.abs(arred)}% vs período anterior</div>`;
+  }
+
   function renderDashboard() {
-    const minhas = fichas.filter(f =>
+    const minhasTodas = fichas.filter(f =>
       session.role==='admin' || f.username_vendedor===session.username
     );
+
+    const range = getRangePeriodoAtual();
+    const temComparacao = !!range; // só compara quando há um período definido (não em "Total")
+    const minhas = filtrarFichasPorRange(minhasTodas, range);
+
+    let minhasAnterior = [];
+    if (temComparacao) {
+      const rangeAnterior = getRangeAnterior(range);
+      minhasAnterior = filtrarFichasPorRange(minhasTodas, rangeAnterior);
+    }
+
+    atualizarLabelPeriodo(range);
+
     document.getElementById('dash-sub').textContent =
       session.role === 'admin'
-        ? `Visão geral de toda a equipe — ${fichas.length} ficha(s)`
+        ? `Visão geral de toda a equipe — ${minhas.length} ficha(s) no período`
         : `Olá, ${session.name.split(' ')[0]}! Aqui está seu resumo.`;
 
     const total      = minhas.length;
@@ -2405,14 +2586,22 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     const canceladas = minhas.filter(f => f.status==='Cancelada').length;
     const pendentes  = minhas.filter(f => f.status==='Pendente').length;
 
-    const valorTotal = minhas.reduce((sum, f) => {
+    const totalAnt      = minhasAnterior.length;
+    const concluidasAnt = minhasAnterior.filter(f => f.status==='Concluída').length;
+    const agendadasAnt  = minhasAnterior.filter(f => f.status==='Agendada').length;
+    const canceladasAnt = minhasAnterior.filter(f => f.status==='Cancelada').length;
+    const pendentesAnt  = minhasAnterior.filter(f => f.status==='Pendente').length;
+
+    const somarValor = (lista) => lista.reduce((sum, f) => {
       const valor = parseFloat(String(f.mensalidade || '0').replace(/[^\d.,]/g, '').replace(',','.'));
       return sum + (isNaN(valor) ? 0 : valor);
     }, 0);
-    const valorConcluido = minhas.filter(f => f.status==='Concluída').reduce((sum, f) => {
-      const valor = parseFloat(String(f.mensalidade || '0').replace(/[^\d.,]/g, '').replace(',','.'));
-      return sum + (isNaN(valor) ? 0 : valor);
-    }, 0);
+
+    const valorTotal = somarValor(minhas);
+    const valorConcluido = somarValor(minhas.filter(f => f.status==='Concluída'));
+    const valorTotalAnt = somarValor(minhasAnterior);
+    const valorConcluidoAnt = somarValor(minhasAnterior.filter(f => f.status==='Concluída'));
+
     const formatarMoeda = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
     document.getElementById('kpis-vendedor').innerHTML = `
@@ -2420,36 +2609,43 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         <div class="kpi-label">Total</div>
         <div class="kpi-value">${total}</div>
         <div class="kpi-sub">fichas cadastradas</div>
+        ${trendHtml(total, totalAnt, temComparacao)}
       </div>
       <div class="kpi-card rosa">
         <div class="kpi-label">💰 Valor Total</div>
         <div class="kpi-value" style="font-size:1.3rem;">${formatarMoeda(valorTotal)}</div>
         <div class="kpi-sub">todas as vendas</div>
+        ${trendHtml(valorTotal, valorTotalAnt, temComparacao)}
       </div>
       <div class="kpi-card verde">
         <div class="kpi-label">✅ Valor Concluído</div>
         <div class="kpi-value" style="font-size:1.3rem;">${formatarMoeda(valorConcluido)}</div>
         <div class="kpi-sub">${concluidas} fichas concluídas</div>
+        ${trendHtml(valorConcluido, valorConcluidoAnt, temComparacao)}
       </div>
       <div class="kpi-card verde">
         <div class="kpi-label">Concluídas</div>
         <div class="kpi-value">${concluidas}</div>
         <div class="kpi-sub">${total ? Math.round(concluidas/total*100) : 0}% do total</div>
+        ${trendHtml(concluidas, concluidasAnt, temComparacao)}
       </div>
       <div class="kpi-card laranja">
         <div class="kpi-label">Agendadas</div>
         <div class="kpi-value">${agendadas}</div>
         <div class="kpi-sub">aguardando instalação</div>
+        ${trendHtml(agendadas, agendadasAnt, temComparacao)}
       </div>
       <div class="kpi-card azul">
         <div class="kpi-label">Pendentes</div>
         <div class="kpi-value">${pendentes}</div>
         <div class="kpi-sub">em análise</div>
+        ${trendHtml(pendentes, pendentesAnt, temComparacao)}
       </div>
       <div class="kpi-card vermelho">
         <div class="kpi-label">Canceladas</div>
         <div class="kpi-value">${canceladas}</div>
         <div class="kpi-sub">não efetivadas</div>
+        ${trendHtml(canceladas, canceladasAnt, temComparacao)}
       </div>
     `;
 
@@ -2485,37 +2681,40 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         </div>`).join('')
       : '<p style="color:var(--muted);font-size:.82rem;text-align:center;padding:20px 0">Nenhum produto registrado ainda.</p>';
 
-    if (session.role === 'admin') renderRankingAdmin();
+    if (session.role === 'admin') renderRankingAdmin(minhas);
     renderDashboardFaltasAdiantamentos();
   }
 
-  function renderRankingAdmin() {
+  function renderRankingAdmin(minhasNoPeriodo) {
     const porVendedor = {};
-    fichas.forEach(f => {
+    minhasNoPeriodo.forEach(f => {
       const key = f.username_vendedor || f.vendedor || '?';
       if (!porVendedor[key]) porVendedor[key] = { name: f.vendedor||key, total:0, concluidas:0 };
       porVendedor[key].total++;
       if (f.status === 'Concluída') porVendedor[key].concluidas++;
     });
     const ranking = Object.values(porVendedor).sort((a,b) => b.total - a.total);
-    if (!ranking.length) return;
     const posClasses = ['gold','silver','bronze'];
     const posEmojis  = ['🥇','🥈','🥉'];
     const existing = document.getElementById('ranking-admin');
     const section = existing || document.createElement('div');
     section.id = 'ranking-admin';
     section.className = 'dash-section';
-    section.innerHTML = `
-      <h3>🏆 Ranking da Equipe</h3>
-      <div class="rank-list">
-        ${ranking.map((v, i) => `
-          <div class="rank-item">
-            <div class="rank-pos ${posClasses[i]||'other'}">${posEmojis[i]||i+1}</div>
-            <div class="rank-name">${v.name}</div>
-            <div class="rank-meta">${v.concluidas} concluída(s)</div>
-            <div class="rank-val">${v.total} fichas</div>
-          </div>`).join('')}
-      </div>`;
+    if (!ranking.length) {
+      section.innerHTML = `<h3>🏆 Ranking da Equipe</h3><p style="color:var(--muted);font-size:.82rem;text-align:center;padding:20px 0">Nenhuma ficha no período selecionado.</p>`;
+    } else {
+      section.innerHTML = `
+        <h3>🏆 Ranking da Equipe</h3>
+        <div class="rank-list">
+          ${ranking.map((v, i) => `
+            <div class="rank-item">
+              <div class="rank-pos ${posClasses[i]||'other'}">${posEmojis[i]||i+1}</div>
+              <div class="rank-name">${v.name}</div>
+              <div class="rank-meta">${v.concluidas} concluída(s)</div>
+              <div class="rank-val">${v.total} fichas</div>
+            </div>`).join('')}
+        </div>`;
+    }
     if (!existing) document.getElementById('page-dashboard').insertBefore(section, document.querySelector('#page-dashboard .dash-divider'));
   }
 
@@ -2905,11 +3104,40 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     } else {
       const meta        = normalizarMoedaNum(minha.meta_receita ?? minha['META RECEITA'] ?? minha.META_RECEITA);
       const atingimento = normalizarMoedaNum(minha.atingimento ?? minha.ATINGIMENTO);
-      const diasTrab    = minha.dias_trabalhados ?? minha['DIAS TRABALHADOS'] ?? minha.DIAS_TRABALHADOS ?? 0;
-      const diasUteis   = minha.dias_uteis ?? minha['DIAS UTEIS'] ?? minha.DIAS_UTEIS ?? 0;
+      const diasTrab    = parseInt(minha.dias_trabalhados ?? minha['DIAS TRABALHADOS'] ?? minha.DIAS_TRABALHADOS ?? 0, 10) || 0;
+      const diasUteis   = parseInt(minha.dias_uteis ?? minha['DIAS UTEIS'] ?? minha.DIAS_UTEIS ?? 0, 10) || 0;
       const projecao    = normalizarMoedaNum(minha.projecao ?? minha.PROJECAO);
       const pct         = meta > 0 ? Math.round((atingimento / meta) * 100) : 0;
       const pctProj     = meta > 0 ? Math.round((projecao / meta) * 100) : 0;
+
+      // ── RITMO DA META: quanto falta vender por dia útil restante ──
+      // (meta - atingimento) / (diasUteis - diasTrab)
+      const diasRestantes = diasUteis - diasTrab;
+      const faltaVender = meta - atingimento;
+      let ritmoHtml;
+      if (faltaVender <= 0) {
+        ritmoHtml = `
+          <div class="kpi-card verde">
+            <div class="kpi-label">🚀 Ritmo da Meta</div>
+            <div class="kpi-value" style="font-size:1.3rem;">Meta batida! 🎉</div>
+            <div class="kpi-sub">você já atingiu ou superou a meta</div>
+          </div>`;
+      } else if (diasRestantes <= 0) {
+        ritmoHtml = `
+          <div class="kpi-card vermelho">
+            <div class="kpi-label">🚀 Ritmo da Meta</div>
+            <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(faltaVender)}</div>
+            <div class="kpi-sub">sem dias úteis restantes no período — falta bater</div>
+          </div>`;
+      } else {
+        const necessarioPorDia = faltaVender / diasRestantes;
+        ritmoHtml = `
+          <div class="kpi-card roxo">
+            <div class="kpi-label">🚀 Ritmo da Meta</div>
+            <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(necessarioPorDia)}</div>
+            <div class="kpi-sub">por dia útil, nos ${diasRestantes} dia(s) restante(s)</div>
+          </div>`;
+      }
 
       kpisWrap.innerHTML = `
         <div class="kpi-card roxo">
@@ -2932,6 +3160,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
           <div class="kpi-value">${diasTrab}/${diasUteis}</div>
           <div class="kpi-sub">dias úteis no período</div>
         </div>
+        ${ritmoHtml}
         <div style="grid-column:1/-1;background:var(--white);padding:18px 20px;border-radius:var(--radius);box-shadow:var(--shadow);">
           <div class="bar-wrap" style="margin-bottom:0;">
             <div class="bar-label">Meta</div>
@@ -2953,10 +3182,15 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         const nome        = m.vendedor || m.VENDEDOR || '—';
         const meta        = normalizarMoedaNum(m.meta_receita ?? m['META RECEITA'] ?? m.META_RECEITA);
         const atingimento = normalizarMoedaNum(m.atingimento ?? m.ATINGIMENTO);
-        const diasTrab    = m.dias_trabalhados ?? m['DIAS TRABALHADOS'] ?? m.DIAS_TRABALHADOS ?? 0;
-        const diasUteis   = m.dias_uteis ?? m['DIAS UTEIS'] ?? m.DIAS_UTEIS ?? 0;
+        const diasTrab    = parseInt(m.dias_trabalhados ?? m['DIAS TRABALHADOS'] ?? m.DIAS_TRABALHADOS ?? 0, 10) || 0;
+        const diasUteis   = parseInt(m.dias_uteis ?? m['DIAS UTEIS'] ?? m.DIAS_UTEIS ?? 0, 10) || 0;
         const projecao    = normalizarMoedaNum(m.projecao ?? m.PROJECAO);
         const pct         = meta > 0 ? Math.round((atingimento / meta) * 100) : 0;
+        const diasRestantes = diasUteis - diasTrab;
+        const faltaVender = meta - atingimento;
+        const ritmo = faltaVender <= 0 ? '✅ Batida'
+          : diasRestantes <= 0 ? '⚠️ Sem dias'
+          : formatarMoedaMetas(faltaVender / diasRestantes) + '/dia';
         return `<tr>
           <td class="td-nome">${nome}</td>
           <td class="td-valor">${formatarMoedaMetas(meta)}</td>
@@ -2964,10 +3198,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
           <td>${pct}%</td>
           <td>${diasTrab}/${diasUteis}</td>
           <td class="td-valor">${formatarMoedaMetas(projecao)}</td>
+          <td class="td-valor">${ritmo}</td>
         </tr>`;
       }).join('');
       wrap.innerHTML = `<div class="tabela-wrap"><table>
-        <thead><tr><th>Vendedor</th><th>Meta</th><th>Atingimento</th><th>%</th><th>Dias</th><th>Projeção</th></tr></thead>
+        <thead><tr><th>Vendedor</th><th>Meta</th><th>Atingimento</th><th>%</th><th>Dias</th><th>Projeção</th><th>Ritmo/dia</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>`;
     }
