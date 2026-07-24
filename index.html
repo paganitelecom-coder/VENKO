@@ -2330,17 +2330,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
             return cls ? `<span class="status-pill ${cls}">${f.status}</span>` : '—';
           })();
 
-      // Datas de agendamento / instalação — só admin pode editar.
-      // Gravam direto na planilha (action=atualizarDatas), diferente
-      // do status que hoje só atualiza local (ver alterarStatus).
-      const agendamentoCell = isAdmin
-        ? `<input type="date" class="status-select" value="${f.data_agendamento||''}" onchange="atualizarDataFicha(${f.id},'data_agendamento',this.value)">`
-        : (f.data_agendamento ? formatarDataBR_(f.data_agendamento) : '—');
-
-      const instalacaoCell = isAdmin
-        ? `<input type="date" class="status-select" value="${f.data_instalacao||''}" onchange="atualizarDataFicha(${f.id},'data_instalacao',this.value)">`
-        : (f.data_instalacao ? formatarDataBR_(f.data_instalacao) : '—');
-
       return `<tr>
         <td>${lista.length - i}</td>
         <td class="td-nome">${f.nome}</td>
@@ -2355,8 +2344,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         <td>${statusCell}</td>
         <td class="td-local">${localCell}</td>
         <td>${f.data_cadastro}</td>
-        <td style="white-space:nowrap">${agendamentoCell}</td>
-        <td style="white-space:nowrap">${instalacaoCell}</td>
         <td style="white-space:nowrap">
           <button class="btn-regerar" onclick="reGerarFicha(${f.id})" title="Editar">↩</button>
           ${podeExcluir ? `<button class="btn-del" onclick="deletar(${f.id})" title="Excluir da planilha">✕</button>` : ''}
@@ -2369,64 +2356,10 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         <th>#</th><th>Nome</th>${isAdmin ? '<th>Vendedor</th>' : ''}
         <th>Celular</th><th>Cidade</th><th>🌐 Banda</th><th>📱 Móvel</th>
         <th>📺 TV</th><th>Valor</th><th>Instalação</th>
-        <th>Status</th><th>Local</th><th>Data</th>
-        <th>📅 Agendamento</th><th>🔧 Instalação</th><th></th>
+        <th>Status</th><th>Local</th><th>Data</th><th></th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
-  }
-
-  // Formata "AAAA-MM-DD" (formato do <input type="date">) pra "DD/MM/AAAA"
-  // na exibição pro vendedor (que só lê, não edita).
-  function formatarDataBR_(iso) {
-    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
-    return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // DATAS DE AGENDAMENTO / INSTALAÇÃO — somente admin.
-  // Diferente do alterarStatus (que só atualiza local), aqui já
-  // grava direto na planilha via action=atualizarDatas, porque
-  // essas datas servem pra outras pessoas (instalador, financeiro)
-  // acompanharem — não faz sentido ficar só no aparelho do admin.
-  // O servidor confere de novo se quem está mandando é admin
-  // (não confia só no session.role do front-end).
-  // ─────────────────────────────────────────────────────────────
-  async function atualizarDataFicha(id, campo, valor) {
-    if (session.role !== 'admin') {
-      showToast('⚠️ Apenas administradores podem alterar essas datas.', 'warning');
-      return;
-    }
-
-    const idx = fichas.findIndex(f => f.id === id);
-    if (idx < 0) return;
-
-    showToast('💾 Salvando data...', 'info', 1500);
-
-    try {
-      const params = new URLSearchParams();
-      params.append('action', 'atualizarDatas');
-      params.append('id', id);
-      params.append('username', session.username);
-      params.append(campo, valor);
-
-      const resp = await fetch(SHEETS_URL + '?' + params.toString(), { cache: 'no-store' });
-      const dados = await resp.json();
-
-      if (dados.status === 'ok') {
-        fichas[idx][campo] = valor;
-        salvarFichas();
-        showToast('✅ Data atualizada!');
-      } else {
-        showToast('❌ ' + (dados.msg || 'Não foi possível salvar a data.'), 'error');
-        renderTabelaMinhas();
-        renderTabelaTodas();
-      }
-    } catch (err) {
-      showToast('❌ Falha de conexão ao salvar a data.', 'error');
-      renderTabelaMinhas();
-      renderTabelaTodas();
-    }
   }
 
   function alterarStatus(id, novoStatus) {
@@ -2509,9 +2442,32 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   let periodoCustomAte = null;           // Date (23:59:59) quando filtroPeriodo === 'custom'
 
   // data_cadastro é salvo como "DD/MM/AAAA" (toLocaleDateString('pt-BR')).
+  //
+  // CORREÇÃO: o Apps Script (Code.gs) foi atualizado para usar
+  // getDisplayValues() ao ler as abas Fichas/FALTAS/ADIANTAMENTOS,
+  // então data_cadastro deve chegar sempre como texto "DD/MM/AAAA".
+  // Esta função foi deixada tolerante mesmo assim, como rede de
+  // segurança: se algum dia a planilha (ou uma versão antiga do
+  // Apps Script) devolver a data serializada em ISO
+  // ("2026-07-24T03:00:00.000Z", por causa de Date virando string
+  // no JSON.stringify), o filtro de período do dashboard (Hoje /
+  // 7 dias / Este mês / Personalizado) continua funcionando em vez
+  // de simplesmente não encontrar nenhuma ficha e cair sempre no
+  // "Total".
   function parseDataCadastro(str) {
     if (!str) return null;
-    const p = String(str).split('/');
+    const s = String(str).trim();
+    if (!s) return null;
+
+    // Formato ISO (ex: "2026-07-24T03:00:00.000Z" ou "2026-07-24")
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return null;
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    }
+
+    // Formato esperado DD/MM/AAAA
+    const p = s.split('/');
     if (p.length !== 3) return null;
     const d = parseInt(p[0], 10), m = parseInt(p[1], 10), y = parseInt(p[2], 10);
     if (!d || !m || !y) return null;
