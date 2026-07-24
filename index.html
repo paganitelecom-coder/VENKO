@@ -2442,9 +2442,32 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   let periodoCustomAte = null;           // Date (23:59:59) quando filtroPeriodo === 'custom'
 
   // data_cadastro é salvo como "DD/MM/AAAA" (toLocaleDateString('pt-BR')).
+  //
+  // CORREÇÃO: o Apps Script (Code.gs) foi atualizado para usar
+  // getDisplayValues() ao ler as abas Fichas/FALTAS/ADIANTAMENTOS,
+  // então data_cadastro deve chegar sempre como texto "DD/MM/AAAA".
+  // Esta função foi deixada tolerante mesmo assim, como rede de
+  // segurança: se algum dia a planilha (ou uma versão antiga do
+  // Apps Script) devolver a data serializada em ISO
+  // ("2026-07-24T03:00:00.000Z", por causa de Date virando string
+  // no JSON.stringify), o filtro de período do dashboard (Hoje /
+  // 7 dias / Este mês / Personalizado) continua funcionando em vez
+  // de simplesmente não encontrar nenhuma ficha e cair sempre no
+  // "Total".
   function parseDataCadastro(str) {
     if (!str) return null;
-    const p = String(str).split('/');
+    const s = String(str).trim();
+    if (!s) return null;
+
+    // Formato ISO (ex: "2026-07-24T03:00:00.000Z" ou "2026-07-24")
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return null;
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    }
+
+    // Formato esperado DD/MM/AAAA
+    const p = s.split('/');
     if (p.length !== 3) return null;
     const d = parseInt(p[0], 10), m = parseInt(p[1], 10), y = parseInt(p[2], 10);
     if (!d || !m || !y) return null;
