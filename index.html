@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Carrera Telecom – Ficha de Vendas</title>
-<meta name="theme-color" content="#C10007">
+<meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,12 +13,12 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --primary:        #C10007;
-    --primary-hover:  #A30006;
-    --primary-light:  #FF4D2E;
-    --grad:           linear-gradient(135deg, #C10007, #FF4D2E);
-    --verde-claro:    #FEE2E2;
-    --cinza-bg:       #FFF5F4;
+    --primary:        #000000;
+    --primary-hover:  #1a1a1a;
+    --primary-light:  #D4AF37;
+    --grad:           linear-gradient(135deg, #000000, #D4AF37);
+    --verde-claro:    #ECECEC;
+    --cinza-bg:       #F5F5F5;
     --white:          #FFFFFF;
     --text:           #1E293B;
     --muted:          #64748B;
@@ -28,7 +28,7 @@
     --radius-lg:      20px;
     --space-1: 4px; --space-2: 8px; --space-3: 12px;
     --space-4: 16px; --space-5: 24px; --space-6: 32px;
-    --shadow:         0 8px 24px -6px rgba(193,0,7,.10), 0 2px 6px rgba(0,0,0,.03);
+    --shadow:         0 8px 24px -6px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.03);
     --ease:           150ms cubic-bezier(.4,0,.2,1);
     --laranja:        #e67e22;
     --azul:           #2563eb;
@@ -51,9 +51,9 @@
   }
   body.dark-mode .btn-dark-toggle { color: #fbbf24; }
   body.dark-mode .plano-pills .pill-btn { background: #0f172a; border-color: #334155; color: #94a3b8; }
-  body.dark-mode .plano-pills .pill-btn.ativo { background: #C10007; border-color: #FF4D2E; color: white; }
-  body.dark-mode .plano-pills .pill-btn:hover:not(.ativo) { background: #3a1e1e; border-color: #C10007; color: #FF9B8A; }
-  body.dark-mode .preco-auto-badge { background: #4e1414; color: #FF9B8A; border-color: #C10007; }
+  body.dark-mode .plano-pills .pill-btn.ativo { background: #000000; border-color: #D4AF37; color: white; }
+  body.dark-mode .plano-pills .pill-btn:hover:not(.ativo) { background: #262626; border-color: #000000; color: #D4AF37; }
+  body.dark-mode .preco-auto-badge { background: #262626; color: #D4AF37; border-color: #000000; }
   body.dark-mode .bottom-nav { background: #1e293b; border-top-color: #334155; }
   body.dark-mode .modal-mais { background: #1e293b; }
   body.dark-mode .mais-menu-item { background: #0f172a; border-color: #334155; color: #f1f5f9; }
@@ -79,8 +79,8 @@
   .topbar-left { display: flex; align-items: center; gap: 12px; }
   .topbar-logo {
     width: 36px; height: 36px; border-radius: 10px;
-    background: white;
-    border: 1px solid var(--border);
+    background: #000000;
+    border: 1px solid #D4AF37;
     display: flex; align-items: center; justify-content: center;
     padding: 5px;
   }
@@ -103,7 +103,7 @@
     box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     font-size: 0.9rem; z-index: 9999;
     animation: slideIn .3s ease-out;
-    max-width: 400px; border-left: 4px solid #C10007;
+    max-width: 400px; border-left: 4px solid #000000;
     display: flex; align-items: center; gap: 12px;
   }
   .toast.success { border-left-color: #16a34a; }
@@ -277,7 +277,7 @@
   input:focus, select:focus,
   input:focus-visible, select:focus-visible {
     border-color: var(--primary-light);
-    box-shadow: 0 0 0 3px rgba(255, 77, 46,.15);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55,.15);
     background: white;
   }
   input::placeholder { color: #94A3B8; font-weight: 400; text-transform: none; }
@@ -287,8 +287,8 @@
   .preco-auto-badge {
     display: inline-flex; align-items: center; gap: 6px;
     font-size: .68rem; font-weight: 700; padding: 3px 10px;
-    border-radius: 20px; border: 1px solid #FFC9C2;
-    background: #FFF5F4; color: var(--primary);
+    border-radius: 20px; border: 1px solid #D9D9D9;
+    background: #F5F5F5; color: var(--primary);
     margin-top: 4px; transition: all .2s;
   }
   .preco-status {
@@ -297,13 +297,13 @@
     border-radius: 8px; display: none; align-items: center; gap: 8px;
   }
   .preco-status.show     { display: flex; }
-  .preco-status.ok       { background: #FFF5F4; color: var(--primary); border: 1px solid #FFC9C2; }
+  .preco-status.ok       { background: #F5F5F5; color: var(--primary); border: 1px solid #D9D9D9; }
   .preco-status.pendente { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
   .preco-status.erro     { background: #fff1f2; color: #991b1b; border: 1px solid #fecdd3; }
 
   input.auto-preenchido {
     border-color: var(--primary-light);
-    background: #FFF5F4 !important;
+    background: #F5F5F5 !important;
   }
 
   /* ── PROGRESS ── */
@@ -332,9 +332,9 @@
     cursor: pointer; transition: transform var(--ease), box-shadow var(--ease), filter var(--ease);
   }
   .btn-primary:active { transform: translateY(0); filter: brightness(.96); }
-  .btn-primary:focus-visible { outline: 3px solid rgba(255,77,46,.5); outline-offset: 2px; }
-  .btn-gerar { background: var(--grad); color: white; box-shadow: 0 4px 18px rgba(193, 0, 7,.35); }
-  .btn-gerar:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(193, 0, 7,.45); }
+  .btn-primary:focus-visible { outline: 3px solid rgba(212,175,55,.5); outline-offset: 2px; }
+  .btn-gerar { background: var(--grad); color: white; box-shadow: 0 4px 18px rgba(0, 0, 0,.35); }
+  .btn-gerar:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(0, 0, 0,.45); }
   .btn-checkin { background: linear-gradient(135deg,#e67e22,#f39c12); color:white; box-shadow:0 4px 18px rgba(230,126,34,.3); margin-bottom:8px; }
   .btn-checkin:hover { transform: translateY(-2px); }
   .btn-checkin:disabled { background: #94a3b8; box-shadow:none; cursor:not-allowed; transform:none; }
@@ -384,7 +384,7 @@
   }
   .pill-btn.ativo {
     border-color: var(--primary); background: var(--primary);
-    color: white; box-shadow: 0 2px 8px rgba(193, 0, 7,.3);
+    color: white; box-shadow: 0 2px 8px rgba(0, 0, 0,.3);
   }
   .plano-hidden { display: none; }
 
@@ -435,7 +435,7 @@
     display:none; align-items:center; gap:8px;
   }
   .sync-status.show    { display:flex; }
-  .sync-status.ok      { background:#FEE2E2; color:#C10007; }
+  .sync-status.ok      { background:#ECECEC; color:#000000; }
   .sync-status.erro    { background:#fee2e2; color:#991b1b; }
   .sync-status.loading { background:#e0e7ff; color:#3730a3; }
 
@@ -519,7 +519,7 @@
   }
   .btn-wpp-opcao:hover { transform: translateY(-2px); }
   .btn-wpp-opcao.normal   { background: linear-gradient(135deg, #16a34a, #22c55e); }
-  .btn-wpp-opcao.business { background: linear-gradient(135deg, #C10007, #FF4D2E); }
+  .btn-wpp-opcao.business { background: linear-gradient(135deg, #000000, #D4AF37); }
   .btn-wpp-cancelar {
     padding: 10px; background: transparent; color: var(--muted);
     border: 1px solid var(--border); border-radius: 10px;
@@ -590,7 +590,7 @@
     padding:14px 18px; border-bottom:1px solid #F1F5F9; transition: background .15s;
   }
   .rank-item:last-child { border-bottom:none; }
-  .rank-item:hover { background:#FFF5F4; }
+  .rank-item:hover { background:#F5F5F5; }
   .rank-pos { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.75rem; font-weight:700; flex-shrink:0; }
   .rank-pos.gold   { background:#FEF3C7; color:#92400E; }
   .rank-pos.silver { background:#F1F5F9; color:#475569; }
@@ -629,10 +629,10 @@
     background:var(--primary); color:white; border:none; border-radius:8px;
     font-family:'Inter',sans-serif; font-size:.8rem; font-weight:600; cursor:pointer; transition:all .2s;
   }
-  .btn-export:hover { background:#8f0005; transform:translateY(-1px); }
+  .btn-export:hover { background:#1a1a1a; transform:translateY(-1px); }
   .info-sheets {
     margin-bottom:14px; padding:12px 16px;
-    background:#FFF5F4; border:1px solid #FFC9C2;
+    background:#F5F5F5; border:1px solid #D9D9D9;
     border-radius:8px; font-size:.78rem; color:var(--primary); line-height:1.6;
   }
   .tabela-wrap { overflow-x:auto; border-radius:var(--radius); box-shadow:var(--shadow); }
@@ -641,7 +641,7 @@
   th { padding:12px 14px; text-align:left; font-size:.65rem; font-weight:600; letter-spacing:.5px; text-transform:uppercase; white-space:nowrap; }
   td { padding:11px 14px; border-bottom:1px solid #F1F5F9; vertical-align:middle; }
   tr:last-child td { border-bottom:none; }
-  tr:hover td { background:#FFF5F4; }
+  tr:hover td { background:#F5F5F5; }
   .td-nome { font-weight:600; min-width:140px; }
   .td-plano { color:var(--primary); font-weight:600; }
   .td-valor { font-family:'DM Mono','Courier New',monospace; }
@@ -649,7 +649,7 @@
   .td-local a:hover { text-decoration:underline; }
   .status-pill { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:.68rem; font-weight:700; white-space:nowrap; }
   .status-agendada  { background:#fef9c3; color:#854d0e; }
-  .status-concluida { background:#FEE2E2; color:#C10007; }
+  .status-concluida { background:#ECECEC; color:#000000; }
   .status-cancelada { background:#fee2e2; color:#991b1b; }
   .status-pendente  { background:#e0e7ff; color:#3730a3; }
   .btn-del    { background:none; border:none; cursor:pointer; color:#CBD5E1; font-size:1rem; transition:color .2s; padding:2px 4px; }
@@ -2316,7 +2316,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       const movelCell = [
         f.plano_controle ? '<span style="color:#1d4ed8">C:</span> '+f.plano_controle : '',
         f.plano_pos ? '<span style="color:#7e22ce">P:</span> '+f.plano_pos : '',
-        f.portabilidade ? '<span style="color:#C10007">↔</span> '+f.portabilidade : ''
+        f.portabilidade ? '<span style="color:#000000">↔</span> '+f.portabilidade : ''
       ].filter(Boolean).join('<br>') || '—';
 
       const statusCell = isAdmin
@@ -2750,7 +2750,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     }
     grid.innerHTML = users.map(u => {
       const fichasU = fichas.filter(f => f.username_vendedor === u.username);
-      const avatarBg = u.role === 'admin' ? 'linear-gradient(135deg,#7c3aed,#a855f7)' : 'linear-gradient(135deg,#C10007,#FF4D2E)';
+      const avatarBg = u.role === 'admin' ? 'linear-gradient(135deg,#7c3aed,#a855f7)' : 'linear-gradient(135deg,#000000,#D4AF37)';
       return `
         <div class="user-card">
           <div class="user-card-top">
