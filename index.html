@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carrera Telecom – Ficha de Vendas</title>
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="description" content="Ficha de vendas Carrera Telecom — cadastro, precificação e envio de propostas.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script defer src="js/draft.js"></script>
+  <script defer src="js/app.js"></script>
+  <script defer src="js/init.js"></script>
+</head>
+<body>
+<body>
+
+<!-- ── TOPBAR ── -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo"><img src="logo-carrera.png" alt="Carrera Telecom"></div>
+    <span class="topbar-title">CARRERA TELECOM</span>
+  </div>
+  <div class="topbar-right">
+    <div class="user-chip" id="user-chip">
+      <div class="avatar" id="user-avatar">?</div>
+      <span id="user-name">—</span>
+      <span class="role-badge" id="role-badge">—</span>
+    </div>
+    <button class="btn-dark-toggle" onclick="toggleDarkMode()" title="Dark Mode" aria-label="Alternar modo escuro">🌙</button>
+    <button class="btn-atualizar" id="btn-atualizar" onclick="atualizarDoSheets(true)">
+      <span id="icone-atualizar">🔄</span> <span id="texto-atualizar">Atualizar</span>
+    </button>
+    <button class="btn-logout" onclick="logout()">Sair</button>
+  </div>
+</header>
+
+<!-- ═══ ABA: NOVA FICHA ═══ -->
+<div class="page active" id="page-formulario">
+  <div class="mini-resumo" id="mini-resumo" onclick="mudarAba('dashboard')">
+    <div class="mini-resumo-card">
+      <div class="mini-resumo-val" id="mini-meta-pct">—</div>
+      <div class="mini-resumo-lbl">Meta</div>
+    </div>
+    <div class="mini-resumo-card">
+      <div class="mini-resumo-val" id="mini-fichas-semana">—</div>
+      <div class="mini-resumo-lbl">Fichas / semana</div>
+    </div>
+    <div class="mini-resumo-card">
+      <div class="mini-resumo-val" id="mini-concluidas">—</div>
+      <div class="mini-resumo-lbl">Concluídas</div>
+    </div>
+  </div>
+
+  <div class="atalhos-topo">
+    <div class="atalhos-linha">
+      <button class="btn-atalho btn-fatura" onclick="abrirEscolhaWhatsApp('fatura')">🧾 Fatura</button>
+      <button class="btn-atalho btn-visita" onclick="abrirEscolhaWhatsApp('visita')">🔧 Visita Técnica</button>
+    </div>
+  </div>
+
+  <div class="progress-bar-wrap">
+    <div class="progress-label"><span>Preenchimento</span><span id="pct-label">0%</span></div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  </div>
+
+  <!-- Venda -->
+  <div class="card">
+    <div class="card-header">🧑‍💼 Informações da Venda</div>
+    <div class="card-body">
+      <div class="grid row-2">
+        <div>
+          <label>Vendedor Responsável</label>
+          <input type="text" id="vendedor" placeholder="Nome do vendedor" oninput="atualizarProgresso()" aria-label="Nome do vendedor">
+        </div>
+        <div>
+          <label>Status da Instalação</label>
+          <select id="status" onchange="atualizarProgresso()" aria-label="Status da ficha">
+            <option value="Agendada">📅 Agendada</option>
+            <option value="Concluída">✅ Concluída</option>
+            <option value="Pendente">⏳ Pendente</option>
+            <option value="Cancelada">❌ Cancelada</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid row-2">
+        <div>
+          <label>Criar HP?</label>
+          <div style="display:flex;gap:8px;margin-top:2px;">
+            <button class="hp-btn" id="hp-sim" onclick="selecionarHP('Sim')">✅ SIM</button>
+            <button class="hp-btn" id="hp-nao" onclick="selecionarHP('Não')">❌ NÃO</button>
+          </div>
+          <input type="hidden" id="criar_hp" value="">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dados Pessoais -->
+  <div class="card">
+    <div class="card-header">👤 Dados Pessoais</div>
+    <div class="card-body">
+      <div>
+        <label>Nome Completo</label>
+        <div class="input-wrap">
+          <input type="text" id="nome" placeholder="Nome completo do cliente" oninput="atualizarProgresso()" aria-label="Nome completo do cliente">
+          <button class="clear-btn" onclick="limparCampo('nome')" tabindex="-1">✕</button>
+        </div>
+      </div>
+      <div class="grid row-2">
+        <div>
+          <label>CPF</label>
+          <div class="input-wrap">
+            <input type="text" id="cpf" placeholder="000.000.000-00" maxlength="14" oninput="atualizarProgresso()" aria-label="CPF">
+            <button class="clear-btn" onclick="limparCampo('cpf')" tabindex="-1">✕</button>
+          </div>
+        </div>
+        <div>
+          <label>RG</label>
+          <div class="input-wrap">
+            <input type="text" id="rg" placeholder="RG" oninput="atualizarProgresso()" aria-label="RG">
+            <button class="clear-btn" onclick="limparCampo('rg')" tabindex="-1">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid row-2">
+        <div><label>Data de Nascimento</label><input type="text" id="nascimento" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this);atualizarProgresso()" aria-label="Data de nascimento"></div>
+        <div>
+          <label>WhatsApp</label>
+          <div class="input-wrap">
+            <input type="text" id="celular" placeholder="(00) 00000-0000" maxlength="15" oninput="atualizarProgresso()" aria-label="Celular">
+            <button class="clear-btn" onclick="limparCampo('celular')" tabindex="-1">✕</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label>SMS</label>
+        <div class="input-wrap">
+          <input type="text" id="sms" placeholder="(00) 00000-0000" maxlength="15" oninput="atualizarProgresso()" aria-label="Número para SMS">
+          <button class="clear-btn" onclick="limparCampo('sms')" tabindex="-1">✕</button>
+        </div>
+      </div>
+      <div>
+        <label>Nome da Mãe</label>
+        <div class="input-wrap">
+          <input type="text" id="mae" placeholder="Nome completo da mãe" oninput="atualizarProgresso()" aria-label="Nome completo da mãe">
+          <button class="clear-btn" onclick="limparCampo('mae')" tabindex="-1">✕</button>
+        </div>
+      </div>
+      <div>
+        <label>E-mail</label>
+        <div class="input-wrap">
+          <input type="email" id="email" placeholder="email@exemplo.com" oninput="atualizarProgresso()" aria-label="E-mail">
+          <button class="clear-btn" onclick="limparCampo('email')" tabindex="-1">✕</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Endereço -->
+  <div class="card">
+    <div class="card-header">📍 Endereço de Instalação</div>
+    <div class="card-body">
+      <div class="grid row-2">
+        <div>
+          <label>CEP</label>
+          <div class="input-wrap">
+            <input type="text" id="cep" placeholder="00000-000" maxlength="9" oninput="onCepInput()" aria-label="CEP">
+            <button class="clear-btn" onclick="limparCampo('cep')" tabindex="-1">✕</button>
+          </div>
+          <div class="cep-status" id="cep-status"></div>
+        </div>
+        <div>
+          <label>Cidade</label>
+          <div class="input-wrap">
+            <input type="text" id="cidade" placeholder="CIDADE" oninput="onCidadeInput()" style="text-transform:uppercase;" aria-label="Cidade">
+            <button class="clear-btn" onclick="limparCampo('cidade');buscarPreco()" tabindex="-1">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid row-3">
+        <div>
+          <label>Rua / Logradouro</label>
+          <div class="input-wrap">
+            <input type="text" id="rua" placeholder="Nome da rua" oninput="atualizarProgresso()" aria-label="Nome da rua">
+            <button class="clear-btn" onclick="limparCampo('rua')" tabindex="-1">✕</button>
+          </div>
+        </div>
+        <div>
+          <label>Número</label>
+          <div class="input-wrap">
+            <input type="text" id="numero" placeholder="Nº" oninput="atualizarProgresso()" aria-label="Número do endereço">
+            <button class="clear-btn" onclick="limparCampo('numero')" tabindex="-1">✕</button>
+          </div>
+        </div>
+        <div>
+          <label>Complemento</label>
+          <div class="input-wrap">
+            <input type="text" id="complemento" placeholder="Apto, bloco..." oninput="atualizarProgresso()" aria-label="Complemento do endereço">
+            <button class="clear-btn" onclick="limparCampo('complemento')" tabindex="-1">✕</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label>Bairro</label>
+        <div class="input-wrap">
+          <input type="text" id="bairro" placeholder="Bairro" oninput="atualizarProgresso()" aria-label="Bairro">
+          <button class="clear-btn" onclick="limparCampo('bairro')" tabindex="-1">✕</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plano -->
+  <div class="card">
+    <div class="card-header">📡 Plano Contratado</div>
+    <div class="card-body">
+
+      <!-- 🌐 BANDA LARGA -->
+      <div class="servico-row">
+        <div class="servico-label">🌐 Banda Larga</div>
+        <div class="plano-pills" id="pills-banda">
+          <button class="pill-btn" onclick="selecionarPlano('plano_banda','250MB',this)">250 MB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_banda','350MB',this)">350 MB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_banda','500MB',this)">500 MB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_banda','600MB',this)">600 MB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_banda','1GB',this)">1 GB</button>
+        </div>
+        <input class="plano-hidden" type="text" id="plano_banda">
+      </div>
+
+      <!-- 🔀 MESH (adicional à Banda Larga) -->
+      <div class="servico-row">
+        <div class="servico-label">🔀 Mesh</div>
+        <div>
+          <div class="plano-pills" id="pills-mesh">
+            <button class="pill-btn" data-val="2" onclick="selecionarMesh('2',this)">2 un</button>
+            <button class="pill-btn" data-val="3" onclick="selecionarMesh('3',this)">3 un</button>
+            <button class="pill-btn" data-val="4" onclick="selecionarMesh('4',this)">4 un</button>
+          </div>
+          <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">R$ 15,00 por unidade — somado automaticamente ao valor total</div>
+        </div>
+        <input class="plano-hidden" type="text" id="plano_mesh">
+      </div>
+
+      <!-- 📱 CONTROLE -->
+      <div class="servico-row">
+        <div class="servico-label">📱 Controle</div>
+        <div class="plano-pills" id="pills-controle">
+          <button class="pill-btn" onclick="selecionarPlano('plano_controle','25GB',this)">25 GB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_controle','20GB',this)">20 GB</button>
+        </div>
+        <input class="plano-hidden" type="text" id="plano_controle">
+      </div>
+
+      <!-- 📱 PÓS -->
+      <div class="servico-row">
+        <div class="servico-label">📱 Pós</div>
+        <div class="plano-pills" id="pills-pos">
+          <button class="pill-btn" onclick="selecionarPlano('plano_pos','60GB',this)">60 GB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_pos','50GB',this)">50 GB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_pos','100GB',this)">100 GB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_pos','150GB',this)">150 GB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_pos','200GB',this)">200 GB</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_pos','500GB',this)">500 GB</button>
+        </div>
+        <input class="plano-hidden" type="text" id="plano_pos">
+      </div>
+
+      <!-- ↔️ PORTABILIDADE -->
+      <div class="servico-row">
+        <div class="servico-label">↔️ Portab.</div>
+        <div class="input-wrap">
+          <input type="text" id="portabilidade" placeholder="Nº a portar, operadora..." oninput="atualizarProgresso()" aria-label="Número a portar e operadora de origem">
+          <button class="clear-btn" onclick="limparCampo('portabilidade')" tabindex="-1">✕</button>
+        </div>
+      </div>
+
+      <!-- 📺 TV -->
+      <div class="servico-row">
+        <div class="servico-label">📺 TV</div>
+        <div class="plano-pills" id="pills-tv">
+          <button class="pill-btn" onclick="selecionarPlano('plano_tv','BOX',this)">BOX</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_tv','CABO',this)">CABO</button>
+        </div>
+        <input class="plano-hidden" type="text" id="plano_tv">
+      </div>
+
+      <!-- ☎️ FIXO -->
+      <div class="servico-row">
+        <div class="servico-label">☎️ Fixo</div>
+        <div class="plano-pills" id="pills-fixo">
+          <button class="pill-btn" onclick="selecionarPlano('plano_fixo','MUNDO',this)">MUNDO</button>
+          <button class="pill-btn" onclick="selecionarPlano('plano_fixo','BRASIL',this)">BRASIL</button>
+        </div>
+        <input class="plano-hidden" type="text" id="plano_fixo">
+      </div>
+
+      <!-- STATUS DA BUSCA DE PREÇO -->
+      <div class="preco-status" id="preco-status"></div>
+
+      <div style="margin-top:4px;">
+        <label>Valor Total</label>
+        <div class="input-wrap">
+          <input type="text" id="mensalidade" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('mensalidade')" aria-label="Valor da mensalidade">
+          <button class="clear-btn" onclick="limparCampo('mensalidade');marcarManual('mensalidade')" tabindex="-1">✕</button>
+        </div>
+      </div>
+      <div class="grid row-2">
+        <div>
+          <label>Valor Promocional</label>
+          <div class="input-wrap">
+            <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso()" aria-label="Valor do débito">
+            <button class="clear-btn" onclick="limparCampo('debito')" tabindex="-1">✕</button>
+          </div>
+        </div>
+        <div>
+          <label>Taxa de Instalação</label>
+          <div class="input-wrap">
+            <input type="text" id="taxa" placeholder="R$ 0,00 ou Grátis" oninput="atualizarProgresso()" aria-label="Valor da taxa">
+            <button class="clear-btn" onclick="limparCampo('taxa')" tabindex="-1">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid row-2">
+        <div>
+          <label>Melhor Vencimento</label>
+          <div class="input-wrap">
+            <input type="text" id="vencimento" placeholder="Ex: Dia 10" oninput="atualizarProgresso()" aria-label="Dia de vencimento">
+            <button class="clear-btn" onclick="limparCampo('vencimento')" tabindex="-1">✕</button>
+          </div>
+        </div>
+        <div>
+          <label>Período de Instalação</label>
+          <div class="input-wrap">
+            <input type="text" id="periodo" placeholder="Ex: 08/06 manhã" oninput="atualizarProgresso()" aria-label="Período do atendimento">
+            <button class="clear-btn" onclick="limparCampo('periodo')" tabindex="-1">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Observações -->
+  <div class="card">
+    <div class="card-header">📝 Observações</div>
+    <div class="card-body">
+      <textarea id="obs" placeholder="Anotações extras..." rows="3"
+        style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:.85rem;color:var(--text);background:#fafafa;outline:none;resize:vertical;transition:border-color .2s;text-transform:uppercase;"></textarea>
+    </div>
+  </div>
+
+  <button class="btn-primary btn-checkin" id="btn-checkin" onclick="fazerCheckin()">📍 Check-in — Localização do Cliente</button>
+  <button class="btn-primary btn-gerar" id="btn-enviar" onclick="enviarFicha()">📤 ENVIAR</button>
+  <div class="sync-status" id="sync-status"></div>
+
+  <div class="preview-wrap" id="preview">
+    <div class="preview-box">
+      <div class="preview-header">
+        <span>📋 Preview — Texto gerado</span>
+        <span id="hora-preview"></span>
+      </div>
+      <div class="bubble" id="texto-gerado"></div>
+      <div class="preview-actions">
+        <button class="btn-copiar" id="btn-copiar" onclick="copiarTexto()">📋 Copiar texto</button>
+        <button class="btn-nova" onclick="limpar()">🗑 Limpar e nova ficha</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ABA: MINHAS VENDAS ═══ -->
+<div class="page" id="page-historico">
+  <div class="planilha-header">
+    <div class="planilha-titulo">
+      <h2>Minhas Vendas <span class="badge" id="badge-minhas">0</span></h2>
+    </div>
+    <button class="btn-export" onclick="exportarExcel('minhas')">⬇️ Exportar</button>
+  </div>
+  <div class="busca-wrap">
+    <input type="text" id="busca-minhas" placeholder="Buscar por nome ou CPF..." oninput="renderTabelaMinhas()" style="text-transform:none;" aria-label="Buscar nas minhas fichas por nome ou CPF">
+  </div>
+  <div class="filtros" id="filtros-minhas">
+    <button class="filtro-btn ativo" onclick="filtrar('todos','minhas',this)">Todos</button>
+    <button class="filtro-btn" onclick="filtrar('Agendada','minhas',this)">📅 Agendada</button>
+    <button class="filtro-btn" onclick="filtrar('Concluída','minhas',this)">✅ Concluída</button>
+    <button class="filtro-btn" onclick="filtrar('Pendente','minhas',this)">⏳ Pendente</button>
+    <button class="filtro-btn" onclick="filtrar('Cancelada','minhas',this)">❌ Cancelada</button>
+  </div>
+  <div class="info-sheets">
+    ☁️ <strong>Fichas enviadas ao Google Sheets.</strong> Esta aba mostra o histórico salvo neste dispositivo. O status pode ser atualizado pelo administrador.
+  </div>
+  <div id="tabela-minhas"></div>
+</div>
+
+<!-- ═══ ABA: DESEMPENHO (inclui Metas) ═══ -->
+<div class="page" id="page-dashboard">
+  <div class="page-header">
+    <div><h1>Meu Desempenho</h1><p id="dash-sub">Resumo das suas vendas</p></div>
+  </div>
+
+  <div class="periodo-filtros" id="periodo-filtros">
+    <button class="periodo-btn" data-periodo="hoje" onclick="selecionarPeriodo('hoje')">Hoje</button>
+    <button class="periodo-btn" data-periodo="7dias" onclick="selecionarPeriodo('7dias')">7 dias</button>
+    <button class="periodo-btn" data-periodo="mes" onclick="selecionarPeriodo('mes')">Este mês</button>
+    <button class="periodo-btn ativo" data-periodo="total" onclick="selecionarPeriodo('total')">Total</button>
+    <button class="periodo-btn" data-periodo="custom" onclick="selecionarPeriodo('custom')">Personalizado</button>
+  </div>
+  <div class="periodo-custom" id="periodo-custom">
+    <input type="text" id="periodo-de" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this)" aria-label="Data inicial do período">
+    <span style="font-size:.78rem;color:var(--muted);">até</span>
+    <input type="text" id="periodo-ate" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this)" aria-label="Data final do período">
+    <button class="btn-add-user" onclick="aplicarPeriodoCustom()">Aplicar</button>
+  </div>
+  <div class="periodo-label-atual" id="periodo-label-atual"></div>
+
+  <div class="dash-grid" id="kpis-vendedor"></div>
+  <div class="dash-section">
+    <h3>Distribuição por Status</h3>
+    <div id="bars-status" style="background:var(--white);padding:18px 20px;border-radius:var(--radius);box-shadow:var(--shadow);"></div>
+  </div>
+  <div class="dash-section">
+    <h3>Produtos Mais Vendidos</h3>
+    <div id="bars-produtos" style="background:var(--white);padding:18px 20px;border-radius:var(--radius);box-shadow:var(--shadow);"></div>
+  </div>
+
+  <hr class="dash-divider">
+
+  <div class="page-header" style="margin-bottom:16px;">
+    <div><h1>🎯 Metas</h1><p id="metas-sub">Carregando...</p></div>
+  </div>
+  <div class="dash-grid" id="kpis-metas"></div>
+  <div class="admin-only" style="margin-top:20px;">
+    <div class="planilha-header" style="max-width:720px;margin-left:auto;margin-right:auto;">
+      <div class="planilha-titulo">
+        <h2>📊 Metas da Equipe <span class="badge" id="badge-metas">0</span></h2>
+      </div>
+    </div>
+    <div id="tabela-metas" style="max-width:720px;margin:0 auto;"></div>
+  </div>
+</div>
+
+<!-- ═══ ABA: FALTAS / ADIANTAMENTOS ═══ -->
+<div class="page" id="page-faltas">
+  <div class="page-header">
+    <div><h1>Faltas &amp; Adiantamentos</h1><p id="faltas-sub">Carregando...</p></div>
+  </div>
+
+  <div class="dash-grid" id="kpis-faltas"></div>
+
+  <div class="card admin-only">
+    <div class="card-header">📅 Registrar Falta</div>
+    <div class="card-body">
+      <div>
+        <label>Vendedor</label>
+        <select id="falta-vendedor" aria-label="Selecionar vendedor da falta"></select>
+      </div>
+      <div class="grid row-2">
+        <div>
+          <label>Data da Falta</label>
+          <input type="text" id="falta-data" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this)" aria-label="Data da falta">
+        </div>
+        <div>
+          <label>Motivo (opcional)</label>
+          <input type="text" id="falta-motivo" placeholder="Ex: Atestado médico" aria-label="Motivo da falta">
+        </div>
+      </div>
+      <button class="btn-add-user" style="width:100%;" onclick="adicionarFalta()">➕ Registrar Falta</button>
+    </div>
+  </div>
+
+  <div class="card admin-only">
+    <div class="card-header">💵 Registrar Adiantamento</div>
+    <div class="card-body">
+      <div>
+        <label>Vendedor</label>
+        <select id="adiant-vendedor" aria-label="Selecionar vendedor do adiantamento"></select>
+      </div>
+      <div class="grid row-2">
+        <div>
+          <label>Data do Adiantamento</label>
+          <input type="text" id="adiant-data" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this)" aria-label="Data do adiantamento">
+        </div>
+        <div>
+          <label>Valor</label>
+          <input type="text" id="adiant-valor" placeholder="R$ 0,00" aria-label="Valor do adiantamento">
+        </div>
+      </div>
+      <div>
+        <label>Observação (opcional)</label>
+        <input type="text" id="adiant-obs" placeholder="Ex: Adiantamento quinzenal" aria-label="Observação do adiantamento">
+      </div>
+      <button class="btn-add-user" style="width:100%;" onclick="adicionarAdiantamento()">➕ Registrar Adiantamento</button>
+    </div>
+  </div>
+
+  <div class="planilha-header" style="max-width:720px;margin-left:auto;margin-right:auto;">
+    <div class="planilha-titulo">
+      <h2>📅 Faltas <span class="badge" id="badge-faltas">0</span></h2>
+    </div>
+  </div>
+  <div id="tabela-faltas" style="max-width:720px;margin:0 auto 24px;"></div>
+
+  <div class="planilha-header" style="max-width:720px;margin-left:auto;margin-right:auto;">
+    <div class="planilha-titulo">
+      <h2>💵 Adiantamentos <span class="badge" id="badge-adiant">0</span></h2>
+    </div>
+  </div>
+  <div id="tabela-adiantamentos" style="max-width:720px;margin:0 auto;"></div>
+</div>
+
+<!-- ═══ ABA: TODAS AS FICHAS (admin) ═══ -->
+<div class="page" id="page-todas">
+  <div class="planilha-header">
+    <div class="planilha-titulo">
+      <h2>Todas as Fichas <span class="badge" id="badge-todas">0</span></h2>
+    </div>
+    <button class="btn-export" onclick="exportarExcel('todas')">⬇️ Exportar</button>
+  </div>
+  <div class="busca-wrap">
+    <input type="text" id="busca-todas" placeholder="Buscar por nome, CPF ou vendedor..." oninput="renderTabelaTodas()" style="text-transform:none;" aria-label="Buscar em todas as fichas por nome, CPF ou vendedor">
+  </div>
+  <div class="filtros" id="filtros-todas">
+    <button class="filtro-btn ativo" onclick="filtrar('todos','todas',this)">Todos</button>
+    <button class="filtro-btn" onclick="filtrar('Agendada','todas',this)">📅 Agendada</button>
+    <button class="filtro-btn" onclick="filtrar('Concluída','todas',this)">✅ Concluída</button>
+    <button class="filtro-btn" onclick="filtrar('Pendente','todas',this)">⏳ Pendente</button>
+    <button class="filtro-btn" onclick="filtrar('Cancelada','todas',this)">❌ Cancelada</button>
+  </div>
+  <div id="tabela-todas"></div>
+</div>
+
+<!-- ═══ ABA: USUÁRIOS (admin) ═══ -->
+<div class="page" id="page-usuarios">
+  <div class="page-header">
+    <div><h1>Gerenciar Usuários</h1><p>Adicione e gerencie o acesso da equipe</p></div>
+  </div>
+  <div class="form-add-user card" style="max-width:720px;margin:0 auto 20px;">
+    <div class="card-header">➕ Adicionar Usuário</div>
+    <div class="card-body">
+      <div class="add-user-grid">
+        <div>
+          <label>Nome Completo</label>
+          <input type="text" id="new-name" placeholder="Nome do vendedor" aria-label="Nome do novo vendedor">
+        </div>
+        <div>
+          <label>Usuário (login)</label>
+          <input type="text" id="new-user" placeholder="ex: joao.silva" style="text-transform:none;" aria-label="Usuário de acesso">
+        </div>
+        <div>
+          <label>Senha</label>
+          <input type="password" id="new-pass" placeholder="Senha de acesso" style="text-transform:none;" aria-label="Senha de acesso">
+        </div>
+        <div>
+          <label>Nível de Acesso</label>
+          <select id="new-role" aria-label="Perfil de acesso do novo usuário">
+            <option value="vendor">Vendedor</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-add-user" onclick="adicionarUsuario()">➕ Adicionar Usuário</button>
+    </div>
+  </div>
+  <div style="max-width:720px;margin:0 auto;">
+    <h3 style="font-size:.85rem;font-weight:700;margin-bottom:14px;color:var(--text);">Usuários Cadastrados</h3>
+    <div class="usuarios-grid" id="usuarios-grid"></div>
+  </div>
+</div>
+
+<!-- Badge flutuante para fichas pendentes de envio -->
+<button class="fila-badge" id="fila-badge" onclick="reenviarFila()">
+  ⚠️ <span id="fila-count">0</span> ficha(s) pendente(s) — Toque para reenviar
+</button>
+
+<!-- Bottom nav: navegação principal -->
+<nav class="bottom-nav" id="bottom-nav" aria-label="Navegação principal">
+  <button class="bn-item active" data-tab="formulario" onclick="mudarAba('formulario')">
+    <span class="bn-icon">📋</span><span class="bn-label">Nova Ficha</span>
+  </button>
+  <button class="bn-item" data-tab="historico" onclick="mudarAba('historico')">
+    <span class="bn-icon">📊</span><span class="bn-label">Vendas</span>
+  </button>
+  <button class="bn-item" data-tab="dashboard" onclick="mudarAba('dashboard')">
+    <span class="bn-icon">📈</span><span class="bn-label">Desempenho</span>
+  </button>
+  <button class="bn-item" id="bn-mais" onclick="abrirMaisMenu()">
+    <span class="bn-icon">☰</span><span class="bn-label">Mais</span>
+  </button>
+</nav>
+
+<!-- Modal: Mais opções -->
+<div class="modal-mais-overlay" id="modal-mais-overlay" onclick="fecharMaisMenu()">
+  <div class="modal-mais" onclick="event.stopPropagation()">
+    <h3>Mais opções</h3>
+    <button class="mais-menu-item" onclick="mudarAbaMais('faltas')">📆 Faltas / Adiantamentos</button>
+    <button class="mais-menu-item admin-only" onclick="mudarAbaMais('todas')">👥 Todas as Fichas</button>
+    <button class="mais-menu-item admin-only" onclick="mudarAbaMais('usuarios')">⚙️ Usuários</button>
+    <button class="btn-mais-fechar" onclick="fecharMaisMenu()">Fechar</button>
+  </div>
+</div>
+
+<!-- Modal: escolher WhatsApp normal ou Business -->
+<div class="modal-wpp-overlay" id="modal-wpp-overlay" onclick="fecharModalWpp()">
+  <div class="modal-wpp" onclick="event.stopPropagation()">
+    <h3 id="modal-wpp-titulo">Enviar por qual WhatsApp?</h3>
+    <p>Escolha o aplicativo que deseja usar</p>
+    <button class="btn-wpp-opcao normal" onclick="confirmarEnvioWpp('normal')">💬 WhatsApp</button>
+    <button class="btn-wpp-opcao business" onclick="confirmarEnvioWpp('business')">💼 WhatsApp Business</button>
+    <button class="btn-wpp-cancelar" onclick="fecharModalWpp()">Cancelar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+</body>
+</html>
