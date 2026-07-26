@@ -578,6 +578,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     if (aba === 'faltas')     renderFaltasAdiantamentos();
     if (aba === 'todas')      renderTabelaTodas();
     if (aba === 'usuarios')   renderUsuarios();
+    if (aba === 'logins')     renderLogins();
 
     window.scrollTo({top:0, behavior:'smooth'});
   }
@@ -1524,6 +1525,65 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       }
     } catch (e) {
       showToast('❌ Falha de conexão ao remover usuário.', 'error');
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // LOGINS — tela admin-only com local/horário de login da equipe.
+  // Busca sob demanda (não vem no bootstrap) e o servidor confere
+  // se quem está pedindo é admin de verdade — ver handleListarLogins
+  // no Code.gs. Se um vendedor tentar acessar direto pela URL, o
+  // servidor devolve lista vazia mesmo assim.
+  // ══════════════════════════════════════════════════════════════
+  async function renderLogins() {
+    const container = document.getElementById('tabela-logins');
+    const badge = document.getElementById('badge-logins');
+    if (!container) return;
+
+    if (session.role !== 'admin') {
+      container.innerHTML = `<div class="empty-state"><div class="icon">🔒</div><p>Acesso restrito.</p></div>`;
+      return;
+    }
+
+    container.innerHTML = `<div class="empty-state"><div class="icon">📍</div><p>Carregando...</p></div>`;
+
+    try {
+      const url = SHEETS_URL + '?action=logins&username=' + encodeURIComponent(session.username);
+      const resp = await fetch(url, { cache: 'no-store' });
+      const dados = await resp.json();
+
+      if (dados.status !== 'ok' || !Array.isArray(dados.logins)) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>${dados.msg || 'Não foi possível carregar.'}</p></div>`;
+        return;
+      }
+
+      const logins = dados.logins;
+      if (badge) badge.textContent = logins.length;
+
+      if (!logins.length) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">📍</div><p>Nenhum login com localização registrado ainda.</p></div>`;
+        return;
+      }
+
+      container.innerHTML = `<div class="tabela-wrap"><table>
+          <thead>
+            <tr><th>Vendedor</th><th>Usuário</th><th>Data/Hora</th><th>Local</th></tr>
+          </thead>
+          <tbody>
+            ${logins.map(l => {
+              const mapUrl = `https://maps.google.com/maps?q=${l.lat},${l.lng}&z=16`;
+              return `
+                <tr>
+                  <td>${l.vendedor || '—'}</td>
+                  <td>@${l.username || '—'}</td>
+                  <td>${l.data_hora || '—'}</td>
+                  <td><a href="${mapUrl}" target="_blank" rel="noopener">🗺 Ver no mapa</a></td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>`;
+    } catch (e) {
+      container.innerHTML = `<div class="empty-state"><div class="icon">❌</div><p>Falha de conexão ao carregar os logins.</p></div>`;
     }
   }
 
