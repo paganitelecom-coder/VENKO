@@ -1,4 +1,4 @@
-  const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53snEqtEJInEcUlDJiHkq2cY_t6e1sAvO-rb8BPvO3mDocuqqyw/exec";
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53snEqtEJInEcUlDJiHkq2cY_t6e1sAvO-rb8BPvO3mDocuqqyw/exec";
 
   // ══════════════════════════════════════════════════════════════
   // USUÁRIOS — agora vêm da aba USUARIOS da planilha (não mais fixos
@@ -285,12 +285,13 @@
     const controle = normalizar(document.getElementById('plano_controle').value);
     const pos      = normalizar(document.getElementById('plano_pos').value);
     const tv       = normalizar(document.getElementById('plano_tv').value);
+    const fixo     = normalizar(document.getElementById('plano_fixo').value);
     const meshQtd  = parseInt(document.getElementById('plano_mesh').value) || 0;
     const meshValor = meshQtd * 15;
 
     const statusEl = document.getElementById('preco-status');
 
-    const temProduto = banda || controle || pos || tv;
+    const temProduto = banda || controle || pos || tv || fixo;
     if (!temProduto || !cidade) {
       statusEl.className = 'preco-status';
       limparAutoPreenchimento();
@@ -338,6 +339,18 @@
                    : (temBanda || temMovel) ? 'VALOR_COM_MOVEL'
                    :                          'VALOR_SOZINHO';
       const v = getPrecoServico('TV', tv, grupo, coluna);
+      if (v !== null) { total += v; algumEncontrado = true; } else algumFaltando = true;
+    }
+
+    // ── FIXO ──
+    // Desconta se tiver Controle/Pós OU TV; desconta mais se tiver os dois
+    // (ex.: FIXO BRASIL cai de R$35 pra R$5 só quando tem Móvel + TV juntos).
+    if (fixo) {
+      const coluna = (temMovel && temTv) ? 'VALOR_COM_MOVEL_E_TV'
+                   : temTv                ? 'VALOR_COM_TV'
+                   : temMovel             ? 'VALOR_COM_MOVEL'
+                   :                        'VALOR_SOZINHO';
+      const v = getPrecoServico('FIXO', fixo, grupo, coluna);
       if (v !== null) { total += v; algumEncontrado = true; } else algumFaltando = true;
     }
 
