@@ -577,6 +577,19 @@
   </div>
 </div>
 
+<!-- ═══ ABA: LOGINS (admin) — visibilidade e localização de acesso ═══ -->
+<div class="page" id="page-logins">
+  <div class="page-header">
+    <div><h1>📍 Logins da Equipe</h1><p>Local e horário do último acesso de cada vendedor (registrado automaticamente)</p></div>
+  </div>
+  <div class="planilha-header">
+    <div class="planilha-titulo">
+      <h2>Registros <span class="badge" id="badge-logins">0</span></h2>
+    </div>
+  </div>
+  <div id="tabela-logins"></div>
+</div>
+
 <!-- Badge flutuante para fichas pendentes de envio -->
 <button class="fila-badge" id="fila-badge" onclick="reenviarFila()">
   ⚠️ <span id="fila-count">0</span> ficha(s) pendente(s) — Toque para reenviar
@@ -605,6 +618,7 @@
     <button class="mais-menu-item" onclick="mudarAbaMais('faltas')">📆 Faltas / Adiantamentos</button>
     <button class="mais-menu-item admin-only" onclick="mudarAbaMais('todas')">👥 Todas as Fichas</button>
     <button class="mais-menu-item admin-only" onclick="mudarAbaMais('usuarios')">⚙️ Usuários</button>
+    <button class="mais-menu-item admin-only" onclick="mudarAbaMais('logins')">📍 Logins da Equipe</button>
     <button class="btn-mais-fechar" onclick="fecharMaisMenu()">Fechar</button>
   </div>
 </div>
