@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Carrera Telecom – Entrar</title>
-<meta name="theme-color" content="#C10007">
+<meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -16,15 +16,15 @@
 
   :root {
     /* Cor */
-    --primary:        #C10007;
-    --primary-hover:  #A30006;
-    --accent:         #FF4D2E;
-    --grad:           linear-gradient(135deg, #C10007 0%, #FF4D2E 100%);
-    --bg:             #FFF5F4;
+    --primary:        #000000;
+    --primary-hover:  #1A1A1A;
+    --accent:         #D4AF37;
+    --grad:           linear-gradient(135deg, #000000 0%, #D4AF37 100%);
+    --bg:             #F5F5F5;
     --surface:        #FFFFFF;
-    --text:           #1E293B;
-    --muted:          #64748B;
-    --border:         #E2E8F0;
+    --text:           #1A1A1A;
+    --muted:          #737373;
+    --border:         #E5E5E5;
     --error:          #EF4444;
     --error-bg:       #FEF2F2;
 
@@ -36,8 +36,8 @@
     --radius-sm: 8px; --radius-md: 14px; --radius-lg: 22px;
 
     /* Sombra e transição */
-    --shadow-card: 0 20px 48px -12px rgba(193,0,7,.18), 0 4px 12px rgba(0,0,0,.04);
-    --shadow-btn:  0 8px 20px rgba(193,0,7,.30);
+    --shadow-card: 0 20px 48px -12px rgba(0,0,0,.18), 0 4px 12px rgba(0,0,0,.04);
+    --shadow-btn:  0 8px 20px rgba(212,175,55,.35);
     --ease:        150ms cubic-bezier(.4,0,.2,1);
   }
 
@@ -77,7 +77,7 @@
     background: var(--surface);
     border-radius: var(--radius-lg);
     display: inline-flex; align-items: center; justify-content: center;
-    box-shadow: 0 10px 32px rgba(193,0,7,.28);
+    box-shadow: 0 10px 32px rgba(0,0,0,.28);
     margin-bottom: var(--space-3);
     padding: 12px;
   }
@@ -118,16 +118,16 @@
     font-family: 'Inter', sans-serif;
     font-size: 0.95rem;
     color: var(--text);
-    background: #F8FAFC;
+    background: #FAFAFA;
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
     outline: none;
     transition: border-color var(--ease), box-shadow var(--ease), background var(--ease);
   }
-  .field input:hover { border-color: #CBD5E1; }
+  .field input:hover { border-color: #D4D4D4; }
   .field input:focus-visible {
     border-color: var(--accent);
-    box-shadow: 0 0 0 4px rgba(255,77,46,.16);
+    box-shadow: 0 0 0 4px rgba(212,175,55,.20);
     background: white;
   }
   .field input.erro { border-color: var(--error); }
@@ -151,21 +151,21 @@
     box-shadow: var(--shadow-btn);
     margin-top: var(--space-1);
   }
-  .btn-entrar:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(193,0,7,.4); }
+  .btn-entrar:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,.35); }
   .btn-entrar:active:not(:disabled) { transform: translateY(0); filter: brightness(.96); }
-  .btn-entrar:focus-visible { outline: 3px solid rgba(255,77,46,.5); outline-offset: 2px; }
+  .btn-entrar:focus-visible { outline: 3px solid rgba(212,175,55,.6); outline-offset: 2px; }
   .btn-entrar:disabled { opacity: .6; transform: none; cursor: not-allowed; }
 
   .hint {
     margin-top: var(--space-5); padding-top: var(--space-4);
-    border-top: 1px solid #F1F5F9;
+    border-top: 1px solid #EDEDED;
     font-size: 0.72rem; color: var(--muted); line-height: 1.8;
   }
   .hint strong { color: var(--text); }
   .hint .chip {
     display: inline-block;
     background: var(--bg); color: var(--primary);
-    border: 1px solid #FFC9C2;
+    border: 1px solid #E5E5E5;
     border-radius: 4px; padding: 1px 7px;
     font-family: 'DM Mono', monospace; font-size: 0.72rem;
     font-weight: 500;
@@ -173,7 +173,7 @@
 
   footer.version {
     text-align: center; margin-top: var(--space-5);
-    font-size: 0.68rem; color: rgba(193,0,7,0.5);
+    font-size: 0.68rem; color: rgba(0,0,0,0.4);
   }
 
   @media (max-width: 440px) {
