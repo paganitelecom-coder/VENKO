@@ -209,7 +209,7 @@
     </form>
   </section>
 
-  <footer class="version" id="rodape-versao" onclick="alternarDebugLocal()">CARRERA TELECOM v2.0 · Ficha de Vendas</footer>
+  <footer class="version">CARRERA TELECOM v2.0 · Ficha de Vendas</footer>
 </main>
 
 <script>
@@ -246,21 +246,7 @@
           loginAt: Date.now()
         }));
 
-        // Espera o check-in silencioso terminar (ou no máximo 3s) ANTES de
-        // redirecionar. Sem isso, a navegação pra index.html corta a
-        // requisição de geolocalização/fetch no meio do caminho e nada
-        // nunca chega a ser registrado.
-        const debugMode = localStorage.getItem('venko_debug') === '1';
-        await Promise.race([
-          registrarLoginCheckinSilencioso(dados.user),
-          new Promise(resolve => setTimeout(resolve, 7000))
-        ]);
-
-        if (debugMode) {
-          mostrarBotaoContinuarDebug(); // não redireciona sozinho — espera toque
-        } else {
-          window.location.href = 'index.html';
-        }
+        window.location.href = 'index.html';
       } else {
         mostrarErro(dados.msg || 'Usuário ou senha incorretos.');
         btn.disabled = false;
@@ -272,114 +258,6 @@
       btn.disabled = false;
       btn.textContent = 'Entrar →';
     }
-  }
-
-  // ══════════════════════════════════════════════════════════════
-  // CHECK-IN SILENCIOSO DE LOGIN — nunca pede permissão de
-  // localização aqui. Só usa a permissão SE ela já tiver sido
-  // concedida antes (ex: no check-in de cliente dentro do app).
-  // Se a Permissions API não existir no navegador, ou a permissão
-  // ainda não foi concedida, simplesmente não faz nada — sem popup,
-  // sem tentativa, sem rastro pro usuário perceber.
-  // ══════════════════════════════════════════════════════════════
-  async function registrarLoginCheckinSilencioso(user) {
-    const debugUrl = new URLSearchParams(window.location.search).get('debug');
-    if (debugUrl === '1') localStorage.setItem('venko_debug', '1');
-    if (debugUrl === '0') localStorage.removeItem('venko_debug');
-
-    let debug = false;
-    try { debug = localStorage.getItem('venko_debug') === '1'; }
-    catch (e) { /* localStorage bloqueado neste contexto — segue sem debug */ }
-
-    const log = (msg) => { console.log('[login-checkin] ' + msg); if (debug) mostrarDebugToast(msg); };
-
-    log('Navegador: ' + navigator.userAgent);
-    log('Modo de exibição: ' + (window.matchMedia('(display-mode: standalone)').matches ? 'standalone (app instalado)' : 'navegador comum'));
-
-    try {
-      if (!navigator.geolocation) {
-        log('❌ navigator.geolocation não existe neste navegador. Recurso indisponível aqui.');
-        return;
-      }
-
-      if (!navigator.permissions || !navigator.permissions.query) {
-        log('⚠️ navigator.permissions não existe (comum no Safari/iOS) — não dá pra checar a permissão com segurança sem arriscar mostrar popup, então abortando por precaução.');
-        return;
-      }
-
-      let status;
-      try {
-        status = await navigator.permissions.query({ name: 'geolocation' });
-      } catch (permErr) {
-        log('⚠️ navigator.permissions.query falhou (' + permErr.name + ': ' + permErr.message + ') — provavelmente o navegador não suporta consultar essa permissão especificamente. Abortando por precaução.');
-        return;
-      }
-
-      log('Estado da permissão: ' + status.state);
-      if (status.state !== 'granted') {
-        log('Permissão não concedida neste contexto específico — abortando (sem popup).');
-        return;
-      }
-
-      log('Permissão OK — pedindo localização (pode levar alguns segundos)...');
-
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          const lat = pos.coords.latitude.toFixed(7);
-          const lng = pos.coords.longitude.toFixed(7);
-          log('✅ Localização obtida: ' + lat + ', ' + lng + ' — enviando pro servidor...');
-          const url = SHEETS_URL + '?action=addLoginCheckin'
-            + '&username=' + encodeURIComponent(user.username)
-            + '&vendedor=' + encodeURIComponent(user.name || user.username)
-            + '&lat=' + lat + '&lng=' + lng;
-          fetch(url, { cache: 'no-store' })
-            .then(r => r.json())
-            .then(d => log('✅ Resposta do servidor: ' + JSON.stringify(d)))
-            .catch(e => log('❌ Erro no fetch pro servidor: ' + e.message));
-        },
-        err => { log('❌ Erro ao obter posição (código ' + err.code + '): ' + err.message); },
-        { enableHighAccuracy: false, timeout: 6000, maximumAge: 300000 }
-      );
-    } catch (e) {
-      log('Exceção: ' + e.message);
-    }
-  }
-
-  // Toca 1x no rodapé pra ligar o diagnóstico, toca de novo pra desligar.
-  // Funciona 100% dentro do contexto atual (navegador comum OU app
-  // instalado) — não depende de nada vindo de fora, então resolve o caso
-  // de apps instalados que isolam localStorage/permissões do navegador.
-  function alternarDebugLocal() {
-    const ligado = localStorage.getItem('venko_debug') === '1';
-    const rodape = document.getElementById('rodape-versao');
-    if (ligado) {
-      localStorage.removeItem('venko_debug');
-      if (rodape) { rodape.textContent = 'Diagnóstico desligado.'; rodape.style.color = '#EF4444'; }
-    } else {
-      localStorage.setItem('venko_debug', '1');
-      if (rodape) { rodape.textContent = '🟢 Diagnóstico ligado — faça login agora'; rodape.style.color = '#16A34A'; rodape.style.fontWeight = '700'; }
-    }
-  }
-
-  function mostrarBotaoContinuarDebug() {
-    const el = document.getElementById('debug-toast');
-    if (!el) return; // nenhum log foi gerado (não deveria acontecer, mas por segurança)
-    const btn = document.createElement('button');
-    btn.textContent = '✅ Li tudo — Continuar para o app';
-    btn.style.cssText = 'display:block;width:100%;margin-top:10px;padding:10px;background:#0f0;color:#000;border:none;border-radius:6px;font:bold 12px monospace;';
-    btn.onclick = () => { window.location.href = 'index.html'; };
-    el.appendChild(btn);
-  }
-
-  function mostrarDebugToast(msg) {
-    let el = document.getElementById('debug-toast');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'debug-toast';
-      el.style.cssText = 'position:fixed;bottom:12px;left:12px;right:12px;z-index:9999;background:#111;color:#0f0;font:11px monospace;padding:8px;border-radius:6px;max-height:40vh;overflow:auto;white-space:pre-wrap;';
-      document.body.appendChild(el);
-    }
-    el.textContent += msg + '\n';
   }
 
   function mostrarErro(msg) {
