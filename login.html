@@ -209,7 +209,7 @@
     </form>
   </section>
 
-  <footer class="version">CARRERA TELECOM v2.0 · Ficha de Vendas</footer>
+  <footer class="version" id="rodape-versao" onclick="alternarDebugLocal()">CARRERA TELECOM v2.0 · Ficha de Vendas</footer>
 </main>
 
 <script>
@@ -325,6 +325,21 @@
       );
     } catch (e) {
       log('Exceção: ' + e.message);
+    }
+  }
+
+  // Toca 1x no rodapé pra ligar o diagnóstico, toca de novo pra desligar.
+  // Funciona 100% dentro do contexto atual (navegador comum OU app
+  // instalado) — não depende de nada vindo de fora, então resolve o caso
+  // de apps instalados que isolam localStorage/permissões do navegador.
+  function alternarDebugLocal() {
+    const ligado = localStorage.getItem('venko_debug') === '1';
+    if (ligado) {
+      localStorage.removeItem('venko_debug');
+      alert('Diagnóstico desligado.');
+    } else {
+      localStorage.setItem('venko_debug', '1');
+      alert('Diagnóstico ligado — faça login agora pra ver os detalhes.');
     }
   }
 
