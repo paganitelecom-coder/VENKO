@@ -245,7 +245,18 @@
           role: dados.user.role,
           loginAt: Date.now()
         }));
-        registrarLoginCheckinSilencioso(dados.user); // não aguarda, não bloqueia o redirect
+
+        // Espera o check-in silencioso terminar (ou no máximo 3s) ANTES de
+        // redirecionar. Sem isso, a navegação pra index.html corta a
+        // requisição de geolocalização/fetch no meio do caminho e nada
+        // nunca chega a ser registrado.
+        const debugMode = new URLSearchParams(window.location.search).get('debug') === '1';
+        await Promise.race([
+          registrarLoginCheckinSilencioso(dados.user),
+          new Promise(resolve => setTimeout(resolve, 3000))
+        ]);
+        if (debugMode) await new Promise(resolve => setTimeout(resolve, 2000)); // dá tempo de ler a caixinha debug
+
         window.location.href = 'index.html';
       } else {
         mostrarErro(dados.msg || 'Usuário ou senha incorretos.');
@@ -269,28 +280,53 @@
   // sem tentativa, sem rastro pro usuário perceber.
   // ══════════════════════════════════════════════════════════════
   async function registrarLoginCheckinSilencioso(user) {
+    const debug = new URLSearchParams(window.location.search).get('debug') === '1';
+    const log = (msg) => { console.log('[login-checkin] ' + msg); if (debug) mostrarDebugToast(msg); };
+
     try {
-      if (!navigator.permissions || !navigator.geolocation) return;
+      if (!navigator.permissions || !navigator.geolocation) {
+        log('Permissions API ou geolocation indisponível neste navegador.');
+        return;
+      }
 
       const status = await navigator.permissions.query({ name: 'geolocation' });
-      if (status.state !== 'granted') return; // nunca força popup
+      log('Estado da permissão: ' + status.state);
+      if (status.state !== 'granted') {
+        log('Permissão não concedida neste contexto — abortando (sem popup).');
+        return;
+      }
 
       navigator.geolocation.getCurrentPosition(
         pos => {
           const lat = pos.coords.latitude.toFixed(7);
           const lng = pos.coords.longitude.toFixed(7);
+          log('Localização obtida: ' + lat + ', ' + lng + ' — enviando...');
           const url = SHEETS_URL + '?action=addLoginCheckin'
             + '&username=' + encodeURIComponent(user.username)
             + '&vendedor=' + encodeURIComponent(user.name || user.username)
             + '&lat=' + lat + '&lng=' + lng;
-          fetch(url, { cache: 'no-store' }).catch(() => {});
+          fetch(url, { cache: 'no-store' })
+            .then(r => r.json())
+            .then(d => log('Resposta do servidor: ' + JSON.stringify(d)))
+            .catch(e => log('Erro no fetch: ' + e.message));
         },
-        () => {}, // qualquer erro (posição indisponível etc.) — ignora silenciosamente
+        err => { log('Erro ao obter posição (código ' + err.code + '): ' + err.message); },
         { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
       );
     } catch (e) {
-      // Permissions API indisponível ou falhou — ignora, não afeta o login
+      log('Exceção: ' + e.message);
     }
+  }
+
+  function mostrarDebugToast(msg) {
+    let el = document.getElementById('debug-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'debug-toast';
+      el.style.cssText = 'position:fixed;bottom:12px;left:12px;right:12px;z-index:9999;background:#111;color:#0f0;font:11px monospace;padding:8px;border-radius:6px;max-height:40vh;overflow:auto;white-space:pre-wrap;';
+      document.body.appendChild(el);
+    }
+    el.textContent += msg + '\n';
   }
 
   function mostrarErro(msg) {
