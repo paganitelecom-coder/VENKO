@@ -1,5 +1,5 @@
 // Service Worker CARRERA TELECOM — cache básico do shell do app
-const CACHE_NAME = 'carrera-cache-v2';
+const CACHE_NAME = 'carrera-cache-v3';
 const ARQUIVOS_CACHE = [
   './login.html',
   './index.html',
