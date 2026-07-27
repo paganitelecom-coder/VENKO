@@ -250,14 +250,17 @@
         // redirecionar. Sem isso, a navegação pra index.html corta a
         // requisição de geolocalização/fetch no meio do caminho e nada
         // nunca chega a ser registrado.
-        const debugMode = new URLSearchParams(window.location.search).get('debug') === '1';
+        const debugMode = localStorage.getItem('venko_debug') === '1';
         await Promise.race([
           registrarLoginCheckinSilencioso(dados.user),
           new Promise(resolve => setTimeout(resolve, 3000))
         ]);
-        if (debugMode) await new Promise(resolve => setTimeout(resolve, 2000)); // dá tempo de ler a caixinha debug
 
-        window.location.href = 'index.html';
+        if (debugMode) {
+          mostrarBotaoContinuarDebug(); // não redireciona sozinho — espera toque
+        } else {
+          window.location.href = 'index.html';
+        }
       } else {
         mostrarErro(dados.msg || 'Usuário ou senha incorretos.');
         btn.disabled = false;
@@ -280,7 +283,14 @@
   // sem tentativa, sem rastro pro usuário perceber.
   // ══════════════════════════════════════════════════════════════
   async function registrarLoginCheckinSilencioso(user) {
-    const debug = new URLSearchParams(window.location.search).get('debug') === '1';
+    // Debug pode vir tanto da URL (?debug=1, útil no navegador comum) quanto
+    // de um "interruptor salvo" no aparelho (localStorage) — esse segundo
+    // jeito é o único que funciona DENTRO do app instalado, já que o ícone
+    // sempre abre num endereço fixo, sem parâmetros na URL.
+    const debugUrl = new URLSearchParams(window.location.search).get('debug');
+    if (debugUrl === '1') localStorage.setItem('venko_debug', '1');
+    if (debugUrl === '0') localStorage.removeItem('venko_debug');
+    const debug = localStorage.getItem('venko_debug') === '1';
     const log = (msg) => { console.log('[login-checkin] ' + msg); if (debug) mostrarDebugToast(msg); };
 
     try {
@@ -316,6 +326,16 @@
     } catch (e) {
       log('Exceção: ' + e.message);
     }
+  }
+
+  function mostrarBotaoContinuarDebug() {
+    const el = document.getElementById('debug-toast');
+    if (!el) return; // nenhum log foi gerado (não deveria acontecer, mas por segurança)
+    const btn = document.createElement('button');
+    btn.textContent = '✅ Li tudo — Continuar para o app';
+    btn.style.cssText = 'display:block;width:100%;margin-top:10px;padding:10px;background:#0f0;color:#000;border:none;border-radius:6px;font:bold 12px monospace;';
+    btn.onclick = () => { window.location.href = 'index.html'; };
+    el.appendChild(btn);
   }
 
   function mostrarDebugToast(msg) {
