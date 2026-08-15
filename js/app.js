@@ -221,12 +221,23 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
   // cidades, usuários, faltas, adiantamentos, metas) numa ÚNICA
   // chamada ao Sheets, em vez de 7 requisições separadas. Usado
   // tanto no carregamento inicial (init) quanto no botão Atualizar.
+  //
+  // CORREÇÃO: agora com AbortController de 20s — antes, se o
+  // Apps Script demorasse (cold start + 7 leituras de planilha
+  // sem cache no servidor), o fetch ficava esperando indefinidamente
+  // e o app parecia "travado" no login sem nenhum feedback nem
+  // limite. Combinado com o cache de 45s adicionado no Code.gs
+  // (handleBootstrap), essa é a correção completa da lentidão.
+  //
   // Retorna true se conseguiu buscar do servidor, false se falhou
   // (nesse caso quem chamou decide se quer avisar o usuário).
   // ══════════════════════════════════════════════════════════════
   async function carregarBootstrap() {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
     try {
-      const resp = await fetch(SHEETS_URL + '?action=bootstrap', { cache: 'no-store' });
+      const resp = await fetch(SHEETS_URL + '?action=bootstrap', { cache: 'no-store', signal: controller.signal });
+      clearTimeout(timeout);
       const dados = await resp.json();
       if (dados.status !== 'ok') return false;
 
@@ -243,6 +254,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 
       return true;
     } catch (e) {
+      clearTimeout(timeout);
       return false;
     }
   }
