@@ -126,16 +126,26 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     }
   }
 
-  // ── Envia via fetch com leitura real da resposta (detecta falha de verdade) ────
+  // ── Envia via POST com leitura real da resposta (detecta falha de verdade) ────
+  // CORREÇÃO: antes ia por GET com a ficha inteira na query string da URL.
+  // Fichas com endereço/observações longas geravam URLs compridas, que em
+  // sinal de celular fraco / proxies de operadora podiam ser truncadas ou
+  // rejeitadas antes de chegar no Apps Script — perdendo a ficha de forma
+  // silenciosa. POST com corpo elimina esse limite de tamanho de vez.
   async function enviarParaSheets(ficha) {
     const params = new URLSearchParams();
     Object.entries(ficha).forEach(([k, v]) => params.append(k, v || ''));
-    const url = SHEETS_URL + '?' + params.toString();
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-      const resp = await fetch(url, { method: 'GET', signal: controller.signal, cache: 'no-store' });
+      const resp = await fetch(SHEETS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+        signal: controller.signal,
+        cache: 'no-store'
+      });
       clearTimeout(timeout);
       const dados = await resp.json();
       // success:true cobre inserção nova E reenvio de duplicata (já estava salva) —
@@ -143,28 +153,12 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       return !!(dados && dados.success);
     } catch (err) {
       clearTimeout(timeout);
-      // Rede falhou / CORS bloqueado nesse aparelho: tenta fallback via iframe.
-      // Esse caminho não confirma sucesso real, então a ficha continua na fila
-      // até um reenvio bem-sucedido com leitura de resposta confirmar.
-      await enviarViaImagem(url);
+      // Rede falhou de verdade (timeout, sem sinal, CORS bloqueado etc.):
+      // a ficha já está salva localmente (garantido em enviarFicha) e cai
+      // na fila de reenvio — sem fallback via iframe, que não funciona com
+      // POST e mascarava falhas reais como sucesso incerto.
       return false;
     }
-  }
-
-  // Fallback via iframe (último recurso)
-  function enviarViaImagem(url) {
-    return new Promise(resolve => {
-      const old = document.getElementById('_sheets_iframe');
-      if (old) old.remove();
-      const iframe = document.createElement('iframe');
-      iframe.id = '_sheets_iframe';
-      iframe.style.cssText = 'display:none;width:0;height:0;border:none;position:fixed;top:-9999px;';
-      iframe.onload = () => setTimeout(() => resolve(true), 800);
-      iframe.onerror = () => resolve(false);
-      document.body.appendChild(iframe);
-      iframe.src = url;
-      setTimeout(() => resolve(false), 12000);
-    });
   }
 
   // Reenviar todas as fichas da fila
@@ -1644,21 +1638,27 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   function salvarFilaFaltas() { localStorage.setItem('venko_fila_faltas', JSON.stringify(filaFaltas)); }
   function salvarFilaAdiantamentos() { localStorage.setItem('venko_fila_adiantamentos', JSON.stringify(filaAdiantamentos)); }
 
+  // CORREÇÃO: GET (querystring) → POST (body) — mesmo motivo do
+  // enviarParaSheets acima (URLs longas podiam falhar em sinal fraco).
   async function enviarRegistroSheets(action, registro) {
     const params = new URLSearchParams();
     params.append('action', action);
     Object.entries(registro).forEach(([k, v]) => params.append(k, v || ''));
-    const url = SHEETS_URL + '?' + params.toString();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-      const resp = await fetch(url, { method: 'GET', signal: controller.signal, cache: 'no-store' });
+      const resp = await fetch(SHEETS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+        signal: controller.signal,
+        cache: 'no-store'
+      });
       clearTimeout(timeout);
       const dados = await resp.json();
       return !!(dados && dados.status === 'ok');
     } catch (err) {
       clearTimeout(timeout);
-      await enviarViaImagem(url);
       return false;
     }
   }
@@ -1909,7 +1909,6 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       const pctProj     = meta > 0 ? Math.round((projecao / meta) * 100) : 0;
 
       // ── RITMO DA META: quanto falta vender por dia útil restante ──
-      // (meta - atingimento) / (diasUteis - diasTrab)
       const diasRestantes = diasUteis - diasTrab;
       const faltaVender = meta - atingimento;
       let ritmoHtml;
