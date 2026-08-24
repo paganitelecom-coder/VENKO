@@ -27,6 +27,16 @@
   function save(){
     try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), data: collect() })); } catch(e){}
   }
+  // CORREÇÃO: antes o restore() repunha QUALQUER valor salvo (mesmo
+  // string vazia) e sempre chamava buscarPreco() no final — isso fazia
+  // cidade/plano de um rascunho antigo (de uma ficha já finalizada, ou
+  // do formulário "limpo" antes do limparRascunho() ter sido chamado)
+  // reaparecerem sozinhos e a Receita/Valor do Plano serem calculados
+  // sem o vendedor ter escolhido nada na sessão atual — parecia bug
+  // de cálculo, mas na verdade era o rascunho antigo voltando.
+  // Agora: (1) ignora valores vazios, (2) só mexe em pills/preço se
+  // ALGO de fato foi restaurado, (3) avisa o vendedor com um toast,
+  // pra nunca ficar "silencioso" preenchendo por trás.
   function restore(){
     try {
       const raw = localStorage.getItem(KEY);
@@ -34,10 +44,18 @@
       const { data, t } = JSON.parse(raw);
       // ignora rascunhos com mais de 24h
       if (Date.now() - t > 24*3600*1000) { localStorage.removeItem(KEY); return; }
+
+      let restaurouAlgo = false;
       Object.entries(data).forEach(([k, v]) => {
+        if (!v) return; // não repõe valor vazio (evita "falso restaurou")
         const el = document.querySelector(`[name="${k}"], #${CSS.escape(k)}`);
-        if (el && !el.value) el.value = v;
+        if (el && !el.value) { el.value = v; restaurouAlgo = true; }
       });
+
+      // Nada foi restaurado (rascunho vazio ou formulário já preenchido)
+      // -> não mexe em pills nem dispara buscarPreco() à toa.
+      if (!restaurouAlgo) return;
+
       // Sincroniza as pills visualmente com o valor restaurado
       // e recalcula o preço a partir da tabela — nunca deixa um
       // valor de preço "congelado" de uma ficha anterior.
@@ -51,6 +69,12 @@
       if (typeof window.restaurarMesh === 'function') restaurarMesh();
       if (typeof window.atualizarProgresso === 'function') atualizarProgresso();
       if (typeof window.buscarPreco === 'function') buscarPreco();
+
+      // Avisa o vendedor — sem isso ele acha que o app "inventou"
+      // cidade/plano/preço sozinho.
+      if (typeof window.showToast === 'function') {
+        showToast('📝 Rascunho anterior restaurado — confira os dados antes de enviar', 'info', 5000);
+      }
     } catch(e){}
   }
   window.addEventListener('DOMContentLoaded', () => {
