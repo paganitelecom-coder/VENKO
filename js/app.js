@@ -287,10 +287,11 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 
   // ══════════════════════════════════════════════════════════════
   // CÁLCULO DE PREÇOS:
-  //   • Valor do Plano (campo "debito")   = Banda Larga + Controle + Pós
-  //                                          + Dep. Pago + TV + Fixo
-  //   • Receita / Valor Total (campo "mensalidade") = Valor do Plano + Mesh
-  //   • Dep. Pago soma R$ 55,00 por unidade ao Valor do Plano.
+  //   • Receita (campo "mensalidade") = Banda Larga + Controle + Pós
+  //                                      + Dep. Pago + TV + Fixo
+  //   • Valor do Plano (campo "debito") = Receita + Mesh
+  //   • Dep. Pago soma R$ 55,00 por unidade à Receita (e, por
+  //     consequência, também ao Valor do Plano).
   //   • Dep. Grátis é só um campo de quantidade — não entra em nenhum
   //     cálculo de valor.
   // ══════════════════════════════════════════════════════════════
@@ -327,7 +328,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     const temBanda = !!banda;
     const temTv    = !!tv;
 
-    // totalPlano = tudo que compõe o "Valor do Plano" (sem Mesh).
+    // totalPlano = tudo que compõe a Receita (sem Mesh).
     let totalPlano = 0, algumEncontrado = false, algumFaltando = false;
 
     // ── BANDA LARGA ──
@@ -373,7 +374,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     }
 
     // ── DEP. PAGO ── (serviço adicional, preço fixo de R$55,00 por unidade,
-    // entra no Valor do Plano — diferente do Mesh, que só entra na Receita)
+    // entra na Receita — diferente do Mesh, que só entra no Valor do Plano)
     if (depPagoQtd > 0) {
       totalPlano += depPagoValor;
       algumEncontrado = true;
@@ -387,19 +388,20 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     }
 
     // ── MESH ── (serviço adicional, preço fixo de R$15,00 por unidade —
-    // soma na Receita/Valor Total, mas NÃO entra no Valor do Plano)
-    const totalReceita = totalPlano + meshValor;
-
-    if (!camposAutoPreenchidos.has('debito_manual')) {
-      document.getElementById('debito').value = formatarValor(totalPlano);
-      document.getElementById('debito').classList.add('auto-preenchido');
-      camposAutoPreenchidos.add('debito');
-    }
+    // soma no Valor do Plano, que é Receita + Mesh. A Receita em si
+    // (Banda + Controle + Pós + Dep. Pago + TV + Fixo) NÃO leva o Mesh.
+    const totalValorPlano = totalPlano + meshValor;
 
     if (!camposAutoPreenchidos.has('mensalidade_manual')) {
-      document.getElementById('mensalidade').value = formatarValor(totalReceita);
+      document.getElementById('mensalidade').value = formatarValor(totalPlano);
       document.getElementById('mensalidade').classList.add('auto-preenchido');
       camposAutoPreenchidos.add('mensalidade');
+    }
+
+    if (!camposAutoPreenchidos.has('debito_manual')) {
+      document.getElementById('debito').value = formatarValor(totalValorPlano);
+      document.getElementById('debito').classList.add('auto-preenchido');
+      camposAutoPreenchidos.add('debito');
     }
 
     const meshTexto = meshQtd > 0 ? ` + Mesh ${meshQtd}x (R$ ${meshValor.toFixed(2).replace('.', ',')})` : '';
