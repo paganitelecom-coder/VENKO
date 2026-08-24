@@ -276,6 +276,27 @@
         <input class="plano-hidden" type="text" id="plano_pos">
       </div>
 
+      <!-- 🆓 DEP GRÁTIS -->
+      <div class="servico-row">
+        <div class="servico-label">🆓 Dep. Grátis</div>
+        <div class="input-wrap">
+          <input type="number" id="dep_gratis" min="0" step="1" placeholder="Qtd" oninput="atualizarProgresso()" aria-label="Quantidade de depósitos grátis">
+          <button class="clear-btn" onclick="limparCampo('dep_gratis')" tabindex="-1">✕</button>
+        </div>
+      </div>
+
+      <!-- 💰 DEP PAGO -->
+      <div class="servico-row">
+        <div class="servico-label">💰 Dep. Pago</div>
+        <div>
+          <div class="input-wrap">
+            <input type="number" id="dep_pago" min="0" step="1" placeholder="Qtd" oninput="onDepChange()" aria-label="Quantidade de depósitos pagos">
+            <button class="clear-btn" onclick="limparCampo('dep_pago');onDepChange()" tabindex="-1">✕</button>
+          </div>
+          <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">R$ 55,00 por unidade — somado automaticamente ao Valor do Plano</div>
+        </div>
+      </div>
+
       <!-- ↔️ PORTABILIDADE -->
       <div class="servico-row">
         <div class="servico-label">↔️ Portab.</div>
@@ -309,18 +330,18 @@
       <div class="preco-status" id="preco-status"></div>
 
       <div style="margin-top:4px;">
-        <label>Valor Total</label>
+        <label>Receita</label>
         <div class="input-wrap">
-          <input type="text" id="mensalidade" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('mensalidade')" aria-label="Valor da mensalidade">
+          <input type="text" id="mensalidade" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('mensalidade')" aria-label="Valor da receita (mensalidade)">
           <button class="clear-btn" onclick="limparCampo('mensalidade');marcarManual('mensalidade')" tabindex="-1">✕</button>
         </div>
       </div>
       <div class="grid row-2">
         <div>
-          <label>Valor Promocional</label>
+          <label>Valor do Plano</label>
           <div class="input-wrap">
-            <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso()" aria-label="Valor do débito">
-            <button class="clear-btn" onclick="limparCampo('debito')" tabindex="-1">✕</button>
+            <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('debito')" aria-label="Valor do plano">
+            <button class="clear-btn" onclick="limparCampo('debito');marcarManual('debito')" tabindex="-1">✕</button>
           </div>
         </div>
         <div>
