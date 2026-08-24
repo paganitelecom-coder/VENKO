@@ -1,5 +1,5 @@
 // Service Worker CARRERA TELECOM — cache básico do shell do app
-const CACHE_NAME = 'carrera-cache-v3';
+const CACHE_NAME = 'carrera-cache-v4'; // ← bump pra forçar o navegador a notar que o sw.js mudou
 const ARQUIVOS_CACHE = [
   './login.html',
   './index.html',
@@ -8,14 +8,12 @@ const ARQUIVOS_CACHE = [
   './icon-512.png',
   './logo-carrera.png'
 ];
-
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(ARQUIVOS_CACHE))
   );
   self.skipWaiting();
 });
-
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(nomes =>
@@ -24,12 +22,11 @@ self.addEventListener('activate', event => {
   );
   self.clients.claim();
 });
-
 // Estratégia: tenta rede primeiro (dados sempre atualizados), cai no cache se offline
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'no-store' })   // ← ignora o cache HTTP do navegador, sempre busca fresco
       .then(resp => {
         const respClone = resp.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, respClone));
