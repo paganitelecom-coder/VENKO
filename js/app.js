@@ -33,7 +33,11 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     session = JSON.parse(raw);
     return true;
   }
-  function logout() {
+ function logout() {
+    // Limpa o rascunho ao sair — evita que a próxima pessoa a logar
+    // neste aparelho (ou você mesmo numa nova sessão) veja cidade,
+    // plano e preço de uma ficha que ficou pela metade na sessão anterior.
+    if (typeof window.limparRascunho === 'function') window.limparRascunho();
     sessionStorage.removeItem('venko_session');
     window.location.href = 'login.html';
   }
