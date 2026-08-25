@@ -116,20 +116,11 @@
           <button class="clear-btn" onclick="limparCampo('nome')" tabindex="-1">✕</button>
         </div>
       </div>
-      <div class="grid row-2">
-        <div>
-          <label>CPF</label>
-          <div class="input-wrap">
-            <input type="text" id="cpf" placeholder="000.000.000-00" maxlength="14" oninput="atualizarProgresso()" aria-label="CPF">
-            <button class="clear-btn" onclick="limparCampo('cpf')" tabindex="-1">✕</button>
-          </div>
-        </div>
-        <div>
-          <label>RG</label>
-          <div class="input-wrap">
-            <input type="text" id="rg" placeholder="RG" oninput="atualizarProgresso()" aria-label="RG">
-            <button class="clear-btn" onclick="limparCampo('rg')" tabindex="-1">✕</button>
-          </div>
+      <div>
+        <label>CPF</label>
+        <div class="input-wrap">
+          <input type="text" id="cpf" placeholder="000.000.000-00" maxlength="14" oninput="atualizarProgresso()" aria-label="CPF">
+          <button class="clear-btn" onclick="limparCampo('cpf')" tabindex="-1">✕</button>
         </div>
       </div>
       <div class="grid row-2">
@@ -293,7 +284,7 @@
             <input type="number" id="dep_pago" min="0" step="1" placeholder="Qtd" oninput="onDepChange()" aria-label="Quantidade de depósitos pagos">
             <button class="clear-btn" onclick="limparCampo('dep_pago');onDepChange()" tabindex="-1">✕</button>
           </div>
-          <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">R$ 55,00 por unidade — somado automaticamente ao Valor do Plano</div>
+          <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">R$ 55,00 por unidade — somado automaticamente à Receita</div>
         </div>
       </div>
 
@@ -309,9 +300,16 @@
       <!-- 📺 TV -->
       <div class="servico-row">
         <div class="servico-label">📺 TV</div>
-        <div class="plano-pills" id="pills-tv">
-          <button class="pill-btn" onclick="selecionarPlano('plano_tv','BOX',this)">BOX</button>
-          <button class="pill-btn" onclick="selecionarPlano('plano_tv','CABO',this)">CABO</button>
+        <div>
+          <div class="plano-pills" id="pills-tv">
+            <button class="pill-btn" onclick="selecionarPlano('plano_tv','BOX',this)">BOX</button>
+            <button class="pill-btn" onclick="selecionarPlano('plano_tv','CABO',this)">CABO</button>
+          </div>
+          <div class="input-wrap" style="margin-top:6px;">
+            <input type="number" id="ponto_adicional" min="0" step="1" placeholder="Ponto adicional - Qtd" oninput="onDepChange()" aria-label="Quantidade de pontos adicionais de TV">
+            <button class="clear-btn" onclick="limparCampo('ponto_adicional');onDepChange()" tabindex="-1">✕</button>
+          </div>
+          <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">R$ 69,90 por unidade — somado automaticamente ao Valor do Plano</div>
         </div>
         <input class="plano-hidden" type="text" id="plano_tv">
       </div>
@@ -336,36 +334,18 @@
           <button class="clear-btn" onclick="limparCampo('mensalidade');marcarManual('mensalidade')" tabindex="-1">✕</button>
         </div>
       </div>
-      <div class="grid row-2">
-        <div>
-          <label>Valor do Plano</label>
-          <div class="input-wrap">
-            <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('debito')" aria-label="Valor do plano">
-            <button class="clear-btn" onclick="limparCampo('debito');marcarManual('debito')" tabindex="-1">✕</button>
-          </div>
-        </div>
-        <div>
-          <label>Taxa de Instalação</label>
-          <div class="input-wrap">
-            <input type="text" id="taxa" placeholder="R$ 0,00 ou Grátis" oninput="atualizarProgresso()" aria-label="Valor da taxa">
-            <button class="clear-btn" onclick="limparCampo('taxa')" tabindex="-1">✕</button>
-          </div>
+      <div>
+        <label>Valor do Plano</label>
+        <div class="input-wrap">
+          <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('debito')" aria-label="Valor do plano">
+          <button class="clear-btn" onclick="limparCampo('debito');marcarManual('debito')" tabindex="-1">✕</button>
         </div>
       </div>
-      <div class="grid row-2">
-        <div>
-          <label>Melhor Vencimento</label>
-          <div class="input-wrap">
-            <input type="text" id="vencimento" placeholder="Ex: Dia 10" oninput="atualizarProgresso()" aria-label="Dia de vencimento">
-            <button class="clear-btn" onclick="limparCampo('vencimento')" tabindex="-1">✕</button>
-          </div>
-        </div>
-        <div>
-          <label>Período de Instalação</label>
-          <div class="input-wrap">
-            <input type="text" id="periodo" placeholder="Ex: 08/06 manhã" oninput="atualizarProgresso()" aria-label="Período do atendimento">
-            <button class="clear-btn" onclick="limparCampo('periodo')" tabindex="-1">✕</button>
-          </div>
+      <div>
+        <label>Período de Instalação</label>
+        <div class="input-wrap">
+          <input type="text" id="periodo" placeholder="Ex: 08/06 manhã" oninput="atualizarProgresso()" aria-label="Período do atendimento">
+          <button class="clear-btn" onclick="limparCampo('periodo')" tabindex="-1">✕</button>
         </div>
       </div>
     </div>
