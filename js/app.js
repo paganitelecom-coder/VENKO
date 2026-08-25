@@ -33,11 +33,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     session = JSON.parse(raw);
     return true;
   }
- function logout() {
-    // Limpa o rascunho ao sair — evita que a próxima pessoa a logar
-    // neste aparelho (ou você mesmo numa nova sessão) veja cidade,
-    // plano e preço de uma ficha que ficou pela metade na sessão anterior.
-    if (typeof window.limparRascunho === 'function') window.limparRascunho();
+  function logout() {
     sessionStorage.removeItem('venko_session');
     window.location.href = 'login.html';
   }
@@ -293,9 +289,11 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
   // CÁLCULO DE PREÇOS:
   //   • Receita (campo "mensalidade") = Banda Larga + Controle + Pós
   //                                      + Dep. Pago + TV + Fixo
-  //   • Valor do Plano (campo "debito") = Receita + Mesh
+  //   • Valor do Plano (campo "debito") = Receita + Mesh + Ponto Adicional
   //   • Dep. Pago soma R$ 55,00 por unidade à Receita (e, por
   //     consequência, também ao Valor do Plano).
+  //   • Ponto Adicional (dentro de TV) soma R$ 69,90 por unidade
+  //     SÓ ao Valor do Plano — igual ao Mesh, não entra na Receita.
   //   • Dep. Grátis é só um campo de quantidade — não entra em nenhum
   //     cálculo de valor.
   // ══════════════════════════════════════════════════════════════
@@ -310,6 +308,8 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     const meshValor = meshQtd * 15;
     const depPagoQtd = parseInt(document.getElementById('dep_pago').value) || 0;
     const depPagoValor = depPagoQtd * 55;
+    const pontoAdicionalQtd = parseInt(document.getElementById('ponto_adicional').value) || 0;
+    const pontoAdicionalValor = pontoAdicionalQtd * 69.90;
 
     const statusEl = document.getElementById('preco-status');
 
@@ -391,10 +391,10 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       return;
     }
 
-    // ── MESH ── (serviço adicional, preço fixo de R$15,00 por unidade —
-    // soma no Valor do Plano, que é Receita + Mesh. A Receita em si
-    // (Banda + Controle + Pós + Dep. Pago + TV + Fixo) NÃO leva o Mesh.
-    const totalValorPlano = totalPlano + meshValor;
+    // ── MESH + PONTO ADICIONAL ── (ambos entram só no Valor do Plano,
+    // que é Receita + Mesh + Ponto Adicional. A Receita em si
+    // (Banda + Controle + Pós + Dep. Pago + TV + Fixo) NÃO leva nenhum dos dois.
+    const totalValorPlano = totalPlano + meshValor + pontoAdicionalValor;
 
     if (!camposAutoPreenchidos.has('mensalidade_manual')) {
       document.getElementById('mensalidade').value = formatarValor(totalPlano);
@@ -410,10 +410,11 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 
     const meshTexto = meshQtd > 0 ? ` + Mesh ${meshQtd}x (R$ ${meshValor.toFixed(2).replace('.', ',')})` : '';
     const depTexto  = depPagoQtd > 0 ? ` + Dep. Pago ${depPagoQtd}x (R$ ${depPagoValor.toFixed(2).replace('.', ',')})` : '';
+    const pontoTexto = pontoAdicionalQtd > 0 ? ` + Ponto Adicional ${pontoAdicionalQtd}x (R$ ${pontoAdicionalValor.toFixed(2).replace('.', ',')})` : '';
     statusEl.className = algumFaltando ? 'preco-status show pendente' : 'preco-status show ok';
     statusEl.innerHTML = algumFaltando
-      ? `⚠️ Preço calculado parcialmente (grupo <strong>${grupo}</strong>)${depTexto}${meshTexto} — algum serviço não encontrado na tabela.`
-      : `✅ Preço calculado automaticamente — grupo <strong>${grupo}</strong>${depTexto}${meshTexto}. Edite os campos se precisar ajustar.`;
+      ? `⚠️ Preço calculado parcialmente (grupo <strong>${grupo}</strong>)${depTexto}${meshTexto}${pontoTexto} — algum serviço não encontrado na tabela.`
+      : `✅ Preço calculado automaticamente — grupo <strong>${grupo}</strong>${depTexto}${meshTexto}${pontoTexto}. Edite os campos se precisar ajustar.`;
 
     atualizarProgresso();
   }
@@ -437,9 +438,10 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     camposAutoPreenchidos.delete(campo);
   }
 
-  // Chamada pelo oninput de Dep. Grátis / Dep. Pago. Editar a quantidade
-  // deve voltar a permitir o auto-preenchimento de Valor do Plano / Receita
-  // (mesmo comportamento que trocar uma pill de plano já dispara).
+  // Chamada pelo oninput de Dep. Pago e de Ponto Adicional (TV). Editar
+  // a quantidade deve voltar a permitir o auto-preenchimento de Valor
+  // do Plano / Receita (mesmo comportamento que trocar uma pill de
+  // plano já dispara).
   function onDepChange() {
     camposAutoPreenchidos.delete('mensalidade_manual');
     camposAutoPreenchidos.delete('debito_manual');
@@ -774,7 +776,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       username_vendedor: session.username,
       vendedor: up(vl('vendedor')), status: statusFicha,
       criar_hp: document.getElementById('criar_hp')?.value || '',
-      nome: up(vl('nome')), cpf: vl('cpf'), rg: up(vl('rg')),
+      nome: up(vl('nome')), cpf: vl('cpf'),
       nascimento: fmtData(nascStr), mae: up(vl('mae')),
       celular: vl('celular'), sms: vl('sms'), email: up(vl('email')),
       rua: up(vl('rua')), numero: up(vl('numero')), complemento: up(vl('complemento')),
@@ -782,9 +784,9 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       plano_banda: vl('plano_banda'), plano_mesh: vl('plano_mesh'), plano_controle: vl('plano_controle'),
       plano_pos: vl('plano_pos'), dep_gratis: vl('dep_gratis'), dep_pago: vl('dep_pago'),
       portabilidade: up(vl('portabilidade')),
-      plano_movel: up(movelTexto), plano_tv: vl('plano_tv'), plano_fixo: vl('plano_fixo'),
-      mensalidade: vl('mensalidade'), debito: vl('debito'), taxa: up(vl('taxa')),
-      vencimento: up(vl('vencimento')), periodo: up(vl('periodo')), obs: up(vl('obs')),
+      plano_movel: up(movelTexto), plano_tv: vl('plano_tv'), ponto_adicional: vl('ponto_adicional'), plano_fixo: vl('plano_fixo'),
+      mensalidade: vl('mensalidade'), debito: vl('debito'),
+      periodo: up(vl('periodo')), obs: up(vl('obs')),
       checkin_lat: checkinCoords?.lat || '',
       checkin_lng: checkinCoords?.lng || '',
       checkin_url: checkinCoords ? `https://www.google.com/maps?q=${checkinCoords.lat},${checkinCoords.lng}` : ''
@@ -798,6 +800,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       { label:'🆓 Dep. Grátis', val: fichaAtual.dep_gratis ? fichaAtual.dep_gratis + ' UN' : '' },
       { label:'💰 Dep. Pago',   val: fichaAtual.dep_pago ? fichaAtual.dep_pago + ' UN' : '' },
       { label:'📺 TV',          val: fichaAtual.plano_tv },
+      { label:'➕ Ponto Adicional', val: fichaAtual.ponto_adicional ? fichaAtual.ponto_adicional + ' UN' : '' },
       { label:'☎️ Fixo',        val: fichaAtual.plano_fixo },
     ].filter(s => s.val && s.val !== '—');
     const servicosLinhas = servicosAtivos.length
@@ -816,7 +819,6 @@ Criar HP: ${fichaAtual.criar_hp || '—'}
 DADOS PESSOAIS
 Nome: ${fichaAtual.nome}
 CPF: ${fichaAtual.cpf}
-RG: ${fichaAtual.rg}
 Data de Nascimento: ${fichaAtual.nascimento}
 Nome da Mae: ${fichaAtual.mae}
 WhatsApp: ${fichaAtual.celular}${smsLine}
@@ -834,8 +836,6 @@ PLANO CONTRATADO
 ${servicosLinhas}${portabLine}
 Receita: ${fichaAtual.mensalidade}
 Valor do Plano: ${fichaAtual.debito}
-Taxa de Instalacao: ${fichaAtual.taxa}
-Melhor Vencimento: ${fichaAtual.vencimento}
 Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕES\n' + fichaAtual.obs : ''}`;
 
     document.getElementById('texto-gerado').textContent = txt;
@@ -1174,7 +1174,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (!f) return;
     fichaAtual = f;
     checkinCoords = f.checkin_lat ? { lat: f.checkin_lat, lng: f.checkin_lng } : null;
-    const map = ['vendedor','status','nome','cpf','rg','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','plano_fixo','mensalidade','debito','taxa','vencimento','periodo','obs'];
+    const map = ['vendedor','status','nome','cpf','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo','mensalidade','debito','periodo','obs'];
     map.forEach(k => {
       const el = document.getElementById(k);
       if (!el) return;
@@ -1649,11 +1649,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (!lista.length) { showToast('⚠️ Nenhuma ficha para exportar','warning'); return; }
     const cols = ['data_cadastro','vendedor','status','criar_hp','nome','cpf','rg','nascimento','mae','celular','sms','email',
       'rua','numero','complemento','bairro','cidade','cep',
-      'plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','plano_fixo',
+      'plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo',
       'mensalidade','debito','taxa','vencimento','periodo','obs','checkin_url'];
     const headers = ['Data','Vendedor','Status','Criar HP','Nome','CPF','RG','Nascimento','Mãe','WhatsApp','SMS','E-mail',
       'Rua','Número','Complemento','Bairro','Cidade','CEP',
-      'Banda Larga','Mesh','Controle','Pós','Dep. Grátis','Dep. Pago','Portabilidade','TV','Fixo',
+      'Banda Larga','Mesh','Controle','Pós','Dep. Grátis','Dep. Pago','Portabilidade','TV','Ponto Adicional','Fixo',
       'Receita','Valor do Plano','Taxa Inst.','Vencimento','Período','Observações','Localização'];
     const data = [headers, ...lista.map(f => cols.map(c => f[c]||''))];
     const ws = XLSX.utils.aoa_to_sheet(data);
