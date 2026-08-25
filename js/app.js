@@ -584,6 +584,12 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       this.value = v;
     });
 
+    // Limpa o destaque vermelho de "campo obrigatório" (wizard) assim
+    // que o vendedor começa a preencher o campo.
+    document.querySelectorAll('#page-formulario input, #page-formulario select').forEach(el => {
+      el.addEventListener('input', () => el.classList.remove('campo-invalido'));
+    });
+
     atualizarContadores();
     renderDashboard();
     renderMetas();
@@ -648,6 +654,125 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     mudarAba(tab);
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // WIZARD DE ETAPAS (Nova Ficha) — Cliente → Endereço → Plano → Revisão
+  // ──────────────────────────────────────────────────────────────
+  // Todos os campos continuam os mesmos IDs de sempre; o wizard só
+  // controla QUAL grupo de cards fica visível (.wizard-panel.ativa)
+  // e o indicador de progresso (.wizard-step-item). Nenhuma função
+  // de cálculo, envio ou coleta de dados foi alterada.
+  // ══════════════════════════════════════════════════════════════
+  let etapaAtual = 1;
+  const TOTAL_ETAPAS = 4;
+
+  // Campos obrigatórios por etapa, só pro botão "Continuar" (a
+  // navegação pelos números do topo é sempre livre, pra facilitar
+  // edição). Etapa 3 (Plano) não bloqueia nada — o plano é livre.
+  const CAMPOS_OBRIGATORIOS_ETAPA = {
+    1: [['nome', 'Nome completo'], ['celular', 'WhatsApp']],
+    2: [['rua', 'Rua'], ['cidade', 'Cidade']]
+  };
+
+  function validarEtapa(n) {
+    const campos = CAMPOS_OBRIGATORIOS_ETAPA[n] || [];
+    let faltando = [];
+    campos.forEach(([id, label]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('campo-invalido');
+      if (!el.value.trim()) { el.classList.add('campo-invalido'); faltando.push(label); }
+    });
+    if (faltando.length) {
+      showToast('⚠️ Preencha: ' + faltando.join(', '), 'warning');
+      return false;
+    }
+    return true;
+  }
+
+  function irParaEtapa(n) {
+    if (n < 1 || n > TOTAL_ETAPAS) return;
+    etapaAtual = n;
+
+    document.querySelectorAll('.wizard-panel').forEach(p => p.classList.remove('ativo'));
+    document.getElementById('wizard-panel-' + n)?.classList.add('ativo');
+
+    document.querySelectorAll('.wizard-step-item').forEach(item => {
+      const s = parseInt(item.dataset.step, 10);
+      item.classList.toggle('ativo', s === n);
+      item.classList.toggle('concluido', s < n);
+    });
+
+    if (n === 4) renderResumoRevisao();
+
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  function avancarEtapa() {
+    if (!validarEtapa(etapaAtual)) return;
+    irParaEtapa(etapaAtual + 1);
+  }
+
+  function voltarEtapa() {
+    irParaEtapa(etapaAtual - 1);
+  }
+
+  // Resumo somente-leitura na Etapa 4, montado a partir dos MESMOS
+  // campos do formulário (vl() lê e faz trim, sem mutar nada). Cada
+  // bloco tem um link "Editar" que volta pra etapa correspondente.
+  function renderResumoRevisao() {
+    const container = document.getElementById('resumo-revisao');
+    if (!container) return;
+
+    const servicos = [
+      { label: '🌐 Banda Larga', val: vl('plano_banda') },
+      { label: '🔀 Mesh',        val: vl('plano_mesh') ? vl('plano_mesh') + ' un' : '' },
+      { label: '📱 Controle',    val: vl('plano_controle') },
+      { label: '📱 Pós',         val: vl('plano_pos') },
+      { label: '🆓 Dep. Grátis', val: vl('dep_gratis') ? vl('dep_gratis') + ' un' : '' },
+      { label: '💰 Dep. Pago',   val: vl('dep_pago') ? vl('dep_pago') + ' un' : '' },
+      { label: '📺 TV',          val: vl('plano_tv') },
+      { label: '➕ Ponto Adicional', val: vl('ponto_adicional') ? vl('ponto_adicional') + ' un' : '' },
+      { label: '☎️ Fixo',        val: vl('plano_fixo') },
+      { label: '↔️ Portabilidade', val: vl('portabilidade') },
+    ].filter(s => s.val);
+
+    const servicosHtml = servicos.length
+      ? servicos.map(s => `<div class="resumo-linha"><span>${s.label}</span><strong>${s.val}</strong></div>`).join('')
+      : '<div class="resumo-vazio">Nenhum serviço selecionado ainda.</div>';
+
+    container.innerHTML = `
+      <div class="resumo-bloco">
+        <div class="resumo-bloco-header">
+          <span>👤 Cliente</span>
+          <button type="button" class="resumo-editar" onclick="irParaEtapa(1)">✏️ Editar</button>
+        </div>
+        <div class="resumo-linha"><span>Vendedor</span><strong>${vl('vendedor') || '—'}</strong></div>
+        <div class="resumo-linha"><span>Nome</span><strong>${vl('nome') || '—'}</strong></div>
+        <div class="resumo-linha"><span>CPF</span><strong>${vl('cpf') || '—'}</strong></div>
+        <div class="resumo-linha"><span>WhatsApp</span><strong>${vl('celular') || '—'}</strong></div>
+      </div>
+      <div class="resumo-bloco">
+        <div class="resumo-bloco-header">
+          <span>📍 Endereço</span>
+          <button type="button" class="resumo-editar" onclick="irParaEtapa(2)">✏️ Editar</button>
+        </div>
+        <div class="resumo-linha"><span>Endereço</span><strong>${vl('rua') || '—'}${vl('numero') ? ', ' + vl('numero') : ''}</strong></div>
+        <div class="resumo-linha"><span>Bairro</span><strong>${vl('bairro') || '—'}</strong></div>
+        <div class="resumo-linha"><span>Cidade</span><strong>${vl('cidade') || '—'}</strong></div>
+        <div class="resumo-linha"><span>CEP</span><strong>${vl('cep') || '—'}</strong></div>
+      </div>
+      <div class="resumo-bloco">
+        <div class="resumo-bloco-header">
+          <span>📡 Plano</span>
+          <button type="button" class="resumo-editar" onclick="irParaEtapa(3)">✏️ Editar</button>
+        </div>
+        ${servicosHtml}
+        <div class="resumo-linha resumo-valor"><span>Receita</span><strong>${vl('mensalidade') || '—'}</strong></div>
+        <div class="resumo-linha resumo-valor"><span>Valor do Plano</span><strong>${vl('debito') || '—'}</strong></div>
+      </div>
+    `;
+  }
+
   function selecionarHP(val) {
     const campo = document.getElementById('criar_hp');
     if (campo.value === val) {
@@ -708,8 +833,13 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     const total = CAMPOS_PROG.length;
     const preenchidos = CAMPOS_PROG.filter(id => document.getElementById(id)?.value.trim()).length;
     const pct = Math.round((preenchidos / total) * 100);
-    document.getElementById('progress-fill').style.width = pct + '%';
-    document.getElementById('pct-label').textContent = pct + '%';
+    // #progress-fill / #pct-label eram da barra de % antiga, substituída
+    // pelo indicador de etapas do wizard — mantido opcional (?.) caso
+    // algum dia voltem a existir, mas hoje não bloqueia nada se sumirem.
+    const fillEl = document.getElementById('progress-fill');
+    const pctEl  = document.getElementById('pct-label');
+    if (fillEl) fillEl.style.width = pct + '%';
+    if (pctEl) pctEl.textContent = pct + '%';
   }
 
   function mascararData(el) {
@@ -937,6 +1067,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     camposAutoPreenchidos.clear();
     fichaAtual = null; checkinCoords = null;
     atualizarProgresso();
+    irParaEtapa(1);
     if (typeof window.limparRascunho === 'function') window.limparRascunho();
     window.scrollTo({top:0, behavior:'smooth'});
   }
@@ -1191,6 +1322,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     restaurarPill('plano_tv',       'pills-tv');
     restaurarPill('plano_fixo',     'pills-fixo');
     mudarAba('formulario');
+    irParaEtapa(4);
     setTimeout(() => gerarTexto(), 100);
   }
 
