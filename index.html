@@ -20,6 +20,117 @@
   <script defer src="js/draft.js"></script>
   <script defer src="js/app.js"></script>
   <script defer src="js/init.js"></script>
+
+  <!-- ════════════════════════════════════════════════════════════
+       WIZARD DE ETAPAS — estilos inline para não depender de mudar
+       css/styles.css. Usa as MESMAS CSS vars já existentes no tema
+       (--white, --border, --muted, --text, --radius, --shadow,
+       --grad) para ficar visualmente consistente com o resto do app.
+       ════════════════════════════════════════════════════════════ -->
+  <style>
+    .wizard-steps {
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+      margin: 0 0 16px;
+      padding: 0 2px;
+    }
+    .wizard-step-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      position: relative;
+      background: none;
+      border: none;
+      font-family: inherit;
+    }
+    .wizard-step-item::before {
+      content: '';
+      position: absolute;
+      top: 13px;
+      left: -50%;
+      width: 100%;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
+    }
+    .wizard-step-item:first-child::before { display: none; }
+    .wizard-step-num {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: var(--white);
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .72rem; font-weight: 700; color: var(--muted);
+      position: relative; z-index: 1;
+      transition: all .2s;
+    }
+    .wizard-step-label {
+      font-size: .62rem; font-weight: 600; color: var(--muted);
+      text-align: center; letter-spacing: .02em;
+    }
+    .wizard-step-item.ativo .wizard-step-num {
+      background: var(--grad, #000); border-color: transparent; color: #fff;
+    }
+    .wizard-step-item.ativo .wizard-step-label { color: var(--text); }
+    .wizard-step-item.concluido .wizard-step-num {
+      background: #16a34a; border-color: #16a34a; color: #fff;
+    }
+    .wizard-step-item.concluido::before { background: #16a34a; }
+
+    .wizard-panel { display: none; }
+    .wizard-panel.ativo { display: block; animation: wizardFadeIn .25s ease; }
+    @keyframes wizardFadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .wizard-nav {
+      display: flex; gap: 10px; margin: 4px 0 20px;
+    }
+    .btn-wizard-voltar, .btn-wizard-avancar {
+      flex: 1; padding: 12px; border-radius: var(--radius, 10px);
+      font-weight: 700; font-size: .85rem; cursor: pointer;
+      font-family: inherit; border: none;
+    }
+    .btn-wizard-voltar {
+      background: var(--white); border: 1.5px solid var(--border); color: var(--text);
+    }
+    .btn-wizard-avancar {
+      background: var(--grad, #000); color: #fff;
+    }
+
+    .resumo-bloco {
+      background: var(--white); border-radius: var(--radius, 10px);
+      box-shadow: var(--shadow); padding: 14px 16px; margin-bottom: 12px;
+    }
+    .resumo-bloco-header {
+      display: flex; justify-content: space-between; align-items: center;
+      font-weight: 700; font-size: .8rem; margin-bottom: 8px; color: var(--text);
+    }
+    .resumo-editar {
+      background: none; border: none; color: #2563eb; font-size: .72rem;
+      font-weight: 600; cursor: pointer; font-family: inherit; padding: 0;
+    }
+    .resumo-linha {
+      display: flex; justify-content: space-between; gap: 10px;
+      font-size: .78rem; padding: 4px 0; color: var(--text);
+      border-bottom: 1px dashed var(--border);
+    }
+    .resumo-linha:last-child { border-bottom: none; }
+    .resumo-linha span { color: var(--muted); }
+    .resumo-linha strong { text-align: right; }
+    .resumo-linha.resumo-valor strong { color: #16a34a; }
+    .resumo-vazio { font-size: .78rem; color: var(--muted); padding: 4px 0; }
+
+    .campo-invalido {
+      border-color: #ef4444 !important;
+      background: #fef2f2 !important;
+    }
+  </style>
 </head>
 <body>
 <body>
@@ -68,312 +179,361 @@
     </div>
   </div>
 
-  <div class="progress-bar-wrap">
-    <div class="progress-label"><span>Preenchimento</span><span id="pct-label">0%</span></div>
-    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  <!-- Indicador de etapas do wizard (substitui a barra de % antiga) -->
+  <div class="wizard-steps" id="wizard-steps">
+    <button type="button" class="wizard-step-item ativo" data-step="1" onclick="irParaEtapa(1)">
+      <div class="wizard-step-num">1</div>
+      <div class="wizard-step-label">Cliente</div>
+    </button>
+    <button type="button" class="wizard-step-item" data-step="2" onclick="irParaEtapa(2)">
+      <div class="wizard-step-num">2</div>
+      <div class="wizard-step-label">Endereço</div>
+    </button>
+    <button type="button" class="wizard-step-item" data-step="3" onclick="irParaEtapa(3)">
+      <div class="wizard-step-num">3</div>
+      <div class="wizard-step-label">Plano</div>
+    </button>
+    <button type="button" class="wizard-step-item" data-step="4" onclick="irParaEtapa(4)">
+      <div class="wizard-step-num">4</div>
+      <div class="wizard-step-label">Revisão</div>
+    </button>
   </div>
 
-  <!-- Venda -->
-  <div class="card">
-    <div class="card-header">🧑‍💼 Informações da Venda</div>
-    <div class="card-body">
-      <div class="grid row-2">
-        <div>
-          <label>Vendedor Responsável</label>
-          <input type="text" id="vendedor" placeholder="Nome do vendedor" oninput="atualizarProgresso()" aria-label="Nome do vendedor">
-        </div>
-        <div>
-          <label>Status da Instalação</label>
-          <select id="status" onchange="atualizarProgresso()" aria-label="Status da ficha">
-            <option value="Agendada">📅 Agendada</option>
-            <option value="Concluída">✅ Concluída</option>
-            <option value="Pendente">⏳ Pendente</option>
-            <option value="Cancelada">❌ Cancelada</option>
-          </select>
-        </div>
-      </div>
-      <div class="grid row-2">
-        <div>
-          <label>Criar HP?</label>
-          <div style="display:flex;gap:8px;margin-top:2px;">
-            <button class="hp-btn" id="hp-sim" onclick="selecionarHP('Sim')">✅ SIM</button>
-            <button class="hp-btn" id="hp-nao" onclick="selecionarHP('Não')">❌ NÃO</button>
+  <!-- ═══ ETAPA 1 — CLIENTE ═══ -->
+  <div class="wizard-panel ativo" id="wizard-panel-1">
+
+    <!-- Venda -->
+    <div class="card">
+      <div class="card-header">🧑‍💼 Informações da Venda</div>
+      <div class="card-body">
+        <div class="grid row-2">
+          <div>
+            <label>Vendedor Responsável</label>
+            <input type="text" id="vendedor" placeholder="Nome do vendedor" oninput="atualizarProgresso()" aria-label="Nome do vendedor">
           </div>
-          <input type="hidden" id="criar_hp" value="">
+          <div>
+            <label>Status da Instalação</label>
+            <select id="status" onchange="atualizarProgresso()" aria-label="Status da ficha">
+              <option value="Agendada">📅 Agendada</option>
+              <option value="Concluída">✅ Concluída</option>
+              <option value="Pendente">⏳ Pendente</option>
+              <option value="Cancelada">❌ Cancelada</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid row-2">
+          <div>
+            <label>Criar HP?</label>
+            <div style="display:flex;gap:8px;margin-top:2px;">
+              <button class="hp-btn" id="hp-sim" onclick="selecionarHP('Sim')">✅ SIM</button>
+              <button class="hp-btn" id="hp-nao" onclick="selecionarHP('Não')">❌ NÃO</button>
+            </div>
+            <input type="hidden" id="criar_hp" value="">
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Dados Pessoais -->
-  <div class="card">
-    <div class="card-header">👤 Dados Pessoais</div>
-    <div class="card-body">
-      <div>
-        <label>Nome Completo</label>
-        <div class="input-wrap">
-          <input type="text" id="nome" placeholder="Nome completo do cliente" oninput="atualizarProgresso()" aria-label="Nome completo do cliente">
-          <button class="clear-btn" onclick="limparCampo('nome')" tabindex="-1">✕</button>
-        </div>
-      </div>
-      <div>
-        <label>CPF</label>
-        <div class="input-wrap">
-          <input type="text" id="cpf" placeholder="000.000.000-00" maxlength="14" oninput="atualizarProgresso()" aria-label="CPF">
-          <button class="clear-btn" onclick="limparCampo('cpf')" tabindex="-1">✕</button>
-        </div>
-      </div>
-      <div class="grid row-2">
-        <div><label>Data de Nascimento</label><input type="text" id="nascimento" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this);atualizarProgresso()" aria-label="Data de nascimento"></div>
+    <!-- Dados Pessoais -->
+    <div class="card">
+      <div class="card-header">👤 Dados Pessoais</div>
+      <div class="card-body">
         <div>
-          <label>WhatsApp</label>
+          <label>Nome Completo</label>
           <div class="input-wrap">
-            <input type="text" id="celular" placeholder="(00) 00000-0000" maxlength="15" oninput="atualizarProgresso()" aria-label="Celular">
-            <button class="clear-btn" onclick="limparCampo('celular')" tabindex="-1">✕</button>
+            <input type="text" id="nome" placeholder="Nome completo do cliente" oninput="atualizarProgresso()" aria-label="Nome completo do cliente">
+            <button class="clear-btn" onclick="limparCampo('nome')" tabindex="-1">✕</button>
           </div>
         </div>
-      </div>
-      <div>
-        <label>SMS</label>
-        <div class="input-wrap">
-          <input type="text" id="sms" placeholder="(00) 00000-0000" maxlength="15" oninput="atualizarProgresso()" aria-label="Número para SMS">
-          <button class="clear-btn" onclick="limparCampo('sms')" tabindex="-1">✕</button>
+        <div>
+          <label>CPF</label>
+          <div class="input-wrap">
+            <input type="text" id="cpf" placeholder="000.000.000-00" maxlength="14" oninput="atualizarProgresso()" aria-label="CPF">
+            <button class="clear-btn" onclick="limparCampo('cpf')" tabindex="-1">✕</button>
+          </div>
         </div>
-      </div>
-      <div>
-        <label>Nome da Mãe</label>
-        <div class="input-wrap">
-          <input type="text" id="mae" placeholder="Nome completo da mãe" oninput="atualizarProgresso()" aria-label="Nome completo da mãe">
-          <button class="clear-btn" onclick="limparCampo('mae')" tabindex="-1">✕</button>
+        <div class="grid row-2">
+          <div><label>Data de Nascimento</label><input type="text" id="nascimento" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this);atualizarProgresso()" aria-label="Data de nascimento"></div>
+          <div>
+            <label>WhatsApp</label>
+            <div class="input-wrap">
+              <input type="text" id="celular" placeholder="(00) 00000-0000" maxlength="15" oninput="atualizarProgresso()" aria-label="Celular">
+              <button class="clear-btn" onclick="limparCampo('celular')" tabindex="-1">✕</button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div>
-        <label>E-mail</label>
-        <div class="input-wrap">
-          <input type="email" id="email" placeholder="email@exemplo.com" oninput="atualizarProgresso()" aria-label="E-mail">
-          <button class="clear-btn" onclick="limparCampo('email')" tabindex="-1">✕</button>
+        <div>
+          <label>SMS</label>
+          <div class="input-wrap">
+            <input type="text" id="sms" placeholder="(00) 00000-0000" maxlength="15" oninput="atualizarProgresso()" aria-label="Número para SMS">
+            <button class="clear-btn" onclick="limparCampo('sms')" tabindex="-1">✕</button>
+          </div>
+        </div>
+        <div>
+          <label>Nome da Mãe</label>
+          <div class="input-wrap">
+            <input type="text" id="mae" placeholder="Nome completo da mãe" oninput="atualizarProgresso()" aria-label="Nome completo da mãe">
+            <button class="clear-btn" onclick="limparCampo('mae')" tabindex="-1">✕</button>
+          </div>
+        </div>
+        <div>
+          <label>E-mail</label>
+          <div class="input-wrap">
+            <input type="email" id="email" placeholder="email@exemplo.com" oninput="atualizarProgresso()" aria-label="E-mail">
+            <button class="clear-btn" onclick="limparCampo('email')" tabindex="-1">✕</button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Endereço -->
-  <div class="card">
-    <div class="card-header">📍 Endereço de Instalação</div>
-    <div class="card-body">
-      <div class="grid row-2">
-        <div>
-          <label>CEP</label>
-          <div class="input-wrap">
-            <input type="text" id="cep" placeholder="00000-000" maxlength="9" oninput="onCepInput()" aria-label="CEP">
-            <button class="clear-btn" onclick="limparCampo('cep')" tabindex="-1">✕</button>
-          </div>
-          <div class="cep-status" id="cep-status"></div>
-        </div>
-        <div>
-          <label>Cidade</label>
-          <div class="input-wrap">
-            <input type="text" id="cidade" name="cidade-ficha-venko" placeholder="CIDADE" oninput="onCidadeInput()" style="text-transform:uppercase;" aria-label="Cidade" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-            <button class="clear-btn" onclick="limparCampo('cidade');buscarPreco()" tabindex="-1">✕</button>
-          </div>
-        </div>
-      </div>
-      <div class="grid row-3">
-        <div>
-          <label>Rua / Logradouro</label>
-          <div class="input-wrap">
-            <input type="text" id="rua" placeholder="Nome da rua" oninput="atualizarProgresso()" aria-label="Nome da rua">
-            <button class="clear-btn" onclick="limparCampo('rua')" tabindex="-1">✕</button>
-          </div>
-        </div>
-        <div>
-          <label>Número</label>
-          <div class="input-wrap">
-            <input type="text" id="numero" placeholder="Nº" oninput="atualizarProgresso()" aria-label="Número do endereço">
-            <button class="clear-btn" onclick="limparCampo('numero')" tabindex="-1">✕</button>
-          </div>
-        </div>
-        <div>
-          <label>Complemento</label>
-          <div class="input-wrap">
-            <input type="text" id="complemento" placeholder="Apto, bloco..." oninput="atualizarProgresso()" aria-label="Complemento do endereço">
-            <button class="clear-btn" onclick="limparCampo('complemento')" tabindex="-1">✕</button>
-          </div>
-        </div>
-      </div>
-      <div>
-        <label>Bairro</label>
-        <div class="input-wrap">
-          <input type="text" id="bairro" placeholder="Bairro" oninput="atualizarProgresso()" aria-label="Bairro">
-          <button class="clear-btn" onclick="limparCampo('bairro')" tabindex="-1">✕</button>
-        </div>
-      </div>
+    <div class="wizard-nav">
+      <button type="button" class="btn-wizard-avancar" style="flex:1;" onclick="avancarEtapa()">Continuar — Endereço ›</button>
     </div>
   </div>
 
-  <!-- Plano -->
-  <div class="card">
-    <div class="card-header">📡 Plano Contratado</div>
-    <div class="card-body">
+  <!-- ═══ ETAPA 2 — ENDEREÇO ═══ -->
+  <div class="wizard-panel" id="wizard-panel-2">
 
-      <!-- 🌐 BANDA LARGA -->
-      <div class="servico-row">
-        <div class="servico-label">🌐 Banda Larga</div>
-        <div class="plano-pills" id="pills-banda">
-          <button class="pill-btn" onclick="selecionarPlano('plano_banda','250MB',this)">250 MB</button>
-          <button class="pill-btn" onclick="selecionarPlano('plano_banda','350MB',this)">350 MB</button>
-          <button class="pill-btn" onclick="selecionarPlano('plano_banda','500MB',this)">500 MB</button>
-          <button class="pill-btn" onclick="selecionarPlano('plano_banda','600MB',this)">600 MB</button>
-          <button class="pill-btn" onclick="selecionarPlano('plano_banda','1GB',this)">1 GB</button>
-        </div>
-        <input class="plano-hidden" type="text" id="plano_banda">
-      </div>
-
-      <!-- 🔀 MESH (adicional à Banda Larga) -->
-      <div class="servico-row">
-        <div class="servico-label">🔀 Mesh</div>
-        <div>
-          <div class="plano-pills" id="pills-mesh">
-            <button class="pill-btn" data-val="2" onclick="selecionarMesh('2',this)">2 un</button>
-            <button class="pill-btn" data-val="3" onclick="selecionarMesh('3',this)">3 un</button>
-            <button class="pill-btn" data-val="4" onclick="selecionarMesh('4',this)">4 un</button>
+    <div class="card">
+      <div class="card-header">📍 Endereço de Instalação</div>
+      <div class="card-body">
+        <div class="grid row-2">
+          <div>
+            <label>CEP</label>
+            <div class="input-wrap">
+              <input type="text" id="cep" placeholder="00000-000" maxlength="9" oninput="onCepInput()" aria-label="CEP">
+              <button class="clear-btn" onclick="limparCampo('cep')" tabindex="-1">✕</button>
+            </div>
+            <div class="cep-status" id="cep-status"></div>
           </div>
-          <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">R$ 15,00 por unidade — somado automaticamente ao valor total</div>
+          <div>
+            <label>Cidade</label>
+            <div class="input-wrap">
+              <input type="text" id="cidade" name="cidade-ficha-venko" placeholder="CIDADE" oninput="onCidadeInput()" style="text-transform:uppercase;" aria-label="Cidade" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+              <button class="clear-btn" onclick="limparCampo('cidade');buscarPreco()" tabindex="-1">✕</button>
+            </div>
+          </div>
         </div>
-        <input class="plano-hidden" type="text" id="plano_mesh">
-      </div>
-
-      <!-- 📱 CONTROLE -->
-      <div class="servico-row">
-        <div class="servico-label">📱 Controle</div>
-        <div class="plano-pills" id="pills-controle">
-          <button class="pill-btn" onclick="selecionarPlano('plano_controle','25GB',this)">25 GB</button>
-          <button class="pill-btn" onclick="selecionarPlano('plano_controle','20GB',this)">20 GB</button>
+        <div class="grid row-3">
+          <div>
+            <label>Rua / Logradouro</label>
+            <div class="input-wrap">
+              <input type="text" id="rua" placeholder="Nome da rua" oninput="atualizarProgresso()" aria-label="Nome da rua">
+              <button class="clear-btn" onclick="limparCampo('rua')" tabindex="-1">✕</button>
+            </div>
+          </div>
+          <div>
+            <label>Número</label>
+            <div class="input-wrap">
+              <input type="text" id="numero" placeholder="Nº" oninput="atualizarProgresso()" aria-label="Número do endereço">
+              <button class="clear-btn" onclick="limparCampo('numero')" tabindex="-1">✕</button>
+            </div>
+          </div>
+          <div>
+            <label>Complemento</label>
+            <div class="input-wrap">
+              <input type="text" id="complemento" placeholder="Apto, bloco..." oninput="atualizarProgresso()" aria-label="Complemento do endereço">
+              <button class="clear-btn" onclick="limparCampo('complemento')" tabindex="-1">✕</button>
+            </div>
+          </div>
         </div>
-        <input class="plano-hidden" type="text" id="plano_controle">
-      </div>
-
-      <!-- 📱 PÓS -->
-      <div class="servico-row">
-        <div class="servico-label">📱 Pós</div>
-        <div class="plano-pills" id="pills-pos">
-          <button class="pill-btn" onclick="selecionarPlano('plano_pos','60GB',this)">60 GB</button>
-          <button class="pill-btn" onclick="selecionarPlano('plano_pos','50GB',this)">50 GB</button>
-          <button class="pill-btn" onclick="selecionarPlano('plano_pos','100GB',this)">100 GB</button>
-          <button class="pill-btn" onclick="selecionarPlano('plano_pos','150GB',this)">150 GB</button>
-          <button class="pill-btn" onclick="selecionarPlano('plano_pos','200GB',this)">200 GB</button>
-          <button class="pill-btn" onclick="selecionarPlano('plano_pos','500GB',this)">500 GB</button>
-        </div>
-        <input class="plano-hidden" type="text" id="plano_pos">
-      </div>
-
-      <!-- 🆓 DEP GRÁTIS -->
-      <div class="servico-row">
-        <div class="servico-label">🆓 Dep. Grátis</div>
-        <div class="input-wrap">
-          <input type="number" id="dep_gratis" min="0" step="1" placeholder="Qtd" oninput="atualizarProgresso()" aria-label="Quantidade de depósitos grátis">
-          <button class="clear-btn" onclick="limparCampo('dep_gratis')" tabindex="-1">✕</button>
-        </div>
-      </div>
-
-      <!-- 💰 DEP PAGO -->
-      <div class="servico-row">
-        <div class="servico-label">💰 Dep. Pago</div>
         <div>
+          <label>Bairro</label>
           <div class="input-wrap">
-            <input type="number" id="dep_pago" min="0" step="1" placeholder="Qtd" oninput="onDepChange()" aria-label="Quantidade de depósitos pagos">
-            <button class="clear-btn" onclick="limparCampo('dep_pago');onDepChange()" tabindex="-1">✕</button>
+            <input type="text" id="bairro" placeholder="Bairro" oninput="atualizarProgresso()" aria-label="Bairro">
+            <button class="clear-btn" onclick="limparCampo('bairro')" tabindex="-1">✕</button>
           </div>
-          <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">R$ 55,00 por unidade — somado automaticamente à Receita</div>
         </div>
       </div>
+    </div>
 
-      <!-- ↔️ PORTABILIDADE -->
-      <div class="servico-row">
-        <div class="servico-label">↔️ Portab.</div>
-        <div class="input-wrap">
-          <input type="text" id="portabilidade" placeholder="Nº a portar, operadora..." oninput="atualizarProgresso()" aria-label="Número a portar e operadora de origem">
-          <button class="clear-btn" onclick="limparCampo('portabilidade')" tabindex="-1">✕</button>
+    <div class="wizard-nav">
+      <button type="button" class="btn-wizard-voltar" onclick="voltarEtapa()">‹ Voltar</button>
+      <button type="button" class="btn-wizard-avancar" onclick="avancarEtapa()">Continuar — Plano ›</button>
+    </div>
+  </div>
+
+  <!-- ═══ ETAPA 3 — PLANO ═══ -->
+  <div class="wizard-panel" id="wizard-panel-3">
+
+    <div class="card">
+      <div class="card-header">📡 Plano Contratado</div>
+      <div class="card-body">
+
+        <!-- 🌐 BANDA LARGA -->
+        <div class="servico-row">
+          <div class="servico-label">🌐 Banda Larga</div>
+          <div class="plano-pills" id="pills-banda">
+            <button class="pill-btn" onclick="selecionarPlano('plano_banda','250MB',this)">250 MB</button>
+            <button class="pill-btn" onclick="selecionarPlano('plano_banda','350MB',this)">350 MB</button>
+            <button class="pill-btn" onclick="selecionarPlano('plano_banda','500MB',this)">500 MB</button>
+            <button class="pill-btn" onclick="selecionarPlano('plano_banda','600MB',this)">600 MB</button>
+            <button class="pill-btn" onclick="selecionarPlano('plano_banda','1GB',this)">1 GB</button>
+          </div>
+          <input class="plano-hidden" type="text" id="plano_banda">
         </div>
-      </div>
 
-      <!-- 📺 TV -->
-      <div class="servico-row">
-        <div class="servico-label">📺 TV</div>
+        <!-- 🔀 MESH (adicional à Banda Larga) -->
+        <div class="servico-row">
+          <div class="servico-label">🔀 Mesh</div>
+          <div>
+            <div class="plano-pills" id="pills-mesh">
+              <button class="pill-btn" data-val="2" onclick="selecionarMesh('2',this)">2 un</button>
+              <button class="pill-btn" data-val="3" onclick="selecionarMesh('3',this)">3 un</button>
+              <button class="pill-btn" data-val="4" onclick="selecionarMesh('4',this)">4 un</button>
+            </div>
+            <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">R$ 15,00 por unidade — somado automaticamente ao valor total</div>
+          </div>
+          <input class="plano-hidden" type="text" id="plano_mesh">
+        </div>
+
+        <!-- 📱 CONTROLE -->
+        <div class="servico-row">
+          <div class="servico-label">📱 Controle</div>
+          <div class="plano-pills" id="pills-controle">
+            <button class="pill-btn" onclick="selecionarPlano('plano_controle','25GB',this)">25 GB</button>
+            <button class="pill-btn" onclick="selecionarPlano('plano_controle','20GB',this)">20 GB</button>
+          </div>
+          <input class="plano-hidden" type="text" id="plano_controle">
+        </div>
+
+        <!-- 📱 PÓS -->
+        <div class="servico-row">
+          <div class="servico-label">📱 Pós</div>
+          <div class="plano-pills" id="pills-pos">
+            <button class="pill-btn" onclick="selecionarPlano('plano_pos','60GB',this)">60 GB</button>
+            <button class="pill-btn" onclick="selecionarPlano('plano_pos','50GB',this)">50 GB</button>
+            <button class="pill-btn" onclick="selecionarPlano('plano_pos','100GB',this)">100 GB</button>
+            <button class="pill-btn" onclick="selecionarPlano('plano_pos','150GB',this)">150 GB</button>
+            <button class="pill-btn" onclick="selecionarPlano('plano_pos','200GB',this)">200 GB</button>
+            <button class="pill-btn" onclick="selecionarPlano('plano_pos','500GB',this)">500 GB</button>
+          </div>
+          <input class="plano-hidden" type="text" id="plano_pos">
+        </div>
+
+        <!-- 🆓 DEP GRÁTIS -->
+        <div class="servico-row">
+          <div class="servico-label">🆓 Dep. Grátis</div>
+          <div class="input-wrap">
+            <input type="number" id="dep_gratis" min="0" step="1" placeholder="Qtd" oninput="atualizarProgresso()" aria-label="Quantidade de depósitos grátis">
+            <button class="clear-btn" onclick="limparCampo('dep_gratis')" tabindex="-1">✕</button>
+          </div>
+        </div>
+
+        <!-- 💰 DEP PAGO -->
+        <div class="servico-row">
+          <div class="servico-label">💰 Dep. Pago</div>
+          <div>
+            <div class="input-wrap">
+              <input type="number" id="dep_pago" min="0" step="1" placeholder="Qtd" oninput="onDepChange()" aria-label="Quantidade de depósitos pagos">
+              <button class="clear-btn" onclick="limparCampo('dep_pago');onDepChange()" tabindex="-1">✕</button>
+            </div>
+            <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">R$ 55,00 por unidade — somado automaticamente à Receita</div>
+          </div>
+        </div>
+
+        <!-- ↔️ PORTABILIDADE -->
+        <div class="servico-row">
+          <div class="servico-label">↔️ Portab.</div>
+          <div class="input-wrap">
+            <input type="text" id="portabilidade" placeholder="Nº a portar, operadora..." oninput="atualizarProgresso()" aria-label="Número a portar e operadora de origem">
+            <button class="clear-btn" onclick="limparCampo('portabilidade')" tabindex="-1">✕</button>
+          </div>
+        </div>
+
+        <!-- 📺 TV -->
+        <div class="servico-row">
+          <div class="servico-label">📺 TV</div>
+          <div>
+            <div class="plano-pills" id="pills-tv">
+              <button class="pill-btn" onclick="selecionarPlano('plano_tv','BOX',this)">BOX</button>
+              <button class="pill-btn" onclick="selecionarPlano('plano_tv','CABO',this)">CABO</button>
+            </div>
+            <div class="input-wrap" style="margin-top:6px;">
+              <input type="number" id="ponto_adicional" min="0" step="1" placeholder="Ponto adicional - Qtd" oninput="onDepChange()" aria-label="Quantidade de pontos adicionais de TV">
+              <button class="clear-btn" onclick="limparCampo('ponto_adicional');onDepChange()" tabindex="-1">✕</button>
+            </div>
+            <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">R$ 69,90 por unidade — somado automaticamente ao Valor do Plano</div>
+          </div>
+          <input class="plano-hidden" type="text" id="plano_tv">
+        </div>
+
+        <!-- ☎️ FIXO -->
+        <div class="servico-row">
+          <div class="servico-label">☎️ Fixo</div>
+          <div class="plano-pills" id="pills-fixo">
+            <button class="pill-btn" onclick="selecionarPlano('plano_fixo','MUNDO',this)">MUNDO</button>
+            <button class="pill-btn" onclick="selecionarPlano('plano_fixo','BRASIL',this)">BRASIL</button>
+          </div>
+          <input class="plano-hidden" type="text" id="plano_fixo">
+        </div>
+
+        <!-- STATUS DA BUSCA DE PREÇO -->
+        <div class="preco-status" id="preco-status"></div>
+
+        <div style="margin-top:4px;">
+          <label>Receita</label>
+          <div class="input-wrap">
+            <input type="text" id="mensalidade" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('mensalidade')" aria-label="Valor da receita (mensalidade)">
+            <button class="clear-btn" onclick="limparCampo('mensalidade');marcarManual('mensalidade')" tabindex="-1">✕</button>
+          </div>
+        </div>
         <div>
-          <div class="plano-pills" id="pills-tv">
-            <button class="pill-btn" onclick="selecionarPlano('plano_tv','BOX',this)">BOX</button>
-            <button class="pill-btn" onclick="selecionarPlano('plano_tv','CABO',this)">CABO</button>
+          <label>Valor do Plano</label>
+          <div class="input-wrap">
+            <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('debito')" aria-label="Valor do plano">
+            <button class="clear-btn" onclick="limparCampo('debito');marcarManual('debito')" tabindex="-1">✕</button>
           </div>
-          <div class="input-wrap" style="margin-top:6px;">
-            <input type="number" id="ponto_adicional" min="0" step="1" placeholder="Ponto adicional - Qtd" oninput="onDepChange()" aria-label="Quantidade de pontos adicionais de TV">
-            <button class="clear-btn" onclick="limparCampo('ponto_adicional');onDepChange()" tabindex="-1">✕</button>
+        </div>
+        <div>
+          <label>Período de Instalação</label>
+          <div class="input-wrap">
+            <input type="text" id="periodo" placeholder="Ex: 08/06 manhã" oninput="atualizarProgresso()" aria-label="Período do atendimento">
+            <button class="clear-btn" onclick="limparCampo('periodo')" tabindex="-1">✕</button>
           </div>
-          <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">R$ 69,90 por unidade — somado automaticamente ao Valor do Plano</div>
-        </div>
-        <input class="plano-hidden" type="text" id="plano_tv">
-      </div>
-
-      <!-- ☎️ FIXO -->
-      <div class="servico-row">
-        <div class="servico-label">☎️ Fixo</div>
-        <div class="plano-pills" id="pills-fixo">
-          <button class="pill-btn" onclick="selecionarPlano('plano_fixo','MUNDO',this)">MUNDO</button>
-          <button class="pill-btn" onclick="selecionarPlano('plano_fixo','BRASIL',this)">BRASIL</button>
-        </div>
-        <input class="plano-hidden" type="text" id="plano_fixo">
-      </div>
-
-      <!-- STATUS DA BUSCA DE PREÇO -->
-      <div class="preco-status" id="preco-status"></div>
-
-      <div style="margin-top:4px;">
-        <label>Receita</label>
-        <div class="input-wrap">
-          <input type="text" id="mensalidade" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('mensalidade')" aria-label="Valor da receita (mensalidade)">
-          <button class="clear-btn" onclick="limparCampo('mensalidade');marcarManual('mensalidade')" tabindex="-1">✕</button>
-        </div>
-      </div>
-      <div>
-        <label>Valor do Plano</label>
-        <div class="input-wrap">
-          <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('debito')" aria-label="Valor do plano">
-          <button class="clear-btn" onclick="limparCampo('debito');marcarManual('debito')" tabindex="-1">✕</button>
-        </div>
-      </div>
-      <div>
-        <label>Período de Instalação</label>
-        <div class="input-wrap">
-          <input type="text" id="periodo" placeholder="Ex: 08/06 manhã" oninput="atualizarProgresso()" aria-label="Período do atendimento">
-          <button class="clear-btn" onclick="limparCampo('periodo')" tabindex="-1">✕</button>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Observações -->
-  <div class="card">
-    <div class="card-header">📝 Observações</div>
-    <div class="card-body">
-      <textarea id="obs" placeholder="Anotações extras..." rows="3"
-        style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:.85rem;color:var(--text);background:#fafafa;outline:none;resize:vertical;transition:border-color .2s;text-transform:uppercase;"></textarea>
+    <!-- Observações -->
+    <div class="card">
+      <div class="card-header">📝 Observações</div>
+      <div class="card-body">
+        <textarea id="obs" placeholder="Anotações extras..." rows="3"
+          style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:.85rem;color:var(--text);background:#fafafa;outline:none;resize:vertical;transition:border-color .2s;text-transform:uppercase;"></textarea>
+      </div>
+    </div>
+
+    <div class="wizard-nav">
+      <button type="button" class="btn-wizard-voltar" onclick="voltarEtapa()">‹ Voltar</button>
+      <button type="button" class="btn-wizard-avancar" onclick="avancarEtapa()">Continuar — Revisão ›</button>
     </div>
   </div>
 
-  <button class="btn-primary btn-checkin" id="btn-checkin" onclick="fazerCheckin()">📍 Check-in — Localização do Cliente</button>
-  <button class="btn-primary btn-gerar" id="btn-enviar" onclick="enviarFicha()">📤 ENVIAR</button>
-  <div class="sync-status" id="sync-status"></div>
+  <!-- ═══ ETAPA 4 — REVISÃO ═══ -->
+  <div class="wizard-panel" id="wizard-panel-4">
 
-  <div class="preview-wrap" id="preview">
-    <div class="preview-box">
-      <div class="preview-header">
-        <span>📋 Preview — Texto gerado</span>
-        <span id="hora-preview"></span>
-      </div>
-      <div class="bubble" id="texto-gerado"></div>
-      <div class="preview-actions">
-        <button class="btn-copiar" id="btn-copiar" onclick="copiarTexto()">📋 Copiar texto</button>
-        <button class="btn-nova" onclick="limpar()">🗑 Limpar e nova ficha</button>
+    <div id="resumo-revisao"></div>
+
+    <button class="btn-primary btn-checkin" id="btn-checkin" onclick="fazerCheckin()">📍 Check-in — Localização do Cliente</button>
+    <button class="btn-primary btn-gerar" id="btn-enviar" onclick="enviarFicha()">📤 ENVIAR</button>
+    <div class="sync-status" id="sync-status"></div>
+
+    <div class="wizard-nav">
+      <button type="button" class="btn-wizard-voltar" style="flex:1;" onclick="voltarEtapa()">‹ Voltar e editar</button>
+    </div>
+
+    <div class="preview-wrap" id="preview">
+      <div class="preview-box">
+        <div class="preview-header">
+          <span>📋 Preview — Texto gerado</span>
+          <span id="hora-preview"></span>
+        </div>
+        <div class="bubble" id="texto-gerado"></div>
+        <div class="preview-actions">
+          <button class="btn-copiar" id="btn-copiar" onclick="copiarTexto()">📋 Copiar texto</button>
+          <button class="btn-nova" onclick="limpar()">🗑 Limpar e nova ficha</button>
+        </div>
       </div>
     </div>
   </div>
