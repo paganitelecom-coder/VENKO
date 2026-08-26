@@ -567,6 +567,13 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 
     atualizarProgresso();
     atualizarBadgeFila();
+    irParaEtapa(1);
+
+    // Some com o destaque vermelho (campo-invalido) assim que o
+    // vendedor começa a corrigir o campo, sem esperar avançar de etapa.
+    document.getElementById('page-formulario')?.addEventListener('input', (e) => {
+      if (e.target && e.target.classList) e.target.classList.remove('campo-invalido');
+    });
 
     document.getElementById('cpf').addEventListener('input', function() {
       let v = this.value.replace(/\D/g,'').slice(0,11);
@@ -582,12 +589,6 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       let v = this.value.replace(/\D/g,'').slice(0,11);
       v = v.replace(/^(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d)/,'$1-$2');
       this.value = v;
-    });
-
-    // Limpa o destaque vermelho de "campo obrigatório" (wizard) assim
-    // que o vendedor começa a preencher o campo.
-    document.querySelectorAll('#page-formulario input, #page-formulario select').forEach(el => {
-      el.addEventListener('input', () => el.classList.remove('campo-invalido'));
     });
 
     atualizarContadores();
@@ -654,125 +655,6 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     mudarAba(tab);
   }
 
-  // ══════════════════════════════════════════════════════════════
-  // WIZARD DE ETAPAS (Nova Ficha) — Cliente → Endereço → Plano → Revisão
-  // ──────────────────────────────────────────────────────────────
-  // Todos os campos continuam os mesmos IDs de sempre; o wizard só
-  // controla QUAL grupo de cards fica visível (.wizard-panel.ativa)
-  // e o indicador de progresso (.wizard-step-item). Nenhuma função
-  // de cálculo, envio ou coleta de dados foi alterada.
-  // ══════════════════════════════════════════════════════════════
-  let etapaAtual = 1;
-  const TOTAL_ETAPAS = 4;
-
-  // Campos obrigatórios por etapa, só pro botão "Continuar" (a
-  // navegação pelos números do topo é sempre livre, pra facilitar
-  // edição). Etapa 3 (Plano) não bloqueia nada — o plano é livre.
-  const CAMPOS_OBRIGATORIOS_ETAPA = {
-    1: [['nome', 'Nome completo'], ['celular', 'WhatsApp']],
-    2: [['rua', 'Rua'], ['cidade', 'Cidade']]
-  };
-
-  function validarEtapa(n) {
-    const campos = CAMPOS_OBRIGATORIOS_ETAPA[n] || [];
-    let faltando = [];
-    campos.forEach(([id, label]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.classList.remove('campo-invalido');
-      if (!el.value.trim()) { el.classList.add('campo-invalido'); faltando.push(label); }
-    });
-    if (faltando.length) {
-      showToast('⚠️ Preencha: ' + faltando.join(', '), 'warning');
-      return false;
-    }
-    return true;
-  }
-
-  function irParaEtapa(n) {
-    if (n < 1 || n > TOTAL_ETAPAS) return;
-    etapaAtual = n;
-
-    document.querySelectorAll('.wizard-panel').forEach(p => p.classList.remove('ativo'));
-    document.getElementById('wizard-panel-' + n)?.classList.add('ativo');
-
-    document.querySelectorAll('.wizard-step-item').forEach(item => {
-      const s = parseInt(item.dataset.step, 10);
-      item.classList.toggle('ativo', s === n);
-      item.classList.toggle('concluido', s < n);
-    });
-
-    if (n === 4) renderResumoRevisao();
-
-    window.scrollTo({top: 0, behavior: 'smooth'});
-  }
-
-  function avancarEtapa() {
-    if (!validarEtapa(etapaAtual)) return;
-    irParaEtapa(etapaAtual + 1);
-  }
-
-  function voltarEtapa() {
-    irParaEtapa(etapaAtual - 1);
-  }
-
-  // Resumo somente-leitura na Etapa 4, montado a partir dos MESMOS
-  // campos do formulário (vl() lê e faz trim, sem mutar nada). Cada
-  // bloco tem um link "Editar" que volta pra etapa correspondente.
-  function renderResumoRevisao() {
-    const container = document.getElementById('resumo-revisao');
-    if (!container) return;
-
-    const servicos = [
-      { label: '🌐 Banda Larga', val: vl('plano_banda') },
-      { label: '🔀 Mesh',        val: vl('plano_mesh') ? vl('plano_mesh') + ' un' : '' },
-      { label: '📱 Controle',    val: vl('plano_controle') },
-      { label: '📱 Pós',         val: vl('plano_pos') },
-      { label: '🆓 Dep. Grátis', val: vl('dep_gratis') ? vl('dep_gratis') + ' un' : '' },
-      { label: '💰 Dep. Pago',   val: vl('dep_pago') ? vl('dep_pago') + ' un' : '' },
-      { label: '📺 TV',          val: vl('plano_tv') },
-      { label: '➕ Ponto Adicional', val: vl('ponto_adicional') ? vl('ponto_adicional') + ' un' : '' },
-      { label: '☎️ Fixo',        val: vl('plano_fixo') },
-      { label: '↔️ Portabilidade', val: vl('portabilidade') },
-    ].filter(s => s.val);
-
-    const servicosHtml = servicos.length
-      ? servicos.map(s => `<div class="resumo-linha"><span>${s.label}</span><strong>${s.val}</strong></div>`).join('')
-      : '<div class="resumo-vazio">Nenhum serviço selecionado ainda.</div>';
-
-    container.innerHTML = `
-      <div class="resumo-bloco">
-        <div class="resumo-bloco-header">
-          <span>👤 Cliente</span>
-          <button type="button" class="resumo-editar" onclick="irParaEtapa(1)">✏️ Editar</button>
-        </div>
-        <div class="resumo-linha"><span>Vendedor</span><strong>${vl('vendedor') || '—'}</strong></div>
-        <div class="resumo-linha"><span>Nome</span><strong>${vl('nome') || '—'}</strong></div>
-        <div class="resumo-linha"><span>CPF</span><strong>${vl('cpf') || '—'}</strong></div>
-        <div class="resumo-linha"><span>WhatsApp</span><strong>${vl('celular') || '—'}</strong></div>
-      </div>
-      <div class="resumo-bloco">
-        <div class="resumo-bloco-header">
-          <span>📍 Endereço</span>
-          <button type="button" class="resumo-editar" onclick="irParaEtapa(2)">✏️ Editar</button>
-        </div>
-        <div class="resumo-linha"><span>Endereço</span><strong>${vl('rua') || '—'}${vl('numero') ? ', ' + vl('numero') : ''}</strong></div>
-        <div class="resumo-linha"><span>Bairro</span><strong>${vl('bairro') || '—'}</strong></div>
-        <div class="resumo-linha"><span>Cidade</span><strong>${vl('cidade') || '—'}</strong></div>
-        <div class="resumo-linha"><span>CEP</span><strong>${vl('cep') || '—'}</strong></div>
-      </div>
-      <div class="resumo-bloco">
-        <div class="resumo-bloco-header">
-          <span>📡 Plano</span>
-          <button type="button" class="resumo-editar" onclick="irParaEtapa(3)">✏️ Editar</button>
-        </div>
-        ${servicosHtml}
-        <div class="resumo-linha resumo-valor"><span>Receita</span><strong>${vl('mensalidade') || '—'}</strong></div>
-        <div class="resumo-linha resumo-valor"><span>Valor do Plano</span><strong>${vl('debito') || '—'}</strong></div>
-      </div>
-    `;
-  }
-
   function selecionarHP(val) {
     const campo = document.getElementById('criar_hp');
     if (campo.value === val) {
@@ -830,16 +712,16 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 
   const CAMPOS_PROG = ['vendedor','nome','celular','cep','rua','mensalidade'];
   function atualizarProgresso() {
+    // A barra de % antiga foi substituída pelo indicador de etapas do
+    // wizard — os elementos abaixo podem não existir mais no HTML.
+    // Mantido com checagem defensiva caso voltem a existir no futuro.
     const total = CAMPOS_PROG.length;
     const preenchidos = CAMPOS_PROG.filter(id => document.getElementById(id)?.value.trim()).length;
     const pct = Math.round((preenchidos / total) * 100);
-    // #progress-fill / #pct-label eram da barra de % antiga, substituída
-    // pelo indicador de etapas do wizard — mantido opcional (?.) caso
-    // algum dia voltem a existir, mas hoje não bloqueia nada se sumirem.
-    const fillEl = document.getElementById('progress-fill');
-    const pctEl  = document.getElementById('pct-label');
-    if (fillEl) fillEl.style.width = pct + '%';
-    if (pctEl) pctEl.textContent = pct + '%';
+    const fill  = document.getElementById('progress-fill');
+    const label = document.getElementById('pct-label');
+    if (fill)  fill.style.width = pct + '%';
+    if (label) label.textContent = pct + '%';
   }
 
   function mascararData(el) {
@@ -900,10 +782,15 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     // 'Concluída', classes de cor, filtros, dashboard etc.) —
     // maiusculá-los quebraria essas comparações.
     // ─────────────────────────────────────────────────────────
+    // Em modo de edição (admin corrigindo uma ficha existente), o id,
+    // a data de cadastro original e o vendedor "dono" da venda (para
+    // efeito de "Minhas Vendas") são preservados — só o CONTEÚDO muda.
+    // data_edicao/editado_por registram quem editou e quando (colunas
+    // novas no fim da aba Fichas — ver Code.gs).
     fichaAtual = {
-      id: Date.now(),
-      data_cadastro: new Date().toLocaleDateString('pt-BR'),
-      username_vendedor: session.username,
+      id: modoEdicao ? idEmEdicao : Date.now(),
+      data_cadastro: modoEdicao ? (fichaEditOriginal?.data_cadastro || new Date().toLocaleDateString('pt-BR')) : new Date().toLocaleDateString('pt-BR'),
+      username_vendedor: modoEdicao ? (fichaEditOriginal?.username_vendedor || session.username) : session.username,
       vendedor: up(vl('vendedor')), status: statusFicha,
       criar_hp: document.getElementById('criar_hp')?.value || '',
       nome: up(vl('nome')), cpf: vl('cpf'),
@@ -916,6 +803,8 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       portabilidade: up(vl('portabilidade')),
       plano_movel: up(movelTexto), plano_tv: vl('plano_tv'), ponto_adicional: vl('ponto_adicional'), plano_fixo: vl('plano_fixo'),
       mensalidade: vl('mensalidade'), debito: vl('debito'),
+      data_edicao: modoEdicao ? (new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})) : (fichaEditOriginal?.data_edicao || ''),
+      editado_por: modoEdicao ? up(session.name) : (fichaEditOriginal?.editado_por || ''),
       periodo: up(vl('periodo')), obs: up(vl('obs')),
       checkin_lat: checkinCoords?.lat || '',
       checkin_lng: checkinCoords?.lng || '',
@@ -978,6 +867,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   }
 
   async function enviarFicha() {
+    if (modoEdicao) { await salvarEdicaoFicha(); return; }
     const btn = document.getElementById('btn-enviar');
     gerarTexto();
     if (!fichaAtual) return;
@@ -1041,8 +931,19 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   }
 
   function limpar() {
+    // Sai do modo edição (se estava ativo) antes de limpar os campos —
+    // evita que dados de uma ficha antiga fiquem "soltos" no formulário
+    // e sejam enviados sem querer como ficha nova.
+    modoEdicao = false;
+    idEmEdicao = null;
+    fichaEditOriginal = null;
+    removerBannerEdicao();
+    const btnEnviarEl = document.getElementById('btn-enviar');
+    if (btnEnviarEl) { btnEnviarEl.innerHTML = '📤 ENVIAR'; btnEnviarEl.disabled = false; }
+
     document.querySelectorAll('#page-formulario input, #page-formulario select, #page-formulario textarea')
       .forEach(el => el.value = '');
+    document.querySelectorAll('#page-formulario .campo-invalido').forEach(el => el.classList.remove('campo-invalido'));
     document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
     ['plano_banda','plano_mesh','plano_controle','plano_pos','plano_tv','plano_fixo'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
     if (session.role === 'admin') {
@@ -1055,6 +956,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     document.getElementById('btn-checkin').innerHTML = '📍 Check-in — Localização do Cliente';
     document.getElementById('btn-checkin').disabled = false;
     document.getElementById('btn-checkin').style.background = '';
+    document.getElementById('btn-checkin').style.display = '';
     document.getElementById('btn-checkin').onclick = fazerCheckin;
     document.getElementById('mensalidade').classList.remove('auto-preenchido');
     document.getElementById('debito').classList.remove('auto-preenchido');
@@ -1236,8 +1138,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         <td class="td-local">${localCell}</td>
         <td>${f.data_cadastro}</td>
         <td style="white-space:nowrap">
-          <button class="btn-regerar" onclick="reGerarFicha(${f.id})" title="Editar">↩</button>
-          ${podeExcluir ? `<button class="btn-del" onclick="deletar(${f.id})" title="Excluir da planilha">✕</button>` : ''}
+          ${isAdmin
+            ? `<button class="btn-regerar" onclick="editarFichaAdmin(${f.id})" title="Editar ficha (salva na mesma linha da planilha)">✏️</button>
+               ${podeExcluir ? `<button class="btn-del" onclick="deletar(${f.id})" title="Excluir da planilha">✕</button>` : ''}`
+            : `<button class="btn-regerar" onclick="reGerarFicha(${f.id})" title="Reenviar / duplicar ficha">↩</button>`
+          }
         </td>
       </tr>`;
     }).join('');
@@ -1303,6 +1208,12 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   function reGerarFicha(id) {
     const f = fichas.find(x => x.id === id);
     if (!f) return;
+    // Garante que não sobrou modo edição ligado de uma ação anterior —
+    // este fluxo é o antigo "reenviar/duplicar", não uma edição real.
+    modoEdicao = false; idEmEdicao = null; fichaEditOriginal = null;
+    removerBannerEdicao();
+    const btnCk = document.getElementById('btn-checkin');
+    if (btnCk) btnCk.style.display = '';
     fichaAtual = f;
     checkinCoords = f.checkin_lat ? { lat: f.checkin_lat, lng: f.checkin_lng } : null;
     const map = ['vendedor','status','nome','cpf','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo','mensalidade','debito','periodo','obs'];
@@ -1322,7 +1233,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     restaurarPill('plano_tv',       'pills-tv');
     restaurarPill('plano_fixo',     'pills-fixo');
     mudarAba('formulario');
-    irParaEtapa(4);
+    irParaEtapa(1);
     setTimeout(() => gerarTexto(), 100);
   }
 
@@ -2218,6 +2129,300 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       const naSemana = minhas.filter(f => (Number(f.id)||0) >= seteDiasAtras).length;
       elSemana.textContent = naSemana;
     }
+  }
+
+
+  // ══════════════════════════════════════════════════════════════
+  // WIZARD DE ETAPAS — Nova Ficha (Cliente → Endereço → Plano → Revisão)
+  //
+  // Não muda nenhum dado nem o formato de envio: os 4 painéis
+  // (.wizard-panel, ids wizard-panel-1..4) continuam com os MESMOS
+  // campos/IDs de sempre, só escondidos/mostrados com CSS.
+  // atualizarProgresso(), buscarPreco(), gerarTexto() e
+  // enviarFicha() seguem funcionando normalmente.
+  // ══════════════════════════════════════════════════════════════
+  const TOTAL_ETAPAS = 4;
+  let etapaAtual = 1;
+
+  function irParaEtapa(n) {
+    etapaAtual = n;
+    document.querySelectorAll('.wizard-panel').forEach(p => {
+      p.classList.toggle('ativo', p.id === 'wizard-panel-' + n);
+    });
+    document.querySelectorAll('.wizard-step-item').forEach(el => {
+      const step = Number(el.dataset.step);
+      el.classList.toggle('ativo', step === n);
+      el.classList.toggle('concluido', step < n);
+    });
+    if (n === TOTAL_ETAPAS) renderResumoRevisao();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  function marcarInvalido(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('campo-invalido');
+    return el;
+  }
+
+  // Validação leve por etapa — impede seguir com o essencial vazio,
+  // mas não trava em campos secundários (evita frustrar o vendedor
+  // em campo com sinal ruim / pressa).
+  function validarEtapaAtual() {
+    if (etapaAtual === 1) {
+      let ok = true;
+      if (!vl('nome'))    { marcarInvalido('nome');    ok = false; }
+      if (!vl('celular')) { marcarInvalido('celular'); ok = false; }
+      if (!ok) {
+        showToast('⚠️ Informe nome e WhatsApp do cliente antes de continuar', 'warning');
+        document.getElementById('nome').scrollIntoView({behavior:'smooth', block:'center'});
+      }
+      return ok;
+    }
+    if (etapaAtual === 2) {
+      let ok = true;
+      if (!vl('rua'))    { marcarInvalido('rua');    ok = false; }
+      if (!vl('cidade')) { marcarInvalido('cidade'); ok = false; }
+      if (!ok) {
+        showToast('⚠️ Informe rua e cidade antes de continuar', 'warning');
+        document.getElementById('rua').scrollIntoView({behavior:'smooth', block:'center'});
+      }
+      return ok;
+    }
+    // Etapa 3 (Plano) não bloqueia — nem toda ficha tem todos os
+    // campos de plano preenchidos na hora (ex: só solicitação de HP).
+    return true;
+  }
+
+  function avancarEtapa() {
+    if (!validarEtapaAtual()) return;
+    irParaEtapa(Math.min(etapaAtual + 1, TOTAL_ETAPAS));
+  }
+
+  function voltarEtapa() {
+    irParaEtapa(Math.max(etapaAtual - 1, 1));
+  }
+
+  // Monta o resumo visual da etapa de Revisão, lido direto dos
+  // campos do formulário — cada bloco tem um botão "Editar" que
+  // volta pra etapa correspondente.
+  function renderResumoRevisao() {
+    const wrap = document.getElementById('resumo-revisao');
+    if (!wrap) return;
+
+    const linha = (label, valor, destaque) => `
+      <div class="resumo-linha${destaque ? ' resumo-valor' : ''}">
+        <span>${label}</span><strong>${valor || '—'}</strong>
+      </div>`;
+
+    const statusTxt = document.getElementById('status')?.selectedOptions?.[0]?.textContent || vl('status');
+
+    const blocoCliente = `
+      <div class="resumo-bloco">
+        <div class="resumo-bloco-header">
+          <span>👤 Cliente</span>
+          <button class="resumo-editar" onclick="irParaEtapa(1)">✏️ Editar</button>
+        </div>
+        ${linha('Vendedor', vl('vendedor'))}
+        ${linha('Status', statusTxt)}
+        ${linha('Nome', vl('nome'))}
+        ${linha('CPF', vl('cpf'))}
+        ${linha('WhatsApp', vl('celular'))}
+        ${linha('E-mail', vl('email'))}
+      </div>`;
+
+    const enderecoResumo = [vl('rua'), vl('numero')].filter(Boolean).join(', ');
+    const blocoEndereco = `
+      <div class="resumo-bloco">
+        <div class="resumo-bloco-header">
+          <span>📍 Endereço</span>
+          <button class="resumo-editar" onclick="irParaEtapa(2)">✏️ Editar</button>
+        </div>
+        ${linha('Endereço', enderecoResumo)}
+        ${linha('Bairro', vl('bairro'))}
+        ${linha('Cidade', vl('cidade'))}
+        ${linha('CEP', vl('cep'))}
+      </div>`;
+
+    const servicos = [
+      ['🌐 Banda Larga', vl('plano_banda')],
+      ['🔀 Mesh',        vl('plano_mesh') ? vl('plano_mesh') + ' UN' : ''],
+      ['📱 Controle',    vl('plano_controle')],
+      ['📱 Pós',         vl('plano_pos')],
+      ['📺 TV',          vl('plano_tv')],
+      ['☎️ Fixo',        vl('plano_fixo')],
+    ].filter(([, v]) => v);
+
+    const servicosHtml = servicos.length
+      ? servicos.map(([label, val]) => linha(label, val)).join('')
+      : `<div class="resumo-vazio">Nenhum serviço selecionado ainda</div>`;
+
+    const blocoPlano = `
+      <div class="resumo-bloco">
+        <div class="resumo-bloco-header">
+          <span>📡 Plano</span>
+          <button class="resumo-editar" onclick="irParaEtapa(3)">✏️ Editar</button>
+        </div>
+        ${servicosHtml}
+        ${linha('Receita', vl('mensalidade'), true)}
+        ${linha('Valor do Plano', vl('debito'), true)}
+        ${linha('Período de Instalação', vl('periodo'))}
+      </div>`;
+
+    const faltando = [];
+    if (!vl('nome')) faltando.push('Nome do cliente');
+    if (!vl('celular')) faltando.push('WhatsApp');
+    if (!vl('mensalidade') && !vl('debito')) faltando.push('Valor do plano');
+    const alertaHtml = faltando.length
+      ? `<div class="resumo-bloco" style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;">⚠️ Antes de enviar, confira: ${faltando.join(', ')}.</div>`
+      : '';
+
+    wrap.innerHTML = blocoCliente + blocoEndereco + blocoPlano + alertaHtml;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // EDIÇÃO DE FICHA DIRETO NO APP (admin)
+  //
+  // Até aqui, corrigir uma ficha exigia abrir a planilha do Google
+  // Sheets manualmente. Agora o admin pode abrir "Todas as Fichas",
+  // tocar em ✏️ e editar os campos no próprio app — ao salvar, a
+  // MESMA linha na planilha é atualizada (ação action=atualizarFicha
+  // no Code.gs), sem criar uma ficha duplicada.
+  //
+  // Importante: o botão ↩ (reGerarFicha) continua existindo só na
+  // aba "Minhas Vendas" do vendedor, com o comportamento antigo de
+  // reabrir os dados pra reenviar/duplicar. Já ✏️ (editarFichaAdmin)
+  // só aparece pro admin em "Todas as Fichas" e faz uma edição real.
+  // ══════════════════════════════════════════════════════════════
+  let modoEdicao = false;
+  let idEmEdicao = null;
+  let fichaEditOriginal = null;
+
+  function preencherFormularioComFicha(f) {
+    const map = ['vendedor','status','nome','cpf','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo','mensalidade','debito','periodo','obs'];
+    map.forEach(k => {
+      const el = document.getElementById(k);
+      if (!el) return;
+      if (k === 'status' && session.role !== 'admin') return;
+      el.value = f[k] || '';
+    });
+    document.getElementById('criar_hp').value = f.criar_hp || '';
+    document.getElementById('hp-sim').className = 'hp-btn' + (f.criar_hp === 'Sim' ? ' ativo-sim' : '');
+    document.getElementById('hp-nao').className = 'hp-btn' + (f.criar_hp === 'Não' ? ' ativo-nao' : '');
+    restaurarPill('plano_banda',    'pills-banda');
+    restaurarMesh();
+    restaurarPill('plano_controle', 'pills-controle');
+    restaurarPill('plano_pos',      'pills-pos');
+    restaurarPill('plano_tv',       'pills-tv');
+    restaurarPill('plano_fixo',     'pills-fixo');
+    atualizarProgresso();
+  }
+
+  function mostrarBannerEdicao(f) {
+    removerBannerEdicao();
+    const pagina = document.getElementById('page-formulario');
+    const referencia = document.getElementById('mini-resumo');
+    if (!pagina || !referencia) return;
+    const banner = document.createElement('div');
+    banner.id = 'banner-edicao';
+    banner.style.cssText = 'background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:.78rem;display:flex;justify-content:space-between;align-items:center;gap:10px;';
+    banner.innerHTML = `<span>✏️ Editando ficha de <strong>${f.nome || '—'}</strong> — ao salvar, a mesma linha da planilha é atualizada.</span>
+      <button onclick="cancelarEdicao()" style="background:none;border:1px solid #92400e;color:#92400e;border-radius:6px;padding:4px 10px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Cancelar</button>`;
+    pagina.insertBefore(banner, referencia);
+  }
+
+  function removerBannerEdicao() {
+    document.getElementById('banner-edicao')?.remove();
+  }
+
+  function editarFichaAdmin(id) {
+    if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem editar fichas diretamente no app.', 'warning'); return; }
+    const f = fichas.find(x => String(x.id) === String(id));
+    if (!f) { showToast('❌ Ficha não encontrada.', 'error'); return; }
+
+    modoEdicao = true;
+    idEmEdicao = f.id;
+    fichaEditOriginal = f;
+    fichaAtual = null;
+    checkinCoords = f.checkin_lat ? { lat: f.checkin_lat, lng: f.checkin_lng } : null;
+
+    preencherFormularioComFicha(f);
+    mostrarBannerEdicao(f);
+
+    const btn = document.getElementById('btn-enviar');
+    if (btn) btn.innerHTML = '💾 SALVAR ALTERAÇÕES';
+    const btnCheckin = document.getElementById('btn-checkin');
+    if (btnCheckin) btnCheckin.style.display = 'none';
+
+    mudarAba('formulario');
+    irParaEtapa(1);
+    showToast('✏️ Editando a ficha de ' + (f.nome || '') + ' — as alterações vão para a mesma linha da planilha.', 'info', 4500);
+  }
+
+  // Cancela a edição SEM salvar — limpa o formulário por completo
+  // pra evitar que os dados da ficha antiga fiquem no ar e sejam
+  // enviados sem querer como uma ficha NOVA (duplicando o cliente).
+  function cancelarEdicao() {
+    limpar();
+    showToast('Edição cancelada.', 'info');
+  }
+
+  async function enviarEdicaoParaSheets(ficha) {
+    const params = new URLSearchParams();
+    Object.entries(ficha).forEach(([k, v]) => params.append(k, v || ''));
+    params.set('action', 'atualizarFicha');
+    params.set('editor_username', session.username);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const resp = await fetch(SHEETS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      clearTimeout(timeout);
+      const dados = await resp.json();
+      return { ok: !!(dados && dados.status === 'ok'), msg: dados?.msg || '' };
+    } catch (err) {
+      clearTimeout(timeout);
+      return { ok: false, msg: 'Falha de conexão.' };
+    }
+  }
+
+  async function salvarEdicaoFicha() {
+    const btn = document.getElementById('btn-enviar');
+    gerarTexto();
+    if (!fichaAtual) return;
+
+    btn.innerHTML = '⏳ Salvando...';
+    btn.disabled = true;
+    setSyncStatus('loading', '⏳ Salvando alterações na planilha...');
+
+    const resultado = await enviarEdicaoParaSheets(fichaAtual);
+
+    if (resultado.ok) {
+      const idx = fichas.findIndex(f => String(f.id) === String(fichaAtual.id));
+      if (idx >= 0) fichas[idx] = fichaAtual; else fichas.push(fichaAtual);
+      salvarFichas();
+      setSyncStatus('ok', '✅ Ficha atualizada na planilha!');
+      showToast('✅ Ficha de ' + fichaAtual.nome + ' atualizada!');
+      renderTabelaMinhas();
+      renderTabelaTodas();
+      renderDashboard();
+      limpar(); // sai do modo edição e limpa o formulário
+    } else {
+      setSyncStatus('erro',
+        '❌ Não foi possível salvar as alterações. ' +
+        '<button onclick="salvarEdicaoFicha()" style="background:none;border:none;color:#991b1b;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit">Tentar novamente</button>'
+      );
+      showToast('❌ ' + (resultado.msg || 'Falha ao salvar a edição.'), 'error', 5000);
+      btn.innerHTML = '💾 SALVAR ALTERAÇÕES';
+      btn.disabled = false;
+    }
+
+    setTimeout(() => hideSyncStatus(), 8000);
   }
 
   init();
