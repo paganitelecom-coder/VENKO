@@ -1923,43 +1923,51 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   }
 
   // Segundo dashboard: resumo de faltas/adiantamentos dentro da aba Desempenho
-  function renderDashboardFaltasAdiantamentos() {
-    const minhasFaltas = faltas.filter(f => session.role==='admin' || f.username===session.username);
-    const meusAdiant    = adiantamentos.filter(f => session.role==='admin' || f.username===session.username);
-    const totalAdiant = meusAdiant.reduce((sum, f) => {
-      const v = parseFloat(String(f.valor||'0').replace(/[^\d.,]/g,'').replace(',','.'));
-      return sum + (isNaN(v) ? 0 : v);
-    }, 0);
-    const formatarMoeda = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+function renderDashboardFaltasAdiantamentos() {
+  const minhasFaltas = faltas.filter(f => session.role==='admin' || f.username===session.username);
+  const meusAdiant    = adiantamentos.filter(f => session.role==='admin' || f.username===session.username);
+  const formatarMoeda = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-    const hoje = new Date();
-    const mesAtual = hoje.getMonth() + 1, anoAtual = hoje.getFullYear();
-    const faltasMes = minhasFaltas.filter(f => {
-      const p = (f.data||'').split('/');
-      return p.length === 3 && parseInt(p[1]) === mesAtual && parseInt(p[2]) === anoAtual;
-    }).length;
+  const hoje = new Date();
+  const mesAtual = hoje.getMonth() + 1, anoAtual = hoje.getFullYear();
 
-    const existing = document.getElementById('kpis-faltas-resumo');
-    const section = existing || document.createElement('div');
-    section.id = 'kpis-faltas-resumo';
-    section.className = 'dash-section';
-    section.innerHTML = `
-      <h3>📆 Faltas &amp; Adiantamentos</h3>
-      <div class="dash-grid">
-        <div class="kpi-card laranja">
-          <div class="kpi-label">Faltas este mês</div>
-          <div class="kpi-value">${faltasMes}</div>
-          <div class="kpi-sub">${minhasFaltas.length} no total</div>
-        </div>
-        <div class="kpi-card vermelho">
-          <div class="kpi-label">💵 Adiantamentos</div>
-          <div class="kpi-value" style="font-size:1.3rem;">${formatarMoeda(totalAdiant)}</div>
-          <div class="kpi-sub">${meusAdiant.length} registro(s)</div>
-        </div>
-      </div>`;
-    if (!existing) document.getElementById('page-dashboard').insertBefore(section, document.querySelector('#page-dashboard .dash-divider'));
-  }
+  const faltasMes = minhasFaltas.filter(f => {
+    const p = (f.data||'').split('/');
+    return p.length === 3 && parseInt(p[1]) === mesAtual && parseInt(p[2]) === anoAtual;
+  }).length;
 
+  // Adiantamentos do mês corrente — mesma lógica de filtro do faltasMes acima.
+  // O detalhado (tabela-adiantamentos, renderFaltasAdiantamentos) continua
+  // mostrando TODO o período; só este card-resumo é restrito ao mês.
+  const adiantMes = meusAdiant.filter(f => {
+    const p = (f.data||'').split('/');
+    return p.length === 3 && parseInt(p[1]) === mesAtual && parseInt(p[2]) === anoAtual;
+  });
+  const totalAdiantMes = adiantMes.reduce((sum, f) => {
+    const v = parseFloat(String(f.valor||'0').replace(/[^\d.,]/g,'').replace(',','.'));
+    return sum + (isNaN(v) ? 0 : v);
+  }, 0);
+
+  const existing = document.getElementById('kpis-faltas-resumo');
+  const section = existing || document.createElement('div');
+  section.id = 'kpis-faltas-resumo';
+  section.className = 'dash-section';
+  section.innerHTML = `
+    <h3>📆 Faltas &amp; Adiantamentos</h3>
+    <div class="dash-grid">
+      <div class="kpi-card laranja">
+        <div class="kpi-label">Faltas este mês</div>
+        <div class="kpi-value">${faltasMes}</div>
+        <div class="kpi-sub">${minhasFaltas.length} no total</div>
+      </div>
+      <div class="kpi-card vermelho">
+        <div class="kpi-label">💵 Adiantamentos este mês</div>
+        <div class="kpi-value" style="font-size:1.3rem;">${formatarMoeda(totalAdiantMes)}</div>
+        <div class="kpi-sub">${adiantMes.length} registro(s) — ${meusAdiant.length} no total</div>
+      </div>
+    </div>`;
+  if (!existing) document.getElementById('page-dashboard').insertBefore(section, document.querySelector('#page-dashboard .dash-divider'));
+}
   // ══════════════════════════════════════════════════════════════
   // METAS
   // ══════════════════════════════════════════════════════════════
