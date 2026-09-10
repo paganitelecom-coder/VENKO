@@ -230,7 +230,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
     try {
-      const resp = await fetch(SHEETS_URL + '?action=bootstrap', { cache: 'no-store', signal: controller.signal });
+      const resp = await fetch(SHEETS_URL + '?action=bootstrap&username=' + encodeURIComponent(session.username), { cache: 'no-store', signal: controller.signal });
       clearTimeout(timeout);
       const dados = await resp.json();
       if (dados.status !== 'ok') return false;
