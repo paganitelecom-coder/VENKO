@@ -1,10 +1,10 @@
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --primary:        #000000;
-    --primary-hover:  #1a1a1a;
-    --primary-light:  #D4AF37;
-    --grad:           linear-gradient(135deg, #000000, #D4AF37);
+    --primary:        #C1272D;
+    --primary-hover:  #9C1F24;
+    --primary-light:  #F5A623;
+    --grad:           linear-gradient(135deg, #C1272D, #F5A623);
     --verde-claro:    #ECECEC;
     --cinza-bg:       #F5F5F5;
     --white:          #FFFFFF;
@@ -39,9 +39,9 @@
   }
   body.dark-mode .btn-dark-toggle { color: #fbbf24; }
   body.dark-mode .plano-pills .pill-btn { background: #171717; border-color: #404040; color: #A3A3A3; }
-  body.dark-mode .plano-pills .pill-btn.ativo { background: #000000; border-color: #D4AF37; color: white; }
-  body.dark-mode .plano-pills .pill-btn:hover:not(.ativo) { background: #262626; border-color: #000000; color: #D4AF37; }
-  body.dark-mode .preco-auto-badge { background: #262626; color: #D4AF37; border-color: #000000; }
+  body.dark-mode .plano-pills .pill-btn.ativo { background: #C1272D; border-color: #F5A623; color: white; }
+  body.dark-mode .plano-pills .pill-btn:hover:not(.ativo) { background: #262626; border-color: #C1272D; color: #F5A623; }
+  body.dark-mode .preco-auto-badge { background: #262626; color: #F5A623; border-color: #C1272D; }
   body.dark-mode .bottom-nav { background: #262626; border-top-color: #404040; }
   body.dark-mode .modal-mais { background: #262626; }
   body.dark-mode .mais-menu-item { background: #171717; border-color: #404040; color: #F5F5F5; }
@@ -66,13 +66,10 @@
   }
   .topbar-left { display: flex; align-items: center; gap: 12px; }
   .topbar-logo {
-    width: 36px; height: 36px; border-radius: 10px;
-    background: #000000;
-    border: 1px solid #D4AF37;
-    display: flex; align-items: center; justify-content: center;
-    padding: 5px;
+    height: 34px;
+    display: flex; align-items: center; justify-content: flex-start;
   }
-  .topbar-logo img { width: 100%; height: 100%; object-fit: contain; }
+  .topbar-logo img { height: 100%; width: auto; object-fit: contain; display: block; }
   .topbar-title { font-size: 1rem; font-weight: 700; color: var(--text); }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
 
@@ -91,7 +88,7 @@
     box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     font-size: 0.9rem; z-index: 9999;
     animation: slideIn .3s ease-out;
-    max-width: 400px; border-left: 4px solid #000000;
+    max-width: 400px; border-left: 4px solid #C1272D;
     display: flex; align-items: center; gap: 12px;
   }
   .toast.success { border-left-color: #16a34a; }
@@ -265,7 +262,7 @@
   input:focus, select:focus,
   input:focus-visible, select:focus-visible {
     border-color: var(--primary-light);
-    box-shadow: 0 0 0 3px rgba(212, 175, 55,.15);
+    box-shadow: 0 0 0 3px rgba(245, 166, 35,.15);
     background: white;
   }
   input::placeholder { color: #A3A3A3; font-weight: 400; text-transform: none; }
@@ -320,9 +317,9 @@
     cursor: pointer; transition: transform var(--ease), box-shadow var(--ease), filter var(--ease);
   }
   .btn-primary:active { transform: translateY(0); filter: brightness(.96); }
-  .btn-primary:focus-visible { outline: 3px solid rgba(212,175,55,.5); outline-offset: 2px; }
-  .btn-gerar { background: var(--grad); color: white; box-shadow: 0 4px 18px rgba(0, 0, 0,.35); }
-  .btn-gerar:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(0, 0, 0,.45); }
+  .btn-primary:focus-visible { outline: 3px solid rgba(245,166,35,.5); outline-offset: 2px; }
+  .btn-gerar { background: var(--grad); color: white; box-shadow: 0 4px 18px rgba(193, 39, 45,.35); }
+  .btn-gerar:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(193, 39, 45,.45); }
   .btn-checkin { background: linear-gradient(135deg,#e67e22,#f39c12); color:white; box-shadow:0 4px 18px rgba(230,126,34,.3); margin-bottom:8px; }
   .btn-checkin:hover { transform: translateY(-2px); }
   .btn-checkin:disabled { background: #A3A3A3; box-shadow:none; cursor:not-allowed; transform:none; }
@@ -372,7 +369,7 @@
   }
   .pill-btn.ativo {
     border-color: var(--primary); background: var(--primary);
-    color: white; box-shadow: 0 2px 8px rgba(0, 0, 0,.3);
+    color: white; box-shadow: 0 2px 8px rgba(193, 39, 45,.3);
   }
   .plano-hidden { display: none; }
 
@@ -507,7 +504,7 @@
   }
   .btn-wpp-opcao:hover { transform: translateY(-2px); }
   .btn-wpp-opcao.normal   { background: linear-gradient(135deg, #16a34a, #22c55e); }
-  .btn-wpp-opcao.business { background: linear-gradient(135deg, #000000, #D4AF37); }
+  .btn-wpp-opcao.business { background: linear-gradient(135deg, #C1272D, #F5A623); }
   .btn-wpp-cancelar {
     padding: 10px; background: transparent; color: var(--muted);
     border: 1px solid var(--border); border-radius: 10px;
@@ -617,7 +614,7 @@
     background:var(--primary); color:white; border:none; border-radius:8px;
     font-family:'Inter',sans-serif; font-size:.8rem; font-weight:600; cursor:pointer; transition:all .2s;
   }
-  .btn-export:hover { background:#1a1a1a; transform:translateY(-1px); }
+  .btn-export:hover { background: var(--primary-hover); transform:translateY(-1px); }
   .info-sheets {
     margin-bottom:14px; padding:12px 16px;
     background:#F5F5F5; border:1px solid #D9D9D9;
