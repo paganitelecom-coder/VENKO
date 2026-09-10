@@ -1,12 +1,12 @@
-// Service Worker CARRERA TELECOM — cache básico do shell do app
-const CACHE_NAME = 'carrera-cache-v4'; // ← bump pra forçar o navegador a notar que o sw.js mudou
+// Service Worker VENKO — cache básico do shell do app
+const CACHE_NAME = 'venko-cache-v5'; // ← bump pra forçar o navegador a notar que o sw.js mudou
 const ARQUIVOS_CACHE = [
   './login.html',
   './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './logo-carrera.png'
+  './logo-venko.png'
 ];
 self.addEventListener('install', event => {
   event.waitUntil(
