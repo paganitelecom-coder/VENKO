@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Carrera Telecom – Entrar</title>
-<meta name="theme-color" content="#000000">
+<title>VENKO – Entrar</title>
+<meta name="theme-color" content="#C1272D">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -16,10 +16,10 @@
 
   :root {
     /* Cor */
-    --primary:        #000000;
-    --primary-hover:  #1A1A1A;
-    --accent:         #D4AF37;
-    --grad:           linear-gradient(135deg, #000000 0%, #D4AF37 100%);
+    --primary:        #C1272D;
+    --primary-hover:  #9C1F24;
+    --accent:         #F5A623;
+    --grad:           linear-gradient(135deg, #C1272D 0%, #F5A623 100%);
     --bg:             #F5F5F5;
     --surface:        #FFFFFF;
     --text:           #1A1A1A;
@@ -37,7 +37,7 @@
 
     /* Sombra e transição */
     --shadow-card: 0 20px 48px -12px rgba(0,0,0,.18), 0 4px 12px rgba(0,0,0,.04);
-    --shadow-btn:  0 8px 20px rgba(212,175,55,.35);
+    --shadow-btn:  0 8px 20px rgba(245,166,35,.35);
     --ease:        150ms cubic-bezier(.4,0,.2,1);
   }
 
@@ -73,15 +73,14 @@
     margin-bottom: var(--space-6);
   }
   .brand-logo {
-    width: 112px; height: 112px;
-    background: #000000;
-    border-radius: var(--radius-lg);
     display: inline-flex; align-items: center; justify-content: center;
+    background: #FFFFFF;
+    border-radius: var(--radius-lg);
     box-shadow: 0 10px 32px rgba(0,0,0,.28);
     margin-bottom: var(--space-3);
-    padding: 12px;
+    padding: 14px 22px;
   }
-  .brand-logo img { width: 100%; height: 100%; object-fit: contain; }
+  .brand-logo img { height: 48px; width: auto; object-fit: contain; display: block; }
   .brand h1 {
     font-size: 1.5rem; font-weight: 800;
     color: white; letter-spacing: -0.5px;
@@ -127,7 +126,7 @@
   .field input:hover { border-color: #D4D4D4; }
   .field input:focus-visible {
     border-color: var(--accent);
-    box-shadow: 0 0 0 4px rgba(212,175,55,.20);
+    box-shadow: 0 0 0 4px rgba(245,166,35,.20);
     background: white;
   }
   .field input.erro { border-color: var(--error); }
@@ -153,7 +152,7 @@
   }
   .btn-entrar:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,.35); }
   .btn-entrar:active:not(:disabled) { transform: translateY(0); filter: brightness(.96); }
-  .btn-entrar:focus-visible { outline: 3px solid rgba(212,175,55,.6); outline-offset: 2px; }
+  .btn-entrar:focus-visible { outline: 3px solid rgba(245,166,35,.6); outline-offset: 2px; }
   .btn-entrar:disabled { opacity: .6; transform: none; cursor: not-allowed; }
 
   .hint {
@@ -184,8 +183,8 @@
 <body>
 <main class="wrap">
   <header class="brand">
-    <div class="brand-logo"><img src="logo-carrera.png" alt="Carrera Telecom"></div>
-    <h1>CARRERA TELECOM</h1>
+    <div class="brand-logo"><img src="logo-venko.png" alt="VENKO"></div>
+    <h1>VENKO</h1>
     <p>Ficha de Vendas · Sistema Comercial</p>
   </header>
 
@@ -209,7 +208,7 @@
     </form>
   </section>
 
-  <footer class="version">CARRERA TELECOM v2.0 · Ficha de Vendas</footer>
+  <footer class="version">VENKO v2.0 · Ficha de Vendas</footer>
 </main>
 
 <script>
