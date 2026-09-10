@@ -1,13 +1,13 @@
 {
-  "name": "Carrera Telecom - Ficha de Vendas",
-  "short_name": "Carrera",
-  "description": "Sistema de gestão de vendas Carrera Telecom",
+  "name": "VENKO - Ficha de Vendas",
+  "short_name": "VENKO",
+  "description": "Sistema de gestão de vendas VENKO",
   "start_url": "index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#FFFFFF",
-  "theme_color": "#C10007",
+  "theme_color": "#C1272D",
   "icons": [
     {
       "src": "icon-192.png",
