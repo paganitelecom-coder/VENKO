@@ -580,6 +580,15 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       v = v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
       this.value = v;
     });
+    // Máscara do CNPJ — mesmo padrão do CPF acima (00.000.000/0000-00).
+    document.getElementById('cnpj').addEventListener('input', function() {
+      let v = this.value.replace(/\D/g,'').slice(0,14);
+      v = v.replace(/^(\d{2})(\d)/,'$1.$2')
+           .replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3')
+           .replace(/\.(\d{3})(\d)/,'.$1/$2')
+           .replace(/(\d{4})(\d)/,'$1-$2');
+      this.value = v;
+    });
     document.getElementById('celular').addEventListener('input', function() {
       let v = this.value.replace(/\D/g,'').slice(0,11);
       v = v.replace(/^(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d)/,'$1-$2');
@@ -793,7 +802,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       username_vendedor: modoEdicao ? (fichaEditOriginal?.username_vendedor || session.username) : session.username,
       vendedor: up(vl('vendedor')), status: statusFicha,
       criar_hp: document.getElementById('criar_hp')?.value || '',
-      nome: up(vl('nome')), cpf: vl('cpf'),
+      nome: up(vl('nome')), cpf: vl('cpf'), cnpj: vl('cnpj'),
       nascimento: fmtData(nascStr), mae: up(vl('mae')),
       celular: vl('celular'), sms: vl('sms'), email: up(vl('email')),
       rua: up(vl('rua')), numero: up(vl('numero')), complemento: up(vl('complemento')),
@@ -828,6 +837,9 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     const checkinLine = checkinCoords ? `\n📍 Check-in: https://www.google.com/maps?q=${checkinCoords.lat},${checkinCoords.lng}` : '';
     const portabLine  = fichaAtual.portabilidade ? `\nPortabilidade: ${fichaAtual.portabilidade}` : '';
     const smsLine      = fichaAtual.sms ? `\nSMS: ${fichaAtual.sms}` : '';
+    // CNPJ só aparece no texto quando preenchido — a maioria das
+    // fichas é pessoa física e não deve carregar uma linha vazia.
+    const cnpjLine     = fichaAtual.cnpj ? `\nCNPJ: ${fichaAtual.cnpj}` : '';
 
     const txt =
 `FICHA CADASTRAL - CARRERA TELECOM
@@ -837,7 +849,7 @@ Criar HP: ${fichaAtual.criar_hp || '—'}
 
 DADOS PESSOAIS
 Nome: ${fichaAtual.nome}
-CPF: ${fichaAtual.cpf}
+CPF: ${fichaAtual.cpf}${cnpjLine}
 Data de Nascimento: ${fichaAtual.nascimento}
 Nome da Mae: ${fichaAtual.mae}
 WhatsApp: ${fichaAtual.celular}${smsLine}
@@ -974,6 +986,22 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     window.scrollTo({top:0, behavior:'smooth'});
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // LIMPAR FICHA — botão 🗑 ao lado do indicador de etapas, visível
+  // em QUALQUER etapa do preenchimento. Só um wrapper com confirmação
+  // em cima de limpar(), que já cuida de zerar tudo (campos, pills,
+  // modo edição, rascunho) e voltar pra etapa 1.
+  //
+  // A confirmação só aparece se houver algo digitado — limpar uma
+  // ficha já vazia não precisa perguntar nada.
+  // ══════════════════════════════════════════════════════════════
+  function limparFichaGeral() {
+    const temDados = ['nome','cpf','cnpj','celular','rua','mensalidade','obs'].some(id => vl(id));
+    if (temDados && !confirm('Limpar todos os campos desta ficha? Os dados não enviados serão perdidos.')) return;
+    limpar();
+    showToast('🗑 Ficha limpa', 'info');
+  }
+
   function salvarFichas() {
     localStorage.setItem('fichas', JSON.stringify(fichas));
     atualizarContadores();
@@ -1072,7 +1100,8 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (filtroMinhas !== 'todos') lista = lista.filter(f => f.status === filtroMinhas);
     if (busca) lista = lista.filter(f =>
       (f.nome||'').toLowerCase().includes(busca) ||
-      (f.cpf||'').replace(/\D/g,'').includes(busca.replace(/\D/g,''))
+      (f.cpf||'').replace(/\D/g,'').includes(busca.replace(/\D/g,'')) ||
+      (f.cnpj||'').replace(/\D/g,'').includes(busca.replace(/\D/g,''))
     );
     document.getElementById('badge-minhas').textContent = lista.length;
     renderTabela(lista, 'tabela-minhas', false);
@@ -1085,6 +1114,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (busca) lista = lista.filter(f =>
       (f.nome||'').toLowerCase().includes(busca) ||
       (f.cpf||'').replace(/\D/g,'').includes(busca.replace(/\D/g,'')) ||
+      (f.cnpj||'').replace(/\D/g,'').includes(busca.replace(/\D/g,'')) ||
       (f.vendedor||'').toLowerCase().includes(busca)
     );
     document.getElementById('badge-todas').textContent = fichas.length;
@@ -1216,7 +1246,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (btnCk) btnCk.style.display = '';
     fichaAtual = f;
     checkinCoords = f.checkin_lat ? { lat: f.checkin_lat, lng: f.checkin_lng } : null;
-    const map = ['vendedor','status','nome','cpf','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo','mensalidade','debito','periodo','obs'];
+    const map = ['vendedor','status','nome','cpf','cnpj','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo','mensalidade','debito','periodo','obs'];
     map.forEach(k => {
       const el = document.getElementById(k);
       if (!el) return;
@@ -1690,11 +1720,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     const lista = ctx === 'todas' ? fichas
       : fichas.filter(f => session.role==='admin' || f.username_vendedor===session.username);
     if (!lista.length) { showToast('⚠️ Nenhuma ficha para exportar','warning'); return; }
-    const cols = ['data_cadastro','vendedor','status','criar_hp','nome','cpf','rg','nascimento','mae','celular','sms','email',
+    const cols = ['data_cadastro','vendedor','status','criar_hp','nome','cpf','cnpj','rg','nascimento','mae','celular','sms','email',
       'rua','numero','complemento','bairro','cidade','cep',
       'plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo',
       'mensalidade','debito','taxa','vencimento','periodo','obs','checkin_url'];
-    const headers = ['Data','Vendedor','Status','Criar HP','Nome','CPF','RG','Nascimento','Mãe','WhatsApp','SMS','E-mail',
+    const headers = ['Data','Vendedor','Status','Criar HP','Nome','CPF','CNPJ','RG','Nascimento','Mãe','WhatsApp','SMS','E-mail',
       'Rua','Número','Complemento','Bairro','Cidade','CEP',
       'Banda Larga','Mesh','Controle','Pós','Dep. Grátis','Dep. Pago','Portabilidade','TV','Ponto Adicional','Fixo',
       'Receita','Valor do Plano','Taxa Inst.','Vencimento','Período','Observações','Localização'];
@@ -2234,6 +2264,7 @@ function renderDashboardFaltasAdiantamentos() {
         ${linha('Status', statusTxt)}
         ${linha('Nome', vl('nome'))}
         ${linha('CPF', vl('cpf'))}
+        ${vl('cnpj') ? linha('CNPJ', vl('cnpj')) : ''}
         ${linha('WhatsApp', vl('celular'))}
         ${linha('E-mail', vl('email'))}
       </div>`;
@@ -2306,7 +2337,7 @@ function renderDashboardFaltasAdiantamentos() {
   let fichaEditOriginal = null;
 
   function preencherFormularioComFicha(f) {
-    const map = ['vendedor','status','nome','cpf','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo','mensalidade','debito','periodo','obs'];
+    const map = ['vendedor','status','nome','cpf','cnpj','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo','mensalidade','debito','periodo','obs'];
     map.forEach(k => {
       const el = document.getElementById(k);
       if (!el) return;
