@@ -81,6 +81,35 @@
     }
     .wizard-step-item.concluido::before { background: #16a34a; }
 
+    /* ── Barra do topo do wizard: indicador de etapas + botão de
+         limpar ficha, disponível em QUALQUER etapa do preenchimento. ── */
+    .wizard-topo {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin: 0 0 16px;
+    }
+    .wizard-topo .wizard-steps { flex: 1; margin: 0; }
+    .btn-limpar-ficha {
+      flex: 0 0 auto;
+      width: 34px; height: 34px;
+      margin-top: -2px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      background: var(--white);
+      color: #ef4444;
+      font-size: .9rem;
+      line-height: 1;
+      cursor: pointer;
+      font-family: inherit;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    .btn-limpar-ficha:active {
+      background: #fef2f2;
+      border-color: #ef4444;
+    }
+
     .wizard-panel { display: none; }
     .wizard-panel.ativo { display: block; animation: wizardFadeIn .25s ease; }
     @keyframes wizardFadeIn {
@@ -133,7 +162,6 @@
   </style>
 </head>
 <body>
-<body>
 
 <!-- ── TOPBAR ── -->
 <header class="topbar">
@@ -179,24 +207,27 @@
     </div>
   </div>
 
-  <!-- Indicador de etapas do wizard (substitui a barra de % antiga) -->
-  <div class="wizard-steps" id="wizard-steps">
-    <button type="button" class="wizard-step-item ativo" data-step="1" onclick="irParaEtapa(1)">
-      <div class="wizard-step-num">1</div>
-      <div class="wizard-step-label">Cliente</div>
-    </button>
-    <button type="button" class="wizard-step-item" data-step="2" onclick="irParaEtapa(2)">
-      <div class="wizard-step-num">2</div>
-      <div class="wizard-step-label">Endereço</div>
-    </button>
-    <button type="button" class="wizard-step-item" data-step="3" onclick="irParaEtapa(3)">
-      <div class="wizard-step-num">3</div>
-      <div class="wizard-step-label">Plano</div>
-    </button>
-    <button type="button" class="wizard-step-item" data-step="4" onclick="irParaEtapa(4)">
-      <div class="wizard-step-num">4</div>
-      <div class="wizard-step-label">Revisão</div>
-    </button>
+  <!-- Indicador de etapas do wizard + botão de limpar ficha (sempre visível) -->
+  <div class="wizard-topo">
+    <div class="wizard-steps" id="wizard-steps">
+      <button type="button" class="wizard-step-item ativo" data-step="1" onclick="irParaEtapa(1)">
+        <div class="wizard-step-num">1</div>
+        <div class="wizard-step-label">Cliente</div>
+      </button>
+      <button type="button" class="wizard-step-item" data-step="2" onclick="irParaEtapa(2)">
+        <div class="wizard-step-num">2</div>
+        <div class="wizard-step-label">Endereço</div>
+      </button>
+      <button type="button" class="wizard-step-item" data-step="3" onclick="irParaEtapa(3)">
+        <div class="wizard-step-num">3</div>
+        <div class="wizard-step-label">Plano</div>
+      </button>
+      <button type="button" class="wizard-step-item" data-step="4" onclick="irParaEtapa(4)">
+        <div class="wizard-step-num">4</div>
+        <div class="wizard-step-label">Revisão</div>
+      </button>
+    </div>
+    <button type="button" class="btn-limpar-ficha" onclick="limparFichaGeral()" title="Limpar ficha" aria-label="Limpar ficha">🗑</button>
   </div>
 
   <!-- ═══ ETAPA 1 — CLIENTE ═══ -->
@@ -250,6 +281,13 @@
           <div class="input-wrap">
             <input type="text" id="cpf" placeholder="000.000.000-00" maxlength="14" oninput="atualizarProgresso()" aria-label="CPF">
             <button class="clear-btn" onclick="limparCampo('cpf')" tabindex="-1">✕</button>
+          </div>
+        </div>
+        <div>
+          <label>CNPJ <span style="font-weight:400;color:var(--muted);font-size:.72rem;">(pessoa jurídica)</span></label>
+          <div class="input-wrap">
+            <input type="text" id="cnpj" placeholder="00.000.000/0000-00" maxlength="18" oninput="atualizarProgresso()" aria-label="CNPJ">
+            <button class="clear-btn" onclick="limparCampo('cnpj')" tabindex="-1">✕</button>
           </div>
         </div>
         <div class="grid row-2">
@@ -796,7 +834,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-
 
 </body>
 </html>
