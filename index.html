@@ -10,16 +10,47 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="css/styles.css">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
 
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- SheetJS (xlsx) NÃO é mais carregado aqui. É ~937 KB e só é usado nos
+       botões "Exportar". Carregar em toda visita atrasava o primeiro
+       carregamento pra 100% dos usuários mesmo que quase ninguém exporte.
+       Agora é buscado sob demanda pela função carregarXLSX() abaixo. -->
   <script defer src="js/draft.js"></script>
   <script defer src="js/app.js"></script>
   <script defer src="js/init.js"></script>
+  <script>
+    // Carrega o SheetJS só na primeira vez que o usuário clicar em "Exportar".
+    let _xlsxPromise = null;
+    function carregarXLSX() {
+      if (window.XLSX) return Promise.resolve();
+      if (_xlsxPromise) return _xlsxPromise;
+      _xlsxPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+      return _xlsxPromise;
+    }
+    // Substitui as chamadas antigas onclick="exportarExcel(...)": garante que
+    // a lib está carregada antes de chamar a função já existente em app.js.
+    function exportarExcelSobDemanda(tipo) {
+      const btn = event && event.currentTarget;
+      const textoOriginal = btn ? btn.textContent : null;
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Carregando...'; }
+      carregarXLSX()
+        .then(() => exportarExcel(tipo))
+        .catch(() => alert('Não foi possível carregar o exportador. Verifique sua conexão.'))
+        .finally(() => { if (btn) { btn.disabled = false; btn.textContent = textoOriginal; } });
+    }
+  </script>
 
   <!-- ════════════════════════════════════════════════════════════
        WIZARD DE ETAPAS — estilos inline para não depender de mudar
@@ -583,7 +614,7 @@
     <div class="planilha-titulo">
       <h2>Minhas Vendas <span class="badge" id="badge-minhas">0</span></h2>
     </div>
-    <button class="btn-export" onclick="exportarExcel('minhas')">⬇️ Exportar</button>
+    <button class="btn-export" onclick="exportarExcelSobDemanda('minhas')">⬇️ Exportar</button>
   </div>
   <div class="busca-wrap">
     <input type="text" id="busca-minhas" placeholder="Buscar por nome ou CPF..." oninput="renderTabelaMinhas()" style="text-transform:none;" aria-label="Buscar nas minhas fichas por nome ou CPF">
@@ -723,7 +754,7 @@
     <div class="planilha-titulo">
       <h2>Todas as Fichas <span class="badge" id="badge-todas">0</span></h2>
     </div>
-    <button class="btn-export" onclick="exportarExcel('todas')">⬇️ Exportar</button>
+    <button class="btn-export" onclick="exportarExcelSobDemanda('todas')">⬇️ Exportar</button>
   </div>
   <div class="busca-wrap">
     <input type="text" id="busca-todas" placeholder="Buscar por nome, CPF ou vendedor..." oninput="renderTabelaTodas()" style="text-transform:none;" aria-label="Buscar em todas as fichas por nome, CPF ou vendedor">
