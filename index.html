@@ -190,6 +190,48 @@
       border-color: #ef4444 !important;
       background: #fef2f2 !important;
     }
+
+    /* ── ETAPA PLANO: barra de total fixa (itens + Receita + Valor do Plano
+         em tempo real). Só LÊ os campos que o app.js já calcula. ── */
+    .plano-total {
+      position: sticky;
+      bottom: calc(68px + env(safe-area-inset-bottom));
+      z-index: 20;
+      margin: 12px 0;
+      padding: 12px 14px;
+      background: var(--white);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius, 10px);
+      box-shadow: 0 -4px 18px rgba(0,0,0,.12);
+    }
+    .plano-total-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; min-height: 22px; }
+    .plano-total-chip  { font-size: .68rem; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: #f3f4f6; color: var(--text); }
+    .plano-total-vazio { font-size: .74rem; color: var(--muted); }
+    .plano-total-valores { display: flex; gap: 10px; }
+    .plano-total-valores > div { flex: 1; }
+    .plano-total-lbl { font-size: .64rem; color: var(--muted); font-weight: 600; }
+    .plano-total-num { font-size: 1.05rem; font-weight: 800; color: var(--text); }
+    .plano-total-num.receita { color: #16a34a; }
+
+    .aviso-manual { display: none; margin-top: 8px; font-size: .68rem; color: #b45309; }
+    .aviso-manual button {
+      background: none; border: none; padding: 0; margin-left: 6px;
+      color: #2563eb; font-weight: 700; font-size: .68rem; cursor: pointer; font-family: inherit;
+    }
+
+    /* Mesh depende de Banda Larga */
+    .servico-row.bloqueado { opacity: .45; pointer-events: none; }
+    .servico-dica { display: none; font-size: .66rem; color: var(--muted); margin-top: 4px; }
+    .servico-row.bloqueado .servico-dica { display: block; }
+
+    /* Botões − / + das quantidades */
+    .qtd-stepper { display: flex; gap: 8px; margin-top: 6px; }
+    .qtd-stepper button {
+      width: 40px; height: 32px; border-radius: 8px;
+      border: 1.5px solid var(--border); background: var(--white); color: var(--text);
+      font-size: 1.1rem; font-weight: 700; line-height: 1; cursor: pointer; font-family: inherit;
+    }
+    .qtd-stepper button:active { background: #f3f4f6; }
   </style>
 </head>
 <body>
@@ -554,6 +596,15 @@
             <button class="clear-btn" onclick="limparCampo('debito');marcarManual('debito')" tabindex="-1">✕</button>
           </div>
         </div>
+        <!-- VALOR PROMOCIONAL — aparece SÓ no texto copiado.
+             Não entra em fichaAtual, então não vai para o Sheets. -->
+        <div>
+          <label>Valor Promocional <span style="font-weight:400;color:var(--muted);font-size:.72rem;">(só no texto copiado)</span></label>
+          <div class="input-wrap">
+            <input type="text" id="valor_promocional" placeholder="R$ 0,00" aria-label="Valor promocional (aparece só no texto copiado)">
+            <button class="clear-btn" onclick="limparCampo('valor_promocional')" tabindex="-1">✕</button>
+          </div>
+        </div>
         <div>
           <label>Período de Instalação</label>
           <div class="input-wrap">
@@ -570,6 +621,27 @@
       <div class="card-body">
         <textarea id="obs" placeholder="Anotações extras..." rows="3"
           style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:.85rem;color:var(--text);background:#fafafa;outline:none;resize:vertical;transition:border-color .2s;text-transform:uppercase;"></textarea>
+      </div>
+    </div>
+
+    <!-- BARRA DE TOTAL FIXA: itens escolhidos + Receita + Valor do Plano ao vivo -->
+    <div class="plano-total" id="plano-total" aria-live="polite">
+      <div class="plano-total-chips" id="plano-total-chips">
+        <span class="plano-total-vazio">Escolha os serviços acima</span>
+      </div>
+      <div class="plano-total-valores">
+        <div>
+          <div class="plano-total-lbl">Receita</div>
+          <div class="plano-total-num receita" id="plano-total-receita">R$ 0,00</div>
+        </div>
+        <div>
+          <div class="plano-total-lbl">Valor do Plano</div>
+          <div class="plano-total-num" id="plano-total-valor">R$ 0,00</div>
+        </div>
+      </div>
+      <div class="aviso-manual" id="aviso-manual">
+        ✏️ Valor editado manualmente.
+        <button type="button" onclick="voltarPrecoAutomatico()">Voltar ao automático</button>
       </div>
     </div>
 
@@ -865,6 +937,131 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ════════════════════════════════════════════════════════════
+     ETAPA PLANO — melhorias de UX (barra de total, Mesh dependente
+     de Banda Larga, botões − / + nas quantidades, aviso de valor
+     editado manualmente). Só LÊ os campos que o app.js já calcula,
+     não duplica nenhuma regra de preço.
+     ════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const val = id => { const e = $(id); return e ? String(e.value || '').trim() : ''; };
+
+  // [campo, rótulo, formatador opcional]
+  const SERVICOS = [
+    ['plano_banda',    'Banda Larga'],
+    ['plano_mesh',     'Mesh',        v => v + ' un'],
+    ['plano_controle', 'Controle'],
+    ['plano_pos',      'Pós'],
+    ['plano_tv',       'TV'],
+    ['ponto_adicional','Ponto adic.', v => '×' + v],
+    ['plano_fixo',     'Fixo'],
+    ['dep_pago',       'Dep. pago',   v => '×' + v],
+    ['dep_gratis',     'Dep. grátis', v => '×' + v]
+  ];
+
+  function atualizarBarra() {
+    const chips = $('plano-total-chips');
+    if (!chips) return;
+
+    const itens = [];
+    SERVICOS.forEach(([id, rotulo, fmt]) => {
+      const v = val(id);
+      if (!v || v === '0') return;
+      itens.push(rotulo + ' ' + (fmt ? fmt(v) : v));
+    });
+    chips.innerHTML = itens.length
+      ? itens.map(t => '<span class="plano-total-chip">' + t + '</span>').join('')
+      : '<span class="plano-total-vazio">Escolha os serviços acima</span>';
+
+    $('plano-total-receita').textContent = val('mensalidade') || 'R$ 0,00';
+    $('plano-total-valor').textContent   = val('debito')      || 'R$ 0,00';
+
+    // Aviso de edição manual (usa as mesmas flags que o app.js já mantém)
+    if (typeof camposAutoPreenchidos !== 'undefined') {
+      const manual = camposAutoPreenchidos.has('mensalidade_manual') || camposAutoPreenchidos.has('debito_manual');
+      $('aviso-manual').style.display = manual ? 'block' : 'none';
+    }
+
+    // Mesh só faz sentido com Banda Larga (visual apenas — não apaga dados)
+    const meshLinha = $('pills-mesh') && $('pills-mesh').closest('.servico-row');
+    if (meshLinha) meshLinha.classList.toggle('bloqueado', !val('plano_banda'));
+  }
+  window.atualizarBarraPlano = atualizarBarra;
+
+  // Volta a deixar Receita e Valor do Plano no automático
+  window.voltarPrecoAutomatico = function () {
+    camposAutoPreenchidos.delete('mensalidade_manual');
+    camposAutoPreenchidos.delete('debito_manual');
+    buscarPreco();
+    atualizarBarra();
+  };
+
+  function iniciar() {
+    // Dica do Mesh
+    const meshLinha = $('pills-mesh') && $('pills-mesh').closest('.servico-row');
+    if (meshLinha && !meshLinha.querySelector('.servico-dica')) {
+      const d = document.createElement('div');
+      d.className = 'servico-dica';
+      d.textContent = 'Escolha uma Banda Larga para liberar o Mesh.';
+      meshLinha.appendChild(d);
+    }
+
+    // Botões − / + (disparam o 'input' → onDepChange() do app.js roda normal)
+    ['dep_gratis', 'dep_pago', 'ponto_adicional'].forEach(id => {
+      const inp = $(id);
+      if (!inp || inp.dataset.stepper) return;
+      inp.dataset.stepper = '1';
+      const box = document.createElement('div');
+      box.className = 'qtd-stepper';
+      [['−', -1], ['+', 1]].forEach(([txt, delta]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = txt;
+        b.setAttribute('aria-label', (delta > 0 ? 'Aumentar' : 'Diminuir') + ' quantidade');
+        b.onclick = () => {
+          const n = Math.max(0, (parseInt(inp.value, 10) || 0) + delta);
+          inp.value = n || '';
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        box.appendChild(b);
+      });
+      (inp.closest('.input-wrap') || inp).insertAdjacentElement('afterend', box);
+    });
+
+    const painel = $('wizard-panel-3');
+    if (painel) {
+      // Atualiza a barra depois de qualquer clique/digitação (o app.js já recalculou)
+      ['click', 'input', 'change'].forEach(ev =>
+        painel.addEventListener(ev, () => setTimeout(atualizarBarra, 0)));
+
+      // Desmarcou a Banda Larga → o Mesh (adicional dela) sai junto
+      painel.addEventListener('click', e => {
+        if (!(e.target.closest && e.target.closest('#pills-banda'))) return;
+        setTimeout(() => {
+          if (!val('plano_banda') && val('plano_mesh')) {
+            $('plano_mesh').value = '';
+            $('pills-mesh').querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
+            buscarPreco();
+            showToast('Mesh removido: ele precisa de uma Banda Larga', 'info');
+          }
+          atualizarBarra();
+        }, 0);
+      });
+    }
+
+    // Mudou a cidade → a tabela de preços muda (o app.js espera 400 ms)
+    const cidade = $('cidade');
+    if (cidade) cidade.addEventListener('input', () => setTimeout(atualizarBarra, 600));
+
+    atualizarBarra();
+  }
+
+  document.addEventListener('DOMContentLoaded', iniciar);
+})();
+</script>
 
 </body>
 </html>
