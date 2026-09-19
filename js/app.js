@@ -191,6 +191,9 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
   let tabelaPrecos  = [];
   let tabelaCidades = [];
   let camposAutoPreenchidos = new Set();
+  // Detalhamento do último cálculo de preço: [rótulo, valor, soValorDoPlano?]
+  // Alimenta a tela de Revisão (mostra de onde vem cada valor).
+  let detalhePreco = [];
 
   function normalizar(str) {
     return String(str || '')
@@ -296,6 +299,8 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
   //     SÓ ao Valor do Plano — igual ao Mesh, não entra na Receita.
   //   • Dep. Grátis é só um campo de quantidade — não entra em nenhum
   //     cálculo de valor.
+  //   • Valor Promocional (campo "valor_promocional") NÃO entra em
+  //     nenhum cálculo — é só um texto livre que sai no texto copiado.
   // ══════════════════════════════════════════════════════════════
   function buscarPreco() {
     const cidade   = normalizar(document.getElementById('cidade').value);
@@ -335,6 +340,13 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     // totalPlano = tudo que compõe a Receita (sem Mesh).
     let totalPlano = 0, algumEncontrado = false, algumFaltando = false;
 
+    // Guarda cada parcela para mostrar o detalhamento na Revisão.
+    detalhePreco = [];
+    const somar = (rotulo, v) => {
+      if (v !== null) { totalPlano += v; algumEncontrado = true; detalhePreco.push([rotulo, v]); }
+      else algumFaltando = true;
+    };
+
     // ── BANDA LARGA ──
     // TV sozinho não desconta a banda; só desconta se tiver Controle/Pós junto.
     if (temBanda) {
@@ -342,17 +354,17 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
                    : temMovel             ? 'VALOR_COM_MOVEL'
                    :                        'VALOR_SOZINHO';
       const v = getPrecoServico('BANDA_LARGA', banda, grupo, coluna);
-      if (v !== null) { totalPlano += v; algumEncontrado = true; } else algumFaltando = true;
+      somar('Banda Larga ' + banda, v);
     }
 
     // ── CONTROLE / PÓS ── (preço fixo, não varia por combinação)
     if (controle) {
       const v = getPrecoServico('CONTROLE', controle, grupo, 'VALOR_SOZINHO');
-      if (v !== null) { totalPlano += v; algumEncontrado = true; } else algumFaltando = true;
+      somar('Controle ' + controle, v);
     }
     if (pos) {
       const v = getPrecoServico('POS', pos, grupo, 'VALOR_SOZINHO');
-      if (v !== null) { totalPlano += v; algumEncontrado = true; } else algumFaltando = true;
+      somar('Pós ' + pos, v);
     }
 
     // ── TV ──
@@ -362,7 +374,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
                    : (temBanda || temMovel) ? 'VALOR_COM_MOVEL'
                    :                          'VALOR_SOZINHO';
       const v = getPrecoServico('TV', tv, grupo, coluna);
-      if (v !== null) { totalPlano += v; algumEncontrado = true; } else algumFaltando = true;
+      somar('TV ' + tv, v);
     }
 
     // ── FIXO ──
@@ -374,7 +386,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
                    : temMovel             ? 'VALOR_COM_MOVEL'
                    :                        'VALOR_SOZINHO';
       const v = getPrecoServico('FIXO', fixo, grupo, coluna);
-      if (v !== null) { totalPlano += v; algumEncontrado = true; } else algumFaltando = true;
+      somar('Fixo ' + fixo, v);
     }
 
     // ── DEP. PAGO ── (serviço adicional, preço fixo de R$55,00 por unidade,
@@ -382,6 +394,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     if (depPagoQtd > 0) {
       totalPlano += depPagoValor;
       algumEncontrado = true;
+      detalhePreco.push(['Dep. Pago ' + depPagoQtd + 'x', depPagoValor]);
     }
 
     if (!algumEncontrado) {
@@ -395,6 +408,8 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     // que é Receita + Mesh + Ponto Adicional. A Receita em si
     // (Banda + Controle + Pós + Dep. Pago + TV + Fixo) NÃO leva nenhum dos dois.
     const totalValorPlano = totalPlano + meshValor + pontoAdicionalValor;
+    if (meshQtd > 0)           detalhePreco.push(['Mesh ' + meshQtd + 'x', meshValor, true]);
+    if (pontoAdicionalQtd > 0) detalhePreco.push(['Ponto adicional ' + pontoAdicionalQtd + 'x', pontoAdicionalValor, true]);
 
     if (!camposAutoPreenchidos.has('mensalidade_manual')) {
       document.getElementById('mensalidade').value = formatarValor(totalPlano);
@@ -420,6 +435,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
   }
 
   function limparAutoPreenchimento() {
+    detalhePreco = [];
     if (camposAutoPreenchidos.has('mensalidade')) {
       document.getElementById('mensalidade').value = '';
       document.getElementById('mensalidade').classList.remove('auto-preenchido');
@@ -820,6 +836,11 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       checkin_url: checkinCoords ? `https://www.google.com/maps?q=${checkinCoords.lat},${checkinCoords.lng}` : ''
     };
 
+    // Valor Promocional: propositalmente FORA de fichaAtual — não vai para
+    // Sheets, localStorage, fila de reenvio nem Excel. Só entra no texto.
+    const valorPromo = up(vl('valor_promocional'));
+    const promoLine  = valorPromo ? `\nValor Promocional: ${valorPromo}` : '';
+
     const servicosAtivos = [
       { label:'🌐 Banda Larga', val: fichaAtual.plano_banda },
       { label:'🔀 Mesh',        val: fichaAtual.plano_mesh ? fichaAtual.plano_mesh + ' UN' : '' },
@@ -866,7 +887,7 @@ CEP: ${fichaAtual.cep}${checkinLine}
 PLANO CONTRATADO
 ${servicosLinhas}${portabLine}
 Receita: ${fichaAtual.mensalidade}
-Valor do Plano: ${fichaAtual.debito}
+Valor do Plano: ${fichaAtual.debito}${promoLine}
 Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕES\n' + fichaAtual.obs : ''}`;
 
     document.getElementById('texto-gerado').textContent = txt;
@@ -979,10 +1000,12 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     document.getElementById('hp-sim').className = 'hp-btn';
     document.getElementById('hp-nao').className = 'hp-btn';
     camposAutoPreenchidos.clear();
+    detalhePreco = [];
     fichaAtual = null; checkinCoords = null;
     atualizarProgresso();
     irParaEtapa(1);
     if (typeof window.limparRascunho === 'function') window.limparRascunho();
+    if (typeof window.atualizarBarraPlano === 'function') window.atualizarBarraPlano();
     window.scrollTo({top:0, behavior:'smooth'});
   }
 
@@ -1264,6 +1287,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     restaurarPill('plano_fixo',     'pills-fixo');
     mudarAba('formulario');
     irParaEtapa(1);
+    if (typeof window.atualizarBarraPlano === 'function') window.atualizarBarraPlano();
     setTimeout(() => gerarTexto(), 100);
   }
 
@@ -2228,6 +2252,13 @@ function renderDashboardFaltasAdiantamentos() {
     }
     // Etapa 3 (Plano) não bloqueia — nem toda ficha tem todos os
     // campos de plano preenchidos na hora (ex: só solicitação de HP).
+    // Mas avisa (sem travar) se nada foi informado, pra não seguir sem perceber.
+    if (etapaAtual === 3) {
+      const temServico = ['plano_banda','plano_controle','plano_pos','plano_tv','plano_fixo'].some(id => vl(id));
+      if (!temServico && !vl('mensalidade') && !vl('debito')) {
+        showToast('⚠️ Nenhum serviço nem valor informado — confira antes de enviar', 'warning');
+      }
+    }
     return true;
   }
 
@@ -2295,6 +2326,18 @@ function renderDashboardFaltasAdiantamentos() {
       ? servicos.map(([label, val]) => linha(label, val)).join('')
       : `<div class="resumo-vazio">Nenhum serviço selecionado ainda</div>`;
 
+    // Detalhamento do preço: de onde vem cada valor (só quando o cálculo
+    // automático está valendo — se o vendedor editou na mão, avisa).
+    const ajustadoNaMao = camposAutoPreenchidos.has('mensalidade_manual') || camposAutoPreenchidos.has('debito_manual');
+    let detalheHtml = '';
+    if (ajustadoNaMao) {
+      detalheHtml = `<div class="resumo-vazio">✏️ Valores ajustados manualmente.</div>`;
+    } else if (detalhePreco.length) {
+      detalheHtml = detalhePreco.map(([rotulo, valor, soPlano]) =>
+        linha(soPlano ? rotulo + ' (só no Valor do Plano)' : rotulo, formatarValor(valor))
+      ).join('');
+    }
+
     const blocoPlano = `
       <div class="resumo-bloco">
         <div class="resumo-bloco-header">
@@ -2302,8 +2345,10 @@ function renderDashboardFaltasAdiantamentos() {
           <button class="resumo-editar" onclick="irParaEtapa(3)">✏️ Editar</button>
         </div>
         ${servicosHtml}
+        ${detalheHtml}
         ${linha('Receita', vl('mensalidade'), true)}
         ${linha('Valor do Plano', vl('debito'), true)}
+        ${vl('valor_promocional') ? linha('Valor Promocional', vl('valor_promocional'), true) : ''}
         ${linha('Período de Instalação', vl('periodo'))}
       </div>`;
 
@@ -2354,6 +2399,7 @@ function renderDashboardFaltasAdiantamentos() {
     restaurarPill('plano_tv',       'pills-tv');
     restaurarPill('plano_fixo',     'pills-fixo');
     atualizarProgresso();
+    if (typeof window.atualizarBarraPlano === 'function') window.atualizarBarraPlano();
   }
 
   function mostrarBannerEdicao(f) {
