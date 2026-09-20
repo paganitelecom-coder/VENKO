@@ -232,6 +232,16 @@
       font-size: 1.1rem; font-weight: 700; line-height: 1; cursor: pointer; font-family: inherit;
     }
     .qtd-stepper button:active { background: #f3f4f6; }
+
+    /* Atalho para o site de consulta de cobertura */
+    .btn-cobertura {
+      background: #2563eb;
+      color: #fff;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
@@ -277,6 +287,7 @@
     <div class="atalhos-linha">
       <button class="btn-atalho btn-fatura" onclick="abrirEscolhaWhatsApp('fatura')">🧾 Fatura</button>
       <button class="btn-atalho btn-visita" onclick="abrirEscolhaWhatsApp('visita')">🔧 Visita Técnica</button>
+      <a class="btn-atalho btn-cobertura" href="https://app.conexaoclarobrasil.com.br/login" target="_blank" rel="noopener noreferrer">📡 Cobertura</a>
     </div>
   </div>
 
