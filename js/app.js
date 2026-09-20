@@ -581,6 +581,14 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       statusSel.title = 'Apenas administradores podem alterar o status.';
     }
 
+    // Data de Instalação: só administradores editam (vendedor apenas visualiza).
+    const dataInstEl = document.getElementById('data_instalacao');
+    if (dataInstEl && session.role !== 'admin') {
+      dataInstEl.disabled = true;
+      dataInstEl.placeholder = 'Definida pelo admin';
+      dataInstEl.title = 'Apenas administradores podem definir a data de instalação.';
+    }
+
     atualizarProgresso();
     atualizarBadgeFila();
     irParaEtapa(1);
@@ -818,6 +826,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       username_vendedor: modoEdicao ? (fichaEditOriginal?.username_vendedor || session.username) : session.username,
       vendedor: up(vl('vendedor')), status: statusFicha,
       criar_hp: document.getElementById('criar_hp')?.value || '',
+      data_instalacao: vl('data_instalacao'),
       nome: up(vl('nome')), cpf: vl('cpf'), cnpj: vl('cnpj'),
       nascimento: fmtData(nascStr), mae: up(vl('mae')),
       celular: vl('celular'), sms: vl('sms'), email: up(vl('email')),
@@ -838,6 +847,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 
     // Valor Promocional: propositalmente FORA de fichaAtual — não vai para
     // Sheets, localStorage, fila de reenvio nem Excel. Só entra no texto.
+    const instLine   = fichaAtual.data_instalacao ? `\nData de Instalacao: ${fichaAtual.data_instalacao}` : '';
     const valorPromo = up(vl('valor_promocional'));
     const promoLine  = valorPromo ? `\nValor Promocional: ${valorPromo}` : '';
 
@@ -866,7 +876,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 `FICHA CADASTRAL - CARRERA TELECOM
 Vendedor: ${fichaAtual.vendedor}
 Status: ${fichaAtual.status}
-Criar HP: ${fichaAtual.criar_hp || '—'}
+Criar HP: ${fichaAtual.criar_hp || '—'}${instLine}
 
 DADOS PESSOAIS
 Nome: ${fichaAtual.nome}
@@ -1186,7 +1196,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         <td class="td-plano">${movelCell}</td>
         <td class="td-plano">${f.plano_tv||'—'}</td>
         <td class="td-valor">${f.mensalidade}</td>
-        <td>${f.periodo||'—'}</td>
+        <td>${[f.data_instalacao, f.periodo].filter(Boolean).join(' • ') || '—'}</td>
         <td>${statusCell}</td>
         <td class="td-local">${localCell}</td>
         <td>${f.data_cadastro}</td>
@@ -1269,11 +1279,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (btnCk) btnCk.style.display = '';
     fichaAtual = f;
     checkinCoords = f.checkin_lat ? { lat: f.checkin_lat, lng: f.checkin_lng } : null;
-    const map = ['vendedor','status','nome','cpf','cnpj','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo','mensalidade','debito','periodo','obs'];
+    const map = ['vendedor','status','data_instalacao','nome','cpf','cnpj','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo','mensalidade','debito','periodo','obs'];
     map.forEach(k => {
       const el = document.getElementById(k);
       if (!el) return;
-      if (k === 'status' && session.role !== 'admin') return;
+      if ((k === 'status' || k === 'data_instalacao') && session.role !== 'admin') return;
       el.value = f[k]||'';
     });
     document.getElementById('criar_hp').value = f.criar_hp||'';
@@ -1744,11 +1754,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     const lista = ctx === 'todas' ? fichas
       : fichas.filter(f => session.role==='admin' || f.username_vendedor===session.username);
     if (!lista.length) { showToast('⚠️ Nenhuma ficha para exportar','warning'); return; }
-    const cols = ['data_cadastro','vendedor','status','criar_hp','nome','cpf','cnpj','rg','nascimento','mae','celular','sms','email',
+    const cols = ['data_cadastro','vendedor','status','criar_hp','data_instalacao','nome','cpf','cnpj','rg','nascimento','mae','celular','sms','email',
       'rua','numero','complemento','bairro','cidade','cep',
       'plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo',
       'mensalidade','debito','taxa','vencimento','periodo','obs','checkin_url'];
-    const headers = ['Data','Vendedor','Status','Criar HP','Nome','CPF','CNPJ','RG','Nascimento','Mãe','WhatsApp','SMS','E-mail',
+    const headers = ['Data','Vendedor','Status','Criar HP','Data de Instalação','Nome','CPF','CNPJ','RG','Nascimento','Mãe','WhatsApp','SMS','E-mail',
       'Rua','Número','Complemento','Bairro','Cidade','CEP',
       'Banda Larga','Mesh','Controle','Pós','Dep. Grátis','Dep. Pago','Portabilidade','TV','Ponto Adicional','Fixo',
       'Receita','Valor do Plano','Taxa Inst.','Vencimento','Período','Observações','Localização'];
@@ -2293,6 +2303,7 @@ function renderDashboardFaltasAdiantamentos() {
         </div>
         ${linha('Vendedor', vl('vendedor'))}
         ${linha('Status', statusTxt)}
+        ${vl('data_instalacao') ? linha('Data de Instalação', vl('data_instalacao')) : ''}
         ${linha('Nome', vl('nome'))}
         ${linha('CPF', vl('cpf'))}
         ${vl('cnpj') ? linha('CNPJ', vl('cnpj')) : ''}
@@ -2382,11 +2393,11 @@ function renderDashboardFaltasAdiantamentos() {
   let fichaEditOriginal = null;
 
   function preencherFormularioComFicha(f) {
-    const map = ['vendedor','status','nome','cpf','cnpj','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo','mensalidade','debito','periodo','obs'];
+    const map = ['vendedor','status','data_instalacao','nome','cpf','cnpj','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo','mensalidade','debito','periodo','obs'];
     map.forEach(k => {
       const el = document.getElementById(k);
       if (!el) return;
-      if (k === 'status' && session.role !== 'admin') return;
+      if ((k === 'status' || k === 'data_instalacao') && session.role !== 'admin') return;
       el.value = f[k] || '';
     });
     document.getElementById('criar_hp').value = f.criar_hp || '';
