@@ -233,6 +233,22 @@
     }
     .qtd-stepper button:active { background: #f3f4f6; }
 
+    /* Atalho para a pasta de artes/imagens no Google Drive */
+    .btn-artes {
+      background: #7c3aed;
+      color: #fff;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Com 4 atalhos, quebra em 2 linhas de 2 em tela pequena */
+    .atalhos-linha { flex-wrap: wrap; }
+    .atalhos-linha .btn-atalho { flex: 1 1 calc(50% - 6px); }
+
+    /* Data de Instalação: só admin edita */
+    #data_instalacao:disabled { opacity: .6; cursor: not-allowed; }
+
     /* Atalho para o site de consulta de cobertura */
     .btn-cobertura {
       background: #2563eb;
@@ -288,6 +304,7 @@
       <button class="btn-atalho btn-fatura" onclick="abrirEscolhaWhatsApp('fatura')">🧾 Fatura</button>
       <button class="btn-atalho btn-visita" onclick="abrirEscolhaWhatsApp('visita')">🔧 Visita Técnica</button>
       <a class="btn-atalho btn-cobertura" href="https://app.conexaoclarobrasil.com.br/login" target="_blank" rel="noopener noreferrer">📡 Cobertura</a>
+      <a class="btn-atalho btn-artes" href="https://drive.google.com/drive/folders/1tJGzVP3vHYP71EDsPEf4dlPtmPIMLapP?usp=sharing" target="_blank" rel="noopener noreferrer">🖼️ Artes</a>
     </div>
   </div>
 
@@ -344,6 +361,10 @@
               <button class="hp-btn" id="hp-nao" onclick="selecionarHP('Não')">❌ NÃO</button>
             </div>
             <input type="hidden" id="criar_hp" value="">
+          </div>
+          <div>
+            <label>Data de Instalação <span style="font-weight:400;color:var(--muted);font-size:.72rem;">(admin)</span></label>
+            <input type="text" id="data_instalacao" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascararData(this)" aria-label="Data de instalação (somente administradores editam)">
           </div>
         </div>
       </div>
