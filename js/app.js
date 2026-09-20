@@ -1176,7 +1176,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       ].filter(Boolean).join('<br>') || '—';
 
       const statusCell = isAdmin
-        ? `<select class="status-select" onchange="alterarStatus(${f.id},this.value)">
+        ? `<select class="status-select" onchange="alterarStatus(${f.id},this.value,this)">
             ${['Agendada','Concluída','Pendente','Cancelada'].map(s =>
               `<option value="${s}"${f.status===s?' selected':''}>${s}</option>`
             ).join('')}
@@ -1196,7 +1196,12 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         <td class="td-plano">${movelCell}</td>
         <td class="td-plano">${f.plano_tv||'—'}</td>
         <td class="td-valor">${f.mensalidade}</td>
-        <td>${[f.data_instalacao, f.periodo].filter(Boolean).join(' • ') || '—'}</td>
+        <td>${isAdmin
+          ? `<input type="text" class="input-data-inst" value="${f.data_instalacao || ''}" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric"
+               oninput="mascararData(this)" onchange="salvarDataInstalacao(${f.id}, this)"
+               onkeydown="if(event.key==='Enter'){this.blur();}" aria-label="Data de instalação de ${(f.nome || '').replace(/"/g,'')}">
+             ${f.periodo ? `<div style="font-size:.7rem;color:var(--muted);margin-top:2px;">${f.periodo}</div>` : ''}`
+          : ([f.data_instalacao, f.periodo].filter(Boolean).join(' • ') || '—')}</td>
         <td>${statusCell}</td>
         <td class="td-local">${localCell}</td>
         <td>${f.data_cadastro}</td>
@@ -1221,14 +1226,115 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     </table></div>`;
   }
 
-  function alterarStatus(id, novoStatus) {
+  // Antes o status só mudava no aparelho (e voltava ao valor antigo no
+  // próximo "Atualizar"). Agora grava na planilha (action=atualizarStatus
+  // no Code.gs — só a coluna STATUS daquela linha). Se falhar, o seletor
+  // volta ao status anterior.
+  async function alterarStatus(id, novoStatus, selectEl) {
     if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem alterar o status.', 'warning'); return; }
-    const idx = fichas.findIndex(f => f.id === id);
+    const idx = fichas.findIndex(f => String(f.id) === String(id));
     if (idx < 0) return;
-    fichas[idx].status = novoStatus;
-    salvarFichas();
-    showToast(`✅ Status atualizado: ${novoStatus}`);
-    renderDashboard();
+    const anterior = fichas[idx].status;
+    if (novoStatus === anterior) return;
+
+    if (selectEl) selectEl.disabled = true;
+
+    try {
+      const params = new URLSearchParams();
+      params.append('action', 'atualizarStatus');
+      params.append('editor_username', session.username);
+      params.append('id', String(id));
+      params.append('novo_status', novoStatus);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      const resp = await fetch(SHEETS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      clearTimeout(timeout);
+      const dados = await resp.json();
+
+      if (dados && dados.status === 'ok') {
+        fichas[idx].status = novoStatus;
+        salvarFichas();
+        showToast(`✅ Status atualizado: ${novoStatus}`);
+        renderDashboard();
+      } else {
+        throw new Error((dados && dados.msg) || 'Não foi possível salvar o status.');
+      }
+    } catch (err) {
+      if (selectEl) selectEl.value = anterior;
+      showToast('❌ ' + (err.message || 'Falha de conexão ao salvar o status.'), 'error', 4500);
+    } finally {
+      if (selectEl) selectEl.disabled = false;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // DATA DE INSTALAÇÃO direto na lista (só admin) — grava APENAS a
+  // coluna DATA_INSTALACAO daquela linha na planilha (action=
+  // atualizarDataInstalacao no Code.gs): não abre o formulário e não
+  // cria linha nova. Salva ao sair do campo ou ao apertar Enter.
+  // Campo vazio apaga a data.
+  // ─────────────────────────────────────────────────────────────
+  async function salvarDataInstalacao(id, el) {
+    if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem definir a data de instalação.', 'warning'); return; }
+
+    const idx = fichas.findIndex(f => String(f.id) === String(id));
+    if (idx < 0) return;
+    const anterior = fichas[idx].data_instalacao || '';
+    const novo = el.value.trim();
+    if (novo === anterior) return;
+
+    if (novo && (novo.length !== 10 || !parseDataBR(novo))) {
+      showToast('⚠️ Data inválida — use DD/MM/AAAA', 'warning');
+      el.value = anterior;
+      return;
+    }
+
+    el.disabled = true;
+    el.classList.remove('salvo', 'erro');
+
+    try {
+      const params = new URLSearchParams();
+      params.append('action', 'atualizarDataInstalacao');
+      params.append('editor_username', session.username);
+      params.append('id', String(id));
+      params.append('data_instalacao', novo);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      const resp = await fetch(SHEETS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      clearTimeout(timeout);
+      const dados = await resp.json();
+
+      if (dados && dados.status === 'ok') {
+        fichas[idx].data_instalacao = novo;
+        salvarFichas();
+        el.classList.add('salvo');
+        setTimeout(() => el.classList.remove('salvo'), 2500);
+        showToast(novo ? '📅 Data de instalação salva!' : '📅 Data de instalação removida.');
+      } else {
+        throw new Error((dados && dados.msg) || 'Não foi possível salvar.');
+      }
+    } catch (err) {
+      el.value = anterior;
+      el.classList.add('erro');
+      setTimeout(() => el.classList.remove('erro'), 3000);
+      showToast('❌ ' + (err.message || 'Falha de conexão ao salvar a data.'), 'error', 4500);
+    } finally {
+      el.disabled = false;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────
