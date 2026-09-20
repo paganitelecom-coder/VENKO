@@ -246,6 +246,23 @@
     .atalhos-linha { flex-wrap: wrap; }
     .atalhos-linha .btn-atalho { flex: 1 1 calc(50% - 6px); }
 
+    /* Data de Instalação editável direto na lista (admin) */
+    .input-data-inst {
+      width: 112px;
+      padding: 5px 7px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: .75rem;
+      background: var(--white);
+      color: var(--text);
+      text-transform: none;
+    }
+    .input-data-inst:focus { outline: none; border-color: #2563eb; }
+    .input-data-inst.salvo { border-color: #16a34a; background: #f0fdf4; }
+    .input-data-inst.erro  { border-color: #ef4444; background: #fef2f2; }
+    .input-data-inst:disabled { opacity: .6; }
+
     /* Data de Instalação: só admin edita */
     #data_instalacao:disabled { opacity: .6; cursor: not-allowed; }
 
