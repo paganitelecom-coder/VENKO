@@ -3,7 +3,7 @@
 // IMPORTANTE: sempre que alterar index.html, login.html, css/styles.css,
 // js/app.js, js/draft.js ou js/init.js, SUBA o número da versão abaixo
 // (v6 -> v7...) pra forçar o navegador a descartar o cache antigo.
-const CACHE_NAME = 'venko-cache-v6';
+const CACHE_NAME = 'venko-cache-v7';
 
 // App shell: casca do app, raramente muda de estrutura — cache-first
 // (responde na hora, sem esperar rede) e atualiza em segundo plano.
