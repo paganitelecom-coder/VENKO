@@ -2,8 +2,8 @@
 //
 // IMPORTANTE: sempre que alterar index.html, login.html, css/styles.css,
 // js/app.js, js/draft.js ou js/init.js, SUBA o número da versão abaixo
-// (v6 -> v7...) pra forçar o navegador a descartar o cache antigo.
-const CACHE_NAME = 'venko-cache-v9';
+// (v10 -> v11...) pra forçar o navegador a descartar o cache antigo.
+const CACHE_NAME = 'venko-cache-v10';
 
 // App shell: casca do app, raramente muda de estrutura — cache-first
 // (responde na hora, sem esperar rede) e atualiza em segundo plano.
@@ -44,6 +44,19 @@ function ehRecursoVersionado(url) {
   return url.hostname === 'cdnjs.cloudflare.com'
       || url.hostname === 'fonts.googleapis.com'
       || url.hostname === 'fonts.gstatic.com';
+}
+
+// Apps Script (login, fichas, bootstrap, etc.): NUNCA deve passar pelo
+// Service Worker. O endpoint /exec responde com um redirect (302) para
+// uma URL de uso único (script.googleusercontent.com/macros/echo?
+// user_content_key=TOKEN) — se o Service Worker também tentar buscar
+// ou cachear essa resposta, o token acaba sendo consumido em
+// duplicidade: uma chamada recebe 404 (token já usado) e a outra fica
+// pendurada, travando o login. Além disso, a chamada de login carrega
+// usuário/senha na própria URL — não deve ser gravada em cache.
+function ehAppsScript(url) {
+  return url.hostname === 'script.google.com'
+      || url.hostname === 'script.googleusercontent.com';
 }
 
 // Chamadas de negócio (Google Sheets / ViaCEP) — dados que mudam e
@@ -88,7 +101,13 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // ── Google Sheets, ViaCEP e qualquer outra coisa: rede primeiro, ──
+  // ── Apps Script: NUNCA interceptar. Deixa o navegador tratar nativamente,
+  // sem passar pelo Service Worker e sem cache (ver ehAppsScript acima). ──
+  if (ehAppsScript(url)) {
+    return;
+  }
+
+  // ── ViaCEP e qualquer outra coisa: rede primeiro, ──
   // cache só como fallback se estiver offline. Mantém o comportamento
   // original pra esses casos, onde dado fresco importa mais que velocidade.
   event.respondWith(
