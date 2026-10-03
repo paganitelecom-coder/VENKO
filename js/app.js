@@ -634,6 +634,9 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     // usuários, faltas, adiantamentos e metas — no lugar das 7
     // chamadas separadas que existiam antes.
     carregarBootstrap().then(ok => {
+      // AVISO: se o servidor não respondeu, a lista mostrada vem do
+      // aparelho e pode estar desatualizada — antes isso era silencioso.
+      if (!ok) showToast('Não foi possível carregar os dados do servidor — a lista pode estar desatualizada.', 'warning', 6000);
       renderTabelaMinhas();
       renderTabelaTodas();
       renderDashboard();
@@ -1127,27 +1130,37 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     btn.classList.add('ativo');
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // CORREÇÃO DA BUSCA: antes, ao digitar um NOME (ex.: "mateus"),
+  // a versão "só números" da busca ficava vazia (""), e
+  // "qualquer texto".includes("") é sempre true — então o filtro
+  // de CPF/CNPJ deixava passar TODAS as fichas e a busca por nome
+  // parecia não funcionar. Agora CPF/CNPJ só entram na comparação
+  // quando a busca tem pelo menos um dígito.
+  // ─────────────────────────────────────────────────────────────
   function renderTabelaMinhas() {
-    const busca = (document.getElementById('busca-minhas')?.value||'').toLowerCase();
+    const busca = (document.getElementById('busca-minhas')?.value||'').toLowerCase().trim();
+    const buscaNum = busca.replace(/\D/g,'');
     let lista = fichas.filter(f => session.role==='admin' || f.username_vendedor===session.username);
     if (filtroMinhas !== 'todos') lista = lista.filter(f => f.status === filtroMinhas);
     if (busca) lista = lista.filter(f =>
       (f.nome||'').toLowerCase().includes(busca) ||
-      (f.cpf||'').replace(/\D/g,'').includes(busca.replace(/\D/g,'')) ||
-      (f.cnpj||'').replace(/\D/g,'').includes(busca.replace(/\D/g,''))
+      (buscaNum && (f.cpf||'').replace(/\D/g,'').includes(buscaNum)) ||
+      (buscaNum && (f.cnpj||'').replace(/\D/g,'').includes(buscaNum))
     );
     document.getElementById('badge-minhas').textContent = lista.length;
     renderTabela(lista, 'tabela-minhas', false);
   }
 
   function renderTabelaTodas() {
-    const busca = (document.getElementById('busca-todas')?.value||'').toLowerCase();
+    const busca = (document.getElementById('busca-todas')?.value||'').toLowerCase().trim();
+    const buscaNum = busca.replace(/\D/g,'');
     let lista = [...fichas];
     if (filtroTodas !== 'todos') lista = lista.filter(f => f.status === filtroTodas);
     if (busca) lista = lista.filter(f =>
       (f.nome||'').toLowerCase().includes(busca) ||
-      (f.cpf||'').replace(/\D/g,'').includes(busca.replace(/\D/g,'')) ||
-      (f.cnpj||'').replace(/\D/g,'').includes(busca.replace(/\D/g,'')) ||
+      (buscaNum && (f.cpf||'').replace(/\D/g,'').includes(buscaNum)) ||
+      (buscaNum && (f.cnpj||'').replace(/\D/g,'').includes(buscaNum)) ||
       (f.vendedor||'').toLowerCase().includes(busca)
     );
     document.getElementById('badge-todas').textContent = fichas.length;
@@ -1167,7 +1180,10 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     // Apenas administradores podem excluir — a exclusão é
     // definitiva e remove a linha direto da planilha do Sheets.
     const podeExcluir = session.role === 'admin';
-    const rows = lista.slice().reverse().map((f, i) => {
+    // ORDEM: sempre da ficha mais nova para a mais antiga, pelo id
+    // (que é a data/hora do cadastro). Antes a ordem dependia da ordem
+    // em que as fichas foram parar no aparelho e podia ficar embaralhada.
+    const rows = lista.slice().sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0)).map((f, i) => {
       const localCell = f.checkin_url ? `<a href="${f.checkin_url}" target="_blank">📍 Ver</a>` : '<span style="color:#c0c8d0">—</span>';
       const movelCell = [
         f.plano_controle ? '<span style="color:#1d4ed8">C:</span> '+f.plano_controle : '',
