@@ -463,7 +463,12 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
         limparPromoAuto();
       }
     }
-    const descTexto = descontoTotal > 0 ? ` Desconto de 6 meses: R$ ${descontoTotal.toFixed(2).replace('.', ',')}.` : '';
+    // Diagnóstico: se a tabela carregada no app não tem a coluna de desconto
+    // (ex.: dados antigos em memória), avisa em vez de falhar em silêncio.
+    const temColunaDesconto = tabelaPrecos.some(r => Object.keys(r).some(k => normalizar(k).startsWith('DESCONTO')));
+    const descTexto = descontoTotal > 0
+      ? ` Desconto de 6 meses: R$ ${descontoTotal.toFixed(2).replace('.', ',')}.`
+      : (!temColunaDesconto ? ' ⚠️ A tabela carregada não tem a coluna "DESCONTO 6 MESES" — toque em 🔄 Atualizar.' : '');
 
     const meshTexto = meshQtd > 0 ? ` + Mesh ${meshQtd}x (R$ ${meshValor.toFixed(2).replace('.', ',')})` : '';
     const depTexto  = depPagoQtd > 0 ? ` + Dep. Pago ${depPagoQtd}x (R$ ${depPagoValor.toFixed(2).replace('.', ',')})` : '';
@@ -909,7 +914,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     // Sheets, localStorage, fila de reenvio nem Excel. Só entra no texto.
     const instLine   = fichaAtual.data_instalacao ? `\nData de Instalacao: ${fichaAtual.data_instalacao}` : '';
     const valorPromo = up(vl('valor_promocional'));
-    const promoLine  = valorPromo ? `\nValor Promocional: ${valorPromo}` : '';
+    const promoLine  = valorPromo ? `\nValor 6 Meses: ${valorPromo}` : '';
 
     const servicosAtivos = [
       { label:'🌐 Banda Larga', val: fichaAtual.plano_banda },
@@ -2538,7 +2543,7 @@ function renderDashboardFaltasAdiantamentos() {
         ${detalheHtml}
         ${linha('Receita', vl('mensalidade'), true)}
         ${linha('Valor do Plano', vl('debito'), true)}
-        ${vl('valor_promocional') ? linha('Valor Promocional', vl('valor_promocional'), true) : ''}
+        ${vl('valor_promocional') ? linha('Valor 6 Meses', vl('valor_promocional'), true) : ''}
         ${linha('Período de Instalação', vl('periodo'))}
       </div>`;
 
