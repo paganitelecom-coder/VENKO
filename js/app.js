@@ -288,6 +288,23 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     return normalizarValor(row[coluna]);
   }
 
+  // Desconto promocional de 6 meses (R$) de um serviço, lido da coluna
+  // "DESCONTO 6 MESES" da aba Precos. O app.js recebe o cabeçalho em
+  // maiúsculas; procuramos a coluna pelo prefixo "DESCONTO" para aguentar
+  // pequenas mudanças no nome. Vazio/0/sem coluna = sem desconto (0).
+  function getDescontoServico(tipo, opcao, grupo) {
+    const row = tabelaPrecos.find(r =>
+      normalizar(r.TIPO)  === tipo &&
+      normalizar(r.OPCAO) === normalizar(opcao) &&
+      (normalizar(r.GRUPO) === grupo || normalizar(r.GRUPO) === 'TODOS')
+    );
+    if (!row) return 0;
+    const chave = Object.keys(row).find(k => normalizar(k).startsWith('DESCONTO'));
+    if (!chave) return 0;
+    const n = normalizarValor(row[chave]);
+    return n && n > 0 ? n : 0;
+  }
+
   // ══════════════════════════════════════════════════════════════
   // CÁLCULO DE PREÇOS:
   //   • Receita (campo "mensalidade") = Banda Larga + Controle + Pós
@@ -299,8 +316,10 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
   //     SÓ ao Valor do Plano — igual ao Mesh, não entra na Receita.
   //   • Dep. Grátis é só um campo de quantidade — não entra em nenhum
   //     cálculo de valor.
-  //   • Valor Promocional (campo "valor_promocional") NÃO entra em
-  //     nenhum cálculo — é só um texto livre que sai no texto copiado.
+  //   • Valor Promocional (campo "valor_promocional") = Valor do Plano
+  //     − soma dos "DESCONTO 6 MESES" das linhas escolhidas na tabela.
+  //     Só aparece se houver desconto; não entra em Receita nem em
+  //     Valor do Plano e continua só no texto copiado / Revisão.
   // ══════════════════════════════════════════════════════════════
   function buscarPreco() {
     const cidade   = normalizar(document.getElementById('cidade').value);
@@ -342,6 +361,8 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 
     // Guarda cada parcela para mostrar o detalhamento na Revisão.
     detalhePreco = [];
+    let descontoTotal = 0;
+    const descontar = (tipo, opcao) => { descontoTotal += getDescontoServico(tipo, opcao, grupo); };
     const somar = (rotulo, v) => {
       if (v !== null) { totalPlano += v; algumEncontrado = true; detalhePreco.push([rotulo, v]); }
       else algumFaltando = true;
@@ -355,16 +376,19 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
                    :                        'VALOR_SOZINHO';
       const v = getPrecoServico('BANDA_LARGA', banda, grupo, coluna);
       somar('Banda Larga ' + banda, v);
+      descontar('BANDA_LARGA', banda);
     }
 
     // ── CONTROLE / PÓS ── (preço fixo, não varia por combinação)
     if (controle) {
       const v = getPrecoServico('CONTROLE', controle, grupo, 'VALOR_SOZINHO');
       somar('Controle ' + controle, v);
+      descontar('CONTROLE', controle);
     }
     if (pos) {
       const v = getPrecoServico('POS', pos, grupo, 'VALOR_SOZINHO');
       somar('Pós ' + pos, v);
+      descontar('POS', pos);
     }
 
     // ── TV ──
@@ -375,6 +399,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
                    :                          'VALOR_SOZINHO';
       const v = getPrecoServico('TV', tv, grupo, coluna);
       somar('TV ' + tv, v);
+      descontar('TV', tv);
     }
 
     // ── FIXO ──
@@ -387,6 +412,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
                    :                        'VALOR_SOZINHO';
       const v = getPrecoServico('FIXO', fixo, grupo, coluna);
       somar('Fixo ' + fixo, v);
+      descontar('FIXO', fixo);
     }
 
     // ── DEP. PAGO ── (serviço adicional, preço fixo de R$55,00 por unidade,
@@ -423,19 +449,47 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       camposAutoPreenchidos.add('debito');
     }
 
+    // ── VALOR PROMOCIONAL (6 meses) ── Valor do Plano − descontos da tabela.
+    // Se o Valor do Plano foi editado na mão, o desconto parte dele.
+    const campoPromo = document.getElementById('valor_promocional');
+    if (!camposAutoPreenchidos.has('valor_promocional_manual')) {
+      if (descontoTotal > 0) {
+        const baseEditada = normalizarValor(document.getElementById('debito').value);
+        const base = baseEditada !== null ? baseEditada : totalValorPlano;
+        campoPromo.value = formatarValor(Math.max(0, base - descontoTotal));
+        campoPromo.classList.add('auto-preenchido');
+        camposAutoPreenchidos.add('valor_promocional');
+      } else {
+        limparPromoAuto();
+      }
+    }
+    const descTexto = descontoTotal > 0 ? ` Desconto de 6 meses: R$ ${descontoTotal.toFixed(2).replace('.', ',')}.` : '';
+
     const meshTexto = meshQtd > 0 ? ` + Mesh ${meshQtd}x (R$ ${meshValor.toFixed(2).replace('.', ',')})` : '';
     const depTexto  = depPagoQtd > 0 ? ` + Dep. Pago ${depPagoQtd}x (R$ ${depPagoValor.toFixed(2).replace('.', ',')})` : '';
     const pontoTexto = pontoAdicionalQtd > 0 ? ` + Ponto Adicional ${pontoAdicionalQtd}x (R$ ${pontoAdicionalValor.toFixed(2).replace('.', ',')})` : '';
     statusEl.className = algumFaltando ? 'preco-status show pendente' : 'preco-status show ok';
     statusEl.innerHTML = algumFaltando
-      ? `⚠️ Preço calculado parcialmente (grupo <strong>${grupo}</strong>)${depTexto}${meshTexto}${pontoTexto} — algum serviço não encontrado na tabela.`
-      : `✅ Preço calculado automaticamente — grupo <strong>${grupo}</strong>${depTexto}${meshTexto}${pontoTexto}. Edite os campos se precisar ajustar.`;
+      ? `⚠️ Preço calculado parcialmente (grupo <strong>${grupo}</strong>)${depTexto}${meshTexto}${pontoTexto} — algum serviço não encontrado na tabela.${descTexto}`
+      : `✅ Preço calculado automaticamente — grupo <strong>${grupo}</strong>${depTexto}${meshTexto}${pontoTexto}.${descTexto} Edite os campos se precisar ajustar.`;
 
     atualizarProgresso();
   }
 
+  // Apaga o Valor Promocional só se ele foi preenchido pela tabela
+  // (nunca apaga o que foi digitado na mão).
+  function limparPromoAuto() {
+    if (camposAutoPreenchidos.has('valor_promocional')) {
+      const el = document.getElementById('valor_promocional');
+      el.value = '';
+      el.classList.remove('auto-preenchido');
+      camposAutoPreenchidos.delete('valor_promocional');
+    }
+  }
+
   function limparAutoPreenchimento() {
     detalhePreco = [];
+    limparPromoAuto();
     if (camposAutoPreenchidos.has('mensalidade')) {
       document.getElementById('mensalidade').value = '';
       document.getElementById('mensalidade').classList.remove('auto-preenchido');
@@ -461,6 +515,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
   function onDepChange() {
     camposAutoPreenchidos.delete('mensalidade_manual');
     camposAutoPreenchidos.delete('debito_manual');
+    camposAutoPreenchidos.delete('valor_promocional_manual');
     atualizarProgresso();
     buscarPreco();
   }
@@ -498,6 +553,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     }
     camposAutoPreenchidos.delete('mensalidade_manual');
     camposAutoPreenchidos.delete('debito_manual');
+    camposAutoPreenchidos.delete('valor_promocional_manual');
     atualizarProgresso();
     buscarPreco();
   }
@@ -516,6 +572,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       input.value = qtd;
     }
     camposAutoPreenchidos.delete('mensalidade_manual');
+    camposAutoPreenchidos.delete('valor_promocional_manual');
     atualizarProgresso();
     buscarPreco();
   }
