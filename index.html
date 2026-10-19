@@ -645,13 +645,14 @@
             <button class="clear-btn" onclick="limparCampo('debito');marcarManual('debito')" tabindex="-1">✕</button>
           </div>
         </div>
-        <!-- VALOR PROMOCIONAL — aparece SÓ no texto copiado.
-             Não entra em fichaAtual, então não vai para o Sheets. -->
+        <!-- VALOR PROMOCIONAL — preenchido pela tabela de preços (Valor do Plano
+             menos a coluna "DESCONTO 6 MESES"). Editável. Aparece SÓ no texto
+             copiado e na Revisão. Não entra em fichaAtual, então não vai para o Sheets. -->
         <div>
-          <label>Valor Promocional <span style="font-weight:400;color:var(--muted);font-size:.72rem;">(só no texto copiado)</span></label>
+          <label>Valor Promocional <span style="font-weight:400;color:var(--muted);font-size:.72rem;">(6 meses — automático pela tabela, só no texto copiado)</span></label>
           <div class="input-wrap">
-            <input type="text" id="valor_promocional" placeholder="R$ 0,00" aria-label="Valor promocional (aparece só no texto copiado)">
-            <button class="clear-btn" onclick="limparCampo('valor_promocional')" tabindex="-1">✕</button>
+            <input type="text" id="valor_promocional" placeholder="R$ 0,00" oninput="marcarManual('valor_promocional')" aria-label="Valor promocional (preenchido pela tabela, aparece só no texto copiado)">
+            <button class="clear-btn" onclick="limparCampo('valor_promocional');marcarManual('valor_promocional')" tabindex="-1">✕</button>
           </div>
         </div>
         <div>
@@ -1044,6 +1045,7 @@
   window.voltarPrecoAutomatico = function () {
     camposAutoPreenchidos.delete('mensalidade_manual');
     camposAutoPreenchidos.delete('debito_manual');
+    camposAutoPreenchidos.delete('valor_promocional_manual');
     buscarPreco();
     atualizarBarra();
   };
