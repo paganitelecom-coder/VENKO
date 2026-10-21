@@ -320,6 +320,8 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
   //     − soma dos "DESCONTO 6 MESES" das linhas escolhidas na tabela.
   //     Só aparece se houver desconto; não entra em Receita nem em
   //     Valor do Plano e continua só no texto copiado / Revisão.
+  //   • Receita, Valor do Plano e Valor 6 Meses são SOMENTE LEITURA
+  //     no formulário: só a tabela de preços preenche esses campos.
   // ══════════════════════════════════════════════════════════════
   function buscarPreco() {
     const cidade   = normalizar(document.getElementById('cidade').value);
@@ -347,7 +349,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     const grupo = getGrupoCidade(cidade);
     if (!grupo) {
       statusEl.className = 'preco-status show pendente';
-      statusEl.innerHTML = `⚠️ Cidade "<strong>${cidade}</strong>" não encontrada na tabela — preencha o valor manualmente.`;
+      statusEl.innerHTML = `⚠️ Cidade "<strong>${cidade}</strong>" não encontrada na tabela — valores não calculados. Confira a cidade.`;
       limparAutoPreenchimento();
       return;
     }
@@ -425,7 +427,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 
     if (!algumEncontrado) {
       statusEl.className = 'preco-status show pendente';
-      statusEl.innerHTML = `⚠️ Nenhum preço encontrado para o grupo <strong>${grupo}</strong> — preencha manualmente.`;
+      statusEl.innerHTML = `⚠️ Nenhum preço encontrado para o grupo <strong>${grupo}</strong> — valores não calculados.`;
       limparAutoPreenchimento();
       return;
     }
@@ -450,7 +452,6 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     }
 
     // ── VALOR PROMOCIONAL (6 meses) ── Valor do Plano − descontos da tabela.
-    // Se o Valor do Plano foi editado na mão, o desconto parte dele.
     const campoPromo = document.getElementById('valor_promocional');
     if (!camposAutoPreenchidos.has('valor_promocional_manual')) {
       if (descontoTotal > 0) {
@@ -476,35 +477,29 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     statusEl.className = algumFaltando ? 'preco-status show pendente' : 'preco-status show ok';
     statusEl.innerHTML = algumFaltando
       ? `⚠️ Preço calculado parcialmente (grupo <strong>${grupo}</strong>)${depTexto}${meshTexto}${pontoTexto} — algum serviço não encontrado na tabela.${descTexto}`
-      : `✅ Preço calculado automaticamente — grupo <strong>${grupo}</strong>${depTexto}${meshTexto}${pontoTexto}.${descTexto} Edite os campos se precisar ajustar.`;
+      : `✅ Preço calculado automaticamente — grupo <strong>${grupo}</strong>${depTexto}${meshTexto}${pontoTexto}.${descTexto}`;
 
     atualizarProgresso();
   }
 
-  // Apaga o Valor Promocional só se ele foi preenchido pela tabela
-  // (nunca apaga o que foi digitado na mão).
+  // Receita, Valor do Plano e Valor 6 Meses não são mais editáveis:
+  // quando não há cálculo possível, os campos são sempre esvaziados.
   function limparPromoAuto() {
-    if (camposAutoPreenchidos.has('valor_promocional')) {
-      const el = document.getElementById('valor_promocional');
-      el.value = '';
-      el.classList.remove('auto-preenchido');
-      camposAutoPreenchidos.delete('valor_promocional');
-    }
+    const el = document.getElementById('valor_promocional');
+    el.value = '';
+    el.classList.remove('auto-preenchido');
+    camposAutoPreenchidos.delete('valor_promocional');
   }
 
   function limparAutoPreenchimento() {
     detalhePreco = [];
     limparPromoAuto();
-    if (camposAutoPreenchidos.has('mensalidade')) {
-      document.getElementById('mensalidade').value = '';
-      document.getElementById('mensalidade').classList.remove('auto-preenchido');
-      camposAutoPreenchidos.delete('mensalidade');
-    }
-    if (camposAutoPreenchidos.has('debito')) {
-      document.getElementById('debito').value = '';
-      document.getElementById('debito').classList.remove('auto-preenchido');
-      camposAutoPreenchidos.delete('debito');
-    }
+    ['mensalidade', 'debito'].forEach(id => {
+      const el = document.getElementById(id);
+      el.value = '';
+      el.classList.remove('auto-preenchido');
+      camposAutoPreenchidos.delete(id);
+    });
   }
 
   function marcarManual(campo) {
@@ -877,7 +872,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     // e não só visualmente via CSS text-transform.
     // 'status' e 'criar_hp' ficam de fora porque são valores
     // fixos de select/botão usados em comparações (f.status===
-    // 'Concluída', classes de cor, filtros, dashboard etc.) —
+    // 'Instalada', classes de cor, filtros, dashboard etc.) —
     // maiusculá-los quebraria essas comparações.
     // ─────────────────────────────────────────────────────────
     // Em modo de edição (admin corrigindo uma ficha existente), o id,
@@ -1052,6 +1047,8 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     document.querySelectorAll('#page-formulario input, #page-formulario select, #page-formulario textarea')
       .forEach(el => el.value = '');
     document.querySelectorAll('#page-formulario .campo-invalido').forEach(el => el.classList.remove('campo-invalido'));
+    const cpfMsg = document.getElementById('cpf-msg');
+    if (cpfMsg) cpfMsg.style.display = 'none';
     document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('ativo'));
     ['plano_banda','plano_mesh','plano_controle','plano_pos','plano_tv','plano_fixo'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
     if (session.role === 'admin') {
@@ -1114,6 +1111,9 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   // que não veio na lista remota E não está na fila de reenvio
   // (ou seja, já foi sincronizada em algum momento e não existe
   // mais na planilha) é removida do localStorage também.
+  //
+  // STATUS: fichas antigas que ainda estejam como "Concluída" (na
+  // planilha ou guardadas no aparelho) são mostradas como "Instalada".
   // ─────────────────────────────────────────────────────────────
   function mesclarFichas(remotas) {
     const remotoIds    = new Set(remotas.map(f => String(f.id)));
@@ -1133,10 +1133,12 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     remotas.forEach(f => {
       const idStr = String(f.id);
       const local = mapa.get(idStr);
-      mapa.set(idStr, { ...local, ...f, id: local ? local.id : (Number(f.id) || f.id) });
+      const statusNorm = (f.status === 'Concluída') ? 'Instalada' : f.status;
+      mapa.set(idStr, { ...local, ...f, status: statusNorm, id: local ? local.id : (Number(f.id) || f.id) });
     });
 
     fichas = Array.from(mapa.values());
+    fichas.forEach(f => { if (f.status === 'Concluída') f.status = 'Instalada'; });
     salvarFichas();
   }
 
@@ -1255,12 +1257,12 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
 
       const statusCell = isAdmin
         ? `<select class="status-select" onchange="alterarStatus(${f.id},this.value,this)">
-            ${['Agendada','Concluída','Pendente','Cancelada'].map(s =>
+            ${['Agendada','Instalada','Pendente','Cancelada'].map(s =>
               `<option value="${s}"${f.status===s?' selected':''}>${s}</option>`
             ).join('')}
            </select>`
         : (() => {
-            const cls = {Agendada:'status-agendada',Concluída:'status-concluida',Cancelada:'status-cancelada',Pendente:'status-pendente'}[f.status]||'';
+            const cls = {Agendada:'status-agendada',Instalada:'status-concluida',Cancelada:'status-cancelada',Pendente:'status-pendente'}[f.status]||'';
             return cls ? `<span class="status-pill ${cls}">${f.status}</span>` : '—';
           })();
 
@@ -1655,13 +1657,13 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         : `Olá, ${session.name.split(' ')[0]}! Aqui está seu resumo.`;
 
     const total      = minhas.length;
-    const concluidas = minhas.filter(f => f.status==='Concluída').length;
+    const concluidas = minhas.filter(f => f.status==='Instalada').length;
     const agendadas  = minhas.filter(f => f.status==='Agendada').length;
     const canceladas = minhas.filter(f => f.status==='Cancelada').length;
     const pendentes  = minhas.filter(f => f.status==='Pendente').length;
 
     const totalAnt      = minhasAnterior.length;
-    const concluidasAnt = minhasAnterior.filter(f => f.status==='Concluída').length;
+    const concluidasAnt = minhasAnterior.filter(f => f.status==='Instalada').length;
     const agendadasAnt  = minhasAnterior.filter(f => f.status==='Agendada').length;
     const canceladasAnt = minhasAnterior.filter(f => f.status==='Cancelada').length;
     const pendentesAnt  = minhasAnterior.filter(f => f.status==='Pendente').length;
@@ -1672,9 +1674,9 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     }, 0);
 
     const valorTotal = somarValor(minhas);
-    const valorConcluido = somarValor(minhas.filter(f => f.status==='Concluída'));
+    const valorConcluido = somarValor(minhas.filter(f => f.status==='Instalada'));
     const valorTotalAnt = somarValor(minhasAnterior);
-    const valorConcluidoAnt = somarValor(minhasAnterior.filter(f => f.status==='Concluída'));
+    const valorConcluidoAnt = somarValor(minhasAnterior.filter(f => f.status==='Instalada'));
 
     const formatarMoeda = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -1692,13 +1694,13 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         ${trendHtml(valorTotal, valorTotalAnt, temComparacao)}
       </div>
       <div class="kpi-card verde">
-        <div class="kpi-label">✅ Receita Concluída</div>
+        <div class="kpi-label">✅ Receita Instalada</div>
         <div class="kpi-value" style="font-size:1.3rem;">${formatarMoeda(valorConcluido)}</div>
-        <div class="kpi-sub">${concluidas} fichas concluídas</div>
+        <div class="kpi-sub">${concluidas} fichas instaladas</div>
         ${trendHtml(valorConcluido, valorConcluidoAnt, temComparacao)}
       </div>
       <div class="kpi-card verde">
-        <div class="kpi-label">Concluídas</div>
+        <div class="kpi-label">Instaladas</div>
         <div class="kpi-value">${concluidas}</div>
         <div class="kpi-sub">${total ? Math.round(concluidas/total*100) : 0}% do total</div>
         ${trendHtml(concluidas, concluidasAnt, temComparacao)}
@@ -1724,7 +1726,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     `;
 
     const statusData = [
-      { label:'Concluídas', count: concluidas, color:'#16a34a' },
+      { label:'Instaladas', count: concluidas, color:'#16a34a' },
       { label:'Agendadas',  count: agendadas,  color:'#e67e22' },
       { label:'Pendentes',  count: pendentes,  color:'#2563eb' },
       { label:'Canceladas', count: canceladas, color:'#ef4444' },
@@ -1765,7 +1767,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       const key = f.username_vendedor || f.vendedor || '?';
       if (!porVendedor[key]) porVendedor[key] = { name: f.vendedor||key, total:0, concluidas:0 };
       porVendedor[key].total++;
-      if (f.status === 'Concluída') porVendedor[key].concluidas++;
+      if (f.status === 'Instalada') porVendedor[key].concluidas++;
     });
     const ranking = Object.values(porVendedor).sort((a,b) => b.total - a.total);
     const posClasses = ['gold','silver','bronze'];
@@ -1784,7 +1786,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
             <div class="rank-item">
               <div class="rank-pos ${posClasses[i]||'other'}">${posEmojis[i]||i+1}</div>
               <div class="rank-name">${v.name}</div>
-              <div class="rank-meta">${v.concluidas} concluída(s)</div>
+              <div class="rank-meta">${v.concluidas} instalada(s)</div>
               <div class="rank-val">${v.total} fichas</div>
             </div>`).join('')}
         </div>`;
@@ -1814,7 +1816,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
           <span class="role-badge ${u.role}" style="align-self:flex-start">${u.role === 'admin' ? 'Administrador' : 'Vendedor'}</span>
           <div class="user-card-stats">
             <div class="user-stat"><div class="user-stat-val">${fichasU.length}</div><div class="user-stat-lbl">Fichas</div></div>
-            <div class="user-stat"><div class="user-stat-val">${fichasU.filter(f=>f.status==='Concluída').length}</div><div class="user-stat-lbl">Concluídas</div></div>
+            <div class="user-stat"><div class="user-stat-val">${fichasU.filter(f=>f.status==='Instalada').length}</div><div class="user-stat-lbl">Instaladas</div></div>
           </div>
           <button class="btn-del-user" onclick="removerUsuario('${u.username}')">🗑 Remover</button>
         </div>`;
@@ -2377,7 +2379,7 @@ function renderDashboardFaltasAdiantamentos() {
 
     const minhas = fichas.filter(f => session.role==='admin' || f.username_vendedor===session.username);
     const elConcluidas = document.getElementById('mini-concluidas');
-    if (elConcluidas) elConcluidas.textContent = minhas.filter(f => f.status==='Concluída').length;
+    if (elConcluidas) elConcluidas.textContent = minhas.filter(f => f.status==='Instalada').length;
 
     const elSemana = document.getElementById('mini-fichas-semana');
     if (elSemana) {
@@ -2420,39 +2422,10 @@ function renderDashboardFaltasAdiantamentos() {
     return el;
   }
 
-  // Validação leve por etapa — impede seguir com o essencial vazio,
-  // mas não trava em campos secundários (evita frustrar o vendedor
-  // em campo com sinal ruim / pressa).
+  // Nenhuma etapa exige mais preenchimento para avançar — o vendedor
+  // pode seguir mesmo com campos vazios. (O único bloqueio que sobra é
+  // o de CPF preenchido porém inválido, tratado no index.html.)
   function validarEtapaAtual() {
-    if (etapaAtual === 1) {
-      let ok = true;
-      if (!vl('nome'))    { marcarInvalido('nome');    ok = false; }
-      if (!vl('celular')) { marcarInvalido('celular'); ok = false; }
-      if (!ok) {
-        showToast('⚠️ Informe nome e WhatsApp do cliente antes de continuar', 'warning');
-        document.getElementById('nome').scrollIntoView({behavior:'smooth', block:'center'});
-      }
-      return ok;
-    }
-    if (etapaAtual === 2) {
-      let ok = true;
-      if (!vl('rua'))    { marcarInvalido('rua');    ok = false; }
-      if (!vl('cidade')) { marcarInvalido('cidade'); ok = false; }
-      if (!ok) {
-        showToast('⚠️ Informe rua e cidade antes de continuar', 'warning');
-        document.getElementById('rua').scrollIntoView({behavior:'smooth', block:'center'});
-      }
-      return ok;
-    }
-    // Etapa 3 (Plano) não bloqueia — nem toda ficha tem todos os
-    // campos de plano preenchidos na hora (ex: só solicitação de HP).
-    // Mas avisa (sem travar) se nada foi informado, pra não seguir sem perceber.
-    if (etapaAtual === 3) {
-      const temServico = ['plano_banda','plano_controle','plano_pos','plano_tv','plano_fixo'].some(id => vl(id));
-      if (!temServico && !vl('mensalidade') && !vl('debito')) {
-        showToast('⚠️ Nenhum serviço nem valor informado — confira antes de enviar', 'warning');
-      }
-    }
     return true;
   }
 
@@ -2521,13 +2494,10 @@ function renderDashboardFaltasAdiantamentos() {
       ? servicos.map(([label, val]) => linha(label, val)).join('')
       : `<div class="resumo-vazio">Nenhum serviço selecionado ainda</div>`;
 
-    // Detalhamento do preço: de onde vem cada valor (só quando o cálculo
-    // automático está valendo — se o vendedor editou na mão, avisa).
-    const ajustadoNaMao = camposAutoPreenchidos.has('mensalidade_manual') || camposAutoPreenchidos.has('debito_manual');
+    // Detalhamento do preço: de onde vem cada valor (cálculo automático
+    // pela tabela de preços — os campos não são mais editáveis à mão).
     let detalheHtml = '';
-    if (ajustadoNaMao) {
-      detalheHtml = `<div class="resumo-vazio">✏️ Valores ajustados manualmente.</div>`;
-    } else if (detalhePreco.length) {
+    if (detalhePreco.length) {
       detalheHtml = detalhePreco.map(([rotulo, valor, soPlano]) =>
         linha(soPlano ? rotulo + ' (só no Valor do Plano)' : rotulo, formatarValor(valor))
       ).join('');
