@@ -787,6 +787,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     if (aba === 'todas')      renderTabelaTodas();
     if (aba === 'usuarios')   renderUsuarios();
     if (aba === 'logins')     renderLogins();
+    if (aba === 'agenda')     renderAgenda();
 
     window.scrollTo({top:0, behavior:'smooth'});
   }
@@ -1460,6 +1461,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
         el.classList.add('salvo');
         setTimeout(() => el.classList.remove('salvo'), 2500);
         showToast(novo ? '📅 Data de instalação salva!' : '📅 Data de instalação removida.');
+        if (document.getElementById('page-agenda')?.classList.contains('active')) renderAgenda();
       } else {
         throw new Error((dados && dados.msg) || 'Não foi possível salvar.');
       }
@@ -1641,6 +1643,80 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     } else if (periodoCustomDe && periodoCustomAte) {
       renderDashboard();
     }
+  }
+
+
+  // ─────────────────────────────────────────────────────────────
+  // AGENDA DE INSTALAÇÕES — fichas "Agendada" agrupadas por dia e
+  // período. Admin vê todas e muda a data direto na linha (usa o
+  // mesmo salvarDataInstalacao da lista); vendedor vê só as dele,
+  // sem editar. Fichas Agendadas sem data aparecem no topo.
+  // ─────────────────────────────────────────────────────────────
+  const AGENDA_PERIODOS = ['08:00-12:00', '12:00-15:00', '15:00-18:00'];
+
+  function agEsc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function agCard(f, isAdmin) {
+    const onde = [f.rua && (f.rua + (f.numero ? ', ' + f.numero : '')), f.bairro, f.cidade].filter(Boolean).join(' • ');
+    const sub  = [onde, isAdmin ? f.vendedor : '', f.celular].filter(Boolean).join(' — ');
+    const campo = isAdmin
+      ? `<input type="text" class="input-data-inst" value="${agEsc(f.data_instalacao)}" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric"
+           oninput="mascararData(this)" onchange="salvarDataInstalacao(${Number(f.id) || `'${agEsc(f.id)}'`}, this)"
+           onkeydown="if(event.key==='Enter'){this.blur();}" aria-label="Data de instalação de ${agEsc(f.nome)}">`
+      : '';
+    return `<div class="ag-card">
+      <div class="ag-info"><div class="ag-nome">${agEsc(f.nome)}</div><div class="ag-sub">${agEsc(sub)}</div></div>
+      <div class="ag-acoes">${campo}</div>
+    </div>`;
+  }
+
+  function renderAgenda() {
+    const box = document.getElementById('agenda-lista');
+    if (!box) return;
+    const isAdmin = session.role === 'admin';
+    const lista = fichas.filter(f => f.status === 'Agendada');
+    document.getElementById('badge-agenda').textContent = lista.length;
+
+    if (!lista.length) { box.innerHTML = '<div class="ag-vazio">Nenhuma instalação agendada.</div>'; return; }
+
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
+    const semData = [], porDia = new Map();
+
+    lista.forEach(f => {
+      const d = parseDataBR(f.data_instalacao);
+      if (!d) { semData.push(f); return; }
+      const k = d.getTime();
+      if (!porDia.has(k)) porDia.set(k, { d, fichas: [] });
+      porDia.get(k).fichas.push(f);
+    });
+
+    let html = '';
+    if (semData.length) {
+      html += `<div class="ag-dia">⚠️ Sem data <span class="ag-tag">${semData.length}</span></div>`;
+      html += semData.map(f => agCard(f, isAdmin)).join('');
+    }
+
+    Array.from(porDia.values()).sort((x, y) => x.d - y.d).forEach(({ d, fichas: fs }) => {
+      const dow = d.toLocaleDateString('pt-BR', { weekday: 'long' });
+      let tag = '';
+      if (d.getTime() === hoje.getTime()) tag = '<span class="ag-tag hoje">Hoje</span>';
+      else if (d.getTime() === amanha.getTime()) tag = '<span class="ag-tag">Amanhã</span>';
+      else if (d < hoje) tag = '<span class="ag-tag atraso">Atrasada</span>';
+      html += `<div class="ag-dia">${agEsc(d.toLocaleDateString('pt-BR'))} <small>${agEsc(dow)} • ${fs.length} instalação(ões)</small> ${tag}</div>`;
+
+      const grupos = AGENDA_PERIODOS.map(p => [p, fs.filter(f => f.periodo === p)]);
+      const outros = fs.filter(f => !AGENDA_PERIODOS.includes(f.periodo));
+      if (outros.length) grupos.push(['Sem período definido', outros]);
+      grupos.forEach(([p, arr]) => {
+        if (!arr.length) return;
+        html += `<div class="ag-periodo">${agEsc(p)} (${arr.length})</div>` + arr.map(f => agCard(f, isAdmin)).join('');
+      });
+    });
+
+    box.innerHTML = html;
   }
 
   function parseDataBR(str) {
