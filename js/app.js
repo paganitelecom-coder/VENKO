@@ -15,8 +15,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 
   async function carregarUsuarios() {
     try {
-      const resp = await fetch(SHEETS_URL + '?action=usuarios', { cache: 'no-store' });
-      const dados = await resp.json();
+      const dados = await apiPost('usuarios');
       if (dados.status === 'ok' && Array.isArray(dados.usuarios)) {
         usuariosCache = dados.usuarios;
         localStorage.setItem('venko_usuarios_cache', JSON.stringify(usuariosCache));
@@ -34,8 +33,53 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     return true;
   }
   function logout() {
+    // Invalida o token no servidor (sem esperar a resposta).
+    try {
+      const p = new URLSearchParams({ action: 'logout', token: session?.token || '' });
+      fetch(SHEETS_URL, { method: 'POST', body: p, keepalive: true, cache: 'no-store' }).catch(() => {});
+    } catch (e) {}
     sessionStorage.removeItem('venko_session');
     window.location.href = 'login.html';
+  }
+
+  // Token expirou (6h parado) ou foi invalidado: volta para o login.
+  // Fichas pendentes de envio continuam guardadas no aparelho e são
+  // reenviadas depois do novo login.
+  let sessaoExpiradaAvisada = false;
+  function tratarSessaoExpirada() {
+    if (sessaoExpiradaAvisada) return;
+    sessaoExpiradaAvisada = true;
+    sessionStorage.removeItem('venko_session');
+    alert('Sua sessão expirou. Faça login novamente. (Fichas ainda não enviadas continuam salvas neste aparelho.)');
+    window.location.href = 'login.html';
+  }
+
+  // Chamada ao Apps Script por POST, já com o token da sessão.
+  // (Antes várias ações iam por GET, com dados e senhas na URL.)
+  async function apiPost(acao, dados = {}, timeoutMs = 15000) {
+    const params = new URLSearchParams();
+    params.append('action', acao);
+    params.append('token', session?.token || '');
+    params.append('username', session?.username || '');
+    params.append('editor_username', session?.username || '');
+    Object.entries(dados).forEach(([k, v]) => params.append(k, v ?? ''));
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const resp = await fetch(SHEETS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      const resposta = await resp.json();
+      if (resposta && resposta.erro === 'AUTH') tratarSessaoExpirada();
+      return resposta;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -135,6 +179,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
   async function enviarParaSheets(ficha) {
     const params = new URLSearchParams();
     Object.entries(ficha).forEach(([k, v]) => params.append(k, v || ''));
+    params.append('token', session?.token || '');
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
@@ -148,6 +193,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       });
       clearTimeout(timeout);
       const dados = await resp.json();
+      if (dados && dados.erro === 'AUTH') { tratarSessaoExpirada(); return false; }
       // success:true cobre inserção nova E reenvio de duplicata (já estava salva) —
       // ambos os casos significam "está garantido na planilha".
       return !!(dados && dados.success);
@@ -233,9 +279,17 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
     try {
-      const resp = await fetch(SHEETS_URL + '?action=bootstrap&username=' + encodeURIComponent(session.username), { cache: 'no-store', signal: controller.signal });
+      const params = new URLSearchParams({ action: 'bootstrap', token: session.token || '', username: session.username });
+      const resp = await fetch(SHEETS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+        cache: 'no-store',
+        signal: controller.signal
+      });
       clearTimeout(timeout);
       const dados = await resp.json();
+      if (dados && dados.erro === 'AUTH') { tratarSessaoExpirada(); return false; }
       if (dados.status !== 'ok') return false;
 
       if (Array.isArray(dados.fichas))        mesclarFichas(dados.fichas);
@@ -1325,6 +1379,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       params.append('editor_username', session.username);
       params.append('id', String(id));
       params.append('novo_status', novoStatus);
+      params.append('token', session.token || '');
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
@@ -1385,6 +1440,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       params.append('editor_username', session.username);
       params.append('id', String(id));
       params.append('data_instalacao', novo);
+      params.append('token', session.token || '');
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
@@ -1436,8 +1492,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     showToast('🗑 Excluindo da planilha...', 'info', 2500);
 
     try {
-      const resp = await fetch(SHEETS_URL + '?action=deletar&id=' + encodeURIComponent(id), { cache: 'no-store' });
-      const dados = await resp.json();
+      const dados = await apiPost('deletar', { id });
 
       if (dados.status === 'ok') {
         fichas = fichas.filter(f => String(f.id) !== String(id));
@@ -1835,13 +1890,8 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
 
     try {
-      const url = SHEETS_URL + '?action=addUsuario'
-        + '&username=' + encodeURIComponent(username)
-        + '&password=' + encodeURIComponent(password)
-        + '&name=' + encodeURIComponent(name)
-        + '&role=' + encodeURIComponent(role);
-      const resp = await fetch(url, { cache: 'no-store' });
-      const dados = await resp.json();
+      // POST: a senha não aparece mais na URL.
+      const dados = await apiPost('addUsuario', { username, password, name, role });
 
       if (dados.status === 'ok') {
         ['new-name','new-user','new-pass'].forEach(id => document.getElementById(id).value = '');
@@ -1862,8 +1912,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   async function removerUsuario(username) {
     if (!confirm(`Remover o usuário @${username} da planilha? Esta ação não pode ser desfeita.`)) return;
     try {
-      const resp = await fetch(SHEETS_URL + '?action=deletarUsuario&username=' + encodeURIComponent(username), { cache: 'no-store' });
-      const dados = await resp.json();
+      const dados = await apiPost('deletarUsuario', { username });
       if (dados.status === 'ok') {
         showToast('🗑 Usuário removido da planilha');
         await carregarUsuarios();
@@ -1897,9 +1946,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     container.innerHTML = `<div class="empty-state"><div class="icon">📍</div><p>Carregando...</p></div>`;
 
     try {
-      const url = SHEETS_URL + '?action=logins&username=' + encodeURIComponent(session.username);
-      const resp = await fetch(url, { cache: 'no-store' });
-      const dados = await resp.json();
+      const dados = await apiPost('logins');
 
       if (dados.status !== 'ok' || !Array.isArray(dados.logins)) {
         container.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>${dados.msg || 'Não foi possível carregar.'}</p></div>`;
@@ -1986,6 +2033,8 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   async function enviarRegistroSheets(action, registro) {
     const params = new URLSearchParams();
     params.append('action', action);
+    params.append('token', session?.token || '');
+    params.append('editor_username', session?.username || '');
     Object.entries(registro).forEach(([k, v]) => params.append(k, v || ''));
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
@@ -2103,8 +2152,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem excluir.', 'warning'); return; }
     if (!confirm('Excluir este registro de falta?')) return;
     try {
-      const resp = await fetch(SHEETS_URL + '?action=deletarFalta&id=' + encodeURIComponent(id), { cache: 'no-store' });
-      const dados = await resp.json();
+      const dados = await apiPost('deletarFalta', { id });
       if (dados.status === 'ok') {
         faltas = faltas.filter(f => String(f.id) !== String(id));
         salvarFaltasLocal(); renderFaltasAdiantamentos(); renderDashboardFaltasAdiantamentos();
@@ -2116,8 +2164,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem excluir.', 'warning'); return; }
     if (!confirm('Excluir este registro de adiantamento?')) return;
     try {
-      const resp = await fetch(SHEETS_URL + '?action=deletarAdiantamento&id=' + encodeURIComponent(id), { cache: 'no-store' });
-      const dados = await resp.json();
+      const dados = await apiPost('deletarAdiantamento', { id });
       if (dados.status === 'ok') {
         adiantamentos = adiantamentos.filter(f => String(f.id) !== String(id));
         salvarAdiantamentosLocal(); renderFaltasAdiantamentos(); renderDashboardFaltasAdiantamentos();
@@ -2620,6 +2667,7 @@ function renderDashboardFaltasAdiantamentos() {
     const params = new URLSearchParams();
     Object.entries(ficha).forEach(([k, v]) => params.append(k, v || ''));
     params.set('action', 'atualizarFicha');
+    params.set('token', session.token || '');
     params.set('editor_username', session.username);
 
     const controller = new AbortController();
