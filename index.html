@@ -192,6 +192,9 @@
       background: #fef2f2 !important;
     }
 
+    /* Mensagem de CPF inválido (dígito verificador) */
+    .cpf-msg { display: none; margin-top: 4px; font-size: .68rem; font-weight: 600; color: #ef4444; }
+
     /* ── ETAPA PLANO: barra de total fixa (itens + Receita + Valor do Plano
          em tempo real). Só LÊ os campos que o app.js já calcula. ── */
     .plano-total {
@@ -219,6 +222,15 @@
       background: none; border: none; padding: 0; margin-left: 6px;
       color: #2563eb; font-weight: 700; font-size: .68rem; cursor: pointer; font-family: inherit;
     }
+
+    /* Campos preenchidos SÓ pela tabela de preços (sem digitação) */
+    .campo-tabela[readonly] {
+      background: #f3f4f6;
+      color: var(--text);
+      cursor: not-allowed;
+      font-weight: 700;
+    }
+    .campo-tabela-dica { font-size: .66rem; color: var(--muted); margin-top: 4px; }
 
     /* Mesh depende de Banda Larga */
     .servico-row.bloqueado { opacity: .45; pointer-events: none; }
@@ -313,7 +325,7 @@
     </div>
     <div class="mini-resumo-card">
       <div class="mini-resumo-val" id="mini-concluidas">—</div>
-      <div class="mini-resumo-lbl">Concluídas</div>
+      <div class="mini-resumo-lbl">Instaladas</div>
     </div>
   </div>
 
@@ -365,7 +377,7 @@
             <label>Status da Instalação</label>
             <select id="status" onchange="atualizarProgresso()" aria-label="Status da ficha">
               <option value="Agendada">📅 Agendada</option>
-              <option value="Concluída">✅ Concluída</option>
+              <option value="Instalada">✅ Instalada</option>
               <option value="Pendente">⏳ Pendente</option>
               <option value="Cancelada">❌ Cancelada</option>
             </select>
@@ -405,6 +417,7 @@
             <input type="text" id="cpf" placeholder="000.000.000-00" maxlength="14" oninput="atualizarProgresso()" aria-label="CPF">
             <button class="clear-btn" onclick="limparCampo('cpf')" tabindex="-1">✕</button>
           </div>
+          <div class="cpf-msg" id="cpf-msg">CPF inválido — confira os números.</div>
         </div>
         <div>
           <label>CNPJ <span style="font-weight:400;color:var(--muted);font-size:.72rem;">(pessoa jurídica)</span></label>
@@ -632,36 +645,32 @@
         <!-- STATUS DA BUSCA DE PREÇO -->
         <div class="preco-status" id="preco-status"></div>
 
+        <!-- Receita, Valor do Plano e Valor 6 Meses: SOMENTE LEITURA.
+             São preenchidos pelo app.js conforme a tabela de preços. -->
         <div style="margin-top:4px;">
           <label>Receita</label>
-          <div class="input-wrap">
-            <input type="text" id="mensalidade" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('mensalidade')" aria-label="Valor da receita (mensalidade)">
-            <button class="clear-btn" onclick="limparCampo('mensalidade');marcarManual('mensalidade')" tabindex="-1">✕</button>
-          </div>
+          <input type="text" id="mensalidade" class="campo-tabela" placeholder="R$ 0,00" readonly tabindex="-1" aria-label="Valor da receita (preenchido pela tabela)">
         </div>
         <div>
           <label>Valor do Plano</label>
-          <div class="input-wrap">
-            <input type="text" id="debito" placeholder="R$ 0,00" oninput="atualizarProgresso();marcarManual('debito')" aria-label="Valor do plano">
-            <button class="clear-btn" onclick="limparCampo('debito');marcarManual('debito')" tabindex="-1">✕</button>
-          </div>
+          <input type="text" id="debito" class="campo-tabela" placeholder="R$ 0,00" readonly tabindex="-1" aria-label="Valor do plano (preenchido pela tabela)">
         </div>
         <!-- VALOR PROMOCIONAL — preenchido pela tabela de preços (Valor do Plano
-             menos a coluna "DESCONTO 6 MESES"). Editável. Aparece SÓ no texto
+             menos a coluna "DESCONTO 6 MESES"). Não editável. Aparece SÓ no texto
              copiado e na Revisão. Não entra em fichaAtual, então não vai para o Sheets. -->
         <div>
           <label>Valor 6 Meses</label>
-          <div class="input-wrap">
-            <input type="text" id="valor_promocional" placeholder="R$ 0,00" oninput="marcarManual('valor_promocional')" aria-label="Valor 6 meses (preenchido pela tabela)">
-            <button class="clear-btn" onclick="limparCampo('valor_promocional');marcarManual('valor_promocional')" tabindex="-1">✕</button>
-          </div>
+          <input type="text" id="valor_promocional" class="campo-tabela" placeholder="R$ 0,00" readonly tabindex="-1" aria-label="Valor 6 meses (preenchido pela tabela)">
+          <div class="campo-tabela-dica">Receita, Valor do Plano e Valor 6 Meses são preenchidos automaticamente pela tabela.</div>
         </div>
         <div>
           <label>Período de Instalação</label>
-          <div class="input-wrap">
-            <input type="text" id="periodo" placeholder="Ex: 08/06 manhã" oninput="atualizarProgresso()" aria-label="Período do atendimento">
-            <button class="clear-btn" onclick="limparCampo('periodo')" tabindex="-1">✕</button>
-          </div>
+          <select id="periodo" onchange="atualizarProgresso()" aria-label="Período do atendimento">
+            <option value="">Selecione o período</option>
+            <option value="08:00-12:00">08:00-12:00</option>
+            <option value="12:00-15:00">12:00-15:00</option>
+            <option value="15:00-18:00">15:00-18:00</option>
+          </select>
         </div>
       </div>
     </div>
@@ -745,7 +754,7 @@
   <div class="filtros" id="filtros-minhas">
     <button class="filtro-btn ativo" onclick="filtrar('todos','minhas',this)">Todos</button>
     <button class="filtro-btn" onclick="filtrar('Agendada','minhas',this)">📅 Agendada</button>
-    <button class="filtro-btn" onclick="filtrar('Concluída','minhas',this)">✅ Concluída</button>
+    <button class="filtro-btn" onclick="filtrar('Instalada','minhas',this)">✅ Instalada</button>
     <button class="filtro-btn" onclick="filtrar('Pendente','minhas',this)">⏳ Pendente</button>
     <button class="filtro-btn" onclick="filtrar('Cancelada','minhas',this)">❌ Cancelada</button>
   </div>
@@ -885,7 +894,7 @@
   <div class="filtros" id="filtros-todas">
     <button class="filtro-btn ativo" onclick="filtrar('todos','todas',this)">Todos</button>
     <button class="filtro-btn" onclick="filtrar('Agendada','todas',this)">📅 Agendada</button>
-    <button class="filtro-btn" onclick="filtrar('Concluída','todas',this)">✅ Concluída</button>
+    <button class="filtro-btn" onclick="filtrar('Instalada','todas',this)">✅ Instalada</button>
     <button class="filtro-btn" onclick="filtrar('Pendente','todas',this)">⏳ Pendente</button>
     <button class="filtro-btn" onclick="filtrar('Cancelada','todas',this)">❌ Cancelada</button>
   </div>
@@ -1030,7 +1039,9 @@
     $('plano-total-receita').textContent = val('mensalidade') || 'R$ 0,00';
     $('plano-total-valor').textContent   = val('debito')      || 'R$ 0,00';
 
-    // Aviso de edição manual (usa as mesmas flags que o app.js já mantém)
+    // Aviso de edição manual (usa as mesmas flags que o app.js já mantém).
+    // Com os campos travados as flags não são mais acionadas, então o aviso
+    // fica oculto; mantido por compatibilidade.
     if (typeof camposAutoPreenchidos !== 'undefined') {
       const manual = camposAutoPreenchidos.has('mensalidade_manual') || camposAutoPreenchidos.has('debito_manual');
       $('aviso-manual').style.display = manual ? 'block' : 'none';
@@ -1050,6 +1061,42 @@
     buscarPreco();
     atualizarBarra();
   };
+
+  /* ── CPF: validação pelos dígitos verificadores ──────────────────
+     Campo vazio é aceito (cliente PJ usa o CNPJ). Preenchido, precisa
+     ser um CPF válido, senão bloqueia o avanço e o ENVIAR. */
+  function cpfValido(valor) {
+    const c = String(valor || '').replace(/\D/g, '');
+    if (c.length !== 11 || /^(\d)\1{10}$/.test(c)) return false;
+    for (let t = 9; t < 11; t++) {
+      let soma = 0;
+      for (let i = 0; i < t; i++) soma += parseInt(c[i], 10) * (t + 1 - i);
+      const dig = ((soma * 10) % 11) % 10;
+      if (dig !== parseInt(c[t], 10)) return false;
+    }
+    return true;
+  }
+  window.cpfValido = cpfValido;
+
+  function marcarCPF(invalido) {
+    const campo = $('cpf'), msg = $('cpf-msg');
+    if (campo) campo.classList.toggle('campo-invalido', invalido);
+    if (msg) msg.style.display = invalido ? 'block' : 'none';
+  }
+
+  // true = pode seguir (vazio ou válido)
+  function checarCPF(irParaCampo) {
+    const v = val('cpf');
+    if (!v) { marcarCPF(false); return true; }
+    if (cpfValido(v)) { marcarCPF(false); return true; }
+    marcarCPF(true);
+    if (typeof showToast === 'function') showToast('CPF inválido — confira os números', 'error');
+    if (irParaCampo) {
+      if (typeof irParaEtapa === 'function') irParaEtapa(1);
+      const c = $('cpf'); if (c) c.focus();
+    }
+    return false;
+  }
 
   function iniciar() {
     // Dica do Mesh
@@ -1107,6 +1154,30 @@
     // Mudou a cidade → a tabela de preços muda (o app.js espera 400 ms)
     const cidade = $('cidade');
     if (cidade) cidade.addEventListener('input', () => setTimeout(atualizarBarra, 600));
+
+    // CPF: feedback ao digitar/sair do campo
+    const cpf = $('cpf');
+    if (cpf) {
+      cpf.addEventListener('input', () => {
+        const digitos = cpf.value.replace(/\D/g, '');
+        if (digitos.length === 11) marcarCPF(!cpfValido(cpf.value));
+        else marcarCPF(false);
+      });
+      cpf.addEventListener('blur', () => { if (cpf.value.trim()) marcarCPF(!cpfValido(cpf.value)); });
+    }
+
+    // Bloqueia só quando o CPF foi preenchido e está inválido
+    // (o app.js é carregado antes deste ponto, então as funções já existem).
+    ['avancarEtapa', 'enviarFicha'].forEach(nome => {
+      const original = window[nome];
+      if (typeof original !== 'function' || original._cpfWrap) return;
+      const envolvida = function () {
+        if (!checarCPF(nome === 'enviarFicha')) return;
+        return original.apply(this, arguments);
+      };
+      envolvida._cpfWrap = true;
+      window[nome] = envolvida;
+    });
 
     atualizarBarra();
   }
