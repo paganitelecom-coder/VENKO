@@ -260,6 +260,20 @@
     .atalhos-linha .btn-atalho { flex: 1 1 calc(50% - 6px); }
 
     /* Data de Instalação editável direto na lista (admin) */
+
+    /* ── Agenda de Instalações ── */
+    .ag-dia { margin: 18px 0 8px; font-size: .95rem; font-weight: 800; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .ag-dia small { font-weight:600; color: var(--muted, #737373); }
+    .ag-tag { font-size:.68rem; font-weight:800; padding:2px 8px; border-radius:99px; background:#fef3c7; color:#92400e; }
+    .ag-tag.atraso { background:#fee2e2; color:#991b1b; }
+    .ag-tag.hoje { background:#dcfce7; color:#166534; }
+    .ag-periodo { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color: var(--muted, #737373); margin: 10px 0 4px; }
+    .ag-card { display:flex; align-items:center; justify-content:space-between; gap:10px; background:#fff; border:1px solid #e5e5e5; border-radius:12px; padding:10px 12px; margin-bottom:6px; }
+    .ag-info { min-width:0; flex:1; }
+    .ag-nome { font-weight:700; font-size:.9rem; }
+    .ag-sub { font-size:.75rem; color: var(--muted, #737373); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ag-acoes { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+    .ag-vazio { text-align:center; color: var(--muted, #737373); padding:32px 0; font-size:.9rem; }
     .input-data-inst {
       width: 112px;
       padding: 5px 7px;
@@ -952,6 +966,19 @@
   <div id="tabela-logins"></div>
 </div>
 
+<!-- ═══ ABA: AGENDA DE INSTALAÇÕES ═══ -->
+<div class="page" id="page-agenda">
+  <div class="page-header">
+    <div><h1>🗓️ Agenda de Instalações</h1><p id="agenda-sub">Fichas agendadas, por dia e período</p></div>
+  </div>
+  <div class="planilha-header">
+    <div class="planilha-titulo">
+      <h2>Agendadas <span class="badge" id="badge-agenda">0</span></h2>
+    </div>
+  </div>
+  <div id="agenda-lista"></div>
+</div>
+
 <!-- Badge flutuante para fichas pendentes de envio -->
 <button class="fila-badge" id="fila-badge" onclick="reenviarFila()">
   ⚠️ <span id="fila-count">0</span> ficha(s) pendente(s) — Toque para reenviar
@@ -977,6 +1004,7 @@
 <div class="modal-mais-overlay" id="modal-mais-overlay" onclick="fecharMaisMenu()">
   <div class="modal-mais" onclick="event.stopPropagation()">
     <h3>Mais opções</h3>
+    <button class="mais-menu-item" onclick="mudarAbaMais('agenda')">🗓️ Agenda de Instalações</button>
     <button class="mais-menu-item" onclick="mudarAbaMais('faltas')">📆 Faltas / Adiantamentos</button>
     <button class="mais-menu-item admin-only" onclick="mudarAbaMais('todas')">👥 Todas as Fichas</button>
     <button class="mais-menu-item admin-only" onclick="mudarAbaMais('usuarios')">⚙️ Usuários</button>
