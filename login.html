@@ -233,8 +233,9 @@
     btn.textContent = 'Verificando...';
 
     try {
-      const url = SHEETS_URL + '?action=login&username=' + encodeURIComponent(u) + '&password=' + encodeURIComponent(p);
-      const resp = await fetch(url, { cache: 'no-store' });
+      // POST: a senha não aparece na URL nem nos logs
+      const body = new URLSearchParams({ action: 'login', username: u, password: p });
+      const resp = await fetch(SHEETS_URL, { method: 'POST', body, cache: 'no-store' });
       const dados = await resp.json();
 
       if (dados.status === 'ok' && dados.user) {
@@ -242,6 +243,7 @@
           username: dados.user.username,
           name: dados.user.name,
           role: dados.user.role,
+          token: dados.token || dados.user.token || '',
           loginAt: Date.now()
         }));
 
