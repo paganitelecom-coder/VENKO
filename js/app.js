@@ -1806,6 +1806,9 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     // Meta da equipe (planilha META — mês corrente, não depende do filtro)
     let metaEq = 0, atingEq = 0, projEq = 0, diasU = 0, diasT = 0;
     metas.forEach(m => {
+      // A planilha META tem uma linha "TOTAL" que já soma os vendedores —
+      // ignorar aqui para não contar tudo em dobro.
+      if (/^TOTAL/.test(normalizar(m.vendedor || m.VENDEDOR || ''))) return;
       metaEq  += normalizarMoedaNum(m.meta_receita ?? m['META RECEITA'] ?? m.META_RECEITA);
       atingEq += normalizarMoedaNum(m.atingimento ?? m.ATINGIMENTO);
       projEq  += normalizarMoedaNum(m.projecao ?? m.PROJECAO);
