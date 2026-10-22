@@ -234,8 +234,18 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
   // ══════════════════════════════════════════════════════════════
   // SISTEMA DE PREÇOS AUTOMÁTICO (NOVA LÓGICA — por serviço)
   // ══════════════════════════════════════════════════════════════
-  let tabelaPrecos  = [];
-  let tabelaCidades = [];
+  // Preços e cidades ficam guardados no aparelho (localStorage) para o app
+  // calcular Receita / Valor do Plano mesmo sem internet. São atualizados a
+  // cada bootstrap bem-sucedido.
+  function lerCacheLocal_(chave) {
+    try { const v = JSON.parse(localStorage.getItem(chave) || '[]'); return Array.isArray(v) ? v : []; }
+    catch (e) { return []; }
+  }
+  function salvarCacheLocal_(chave, lista) {
+    try { localStorage.setItem(chave, JSON.stringify(lista)); } catch (e) { /* sem espaço: segue sem cache */ }
+  }
+  let tabelaPrecos  = lerCacheLocal_('venko_precos_cache');
+  let tabelaCidades = lerCacheLocal_('venko_cidades_cache');
   let camposAutoPreenchidos = new Set();
   // Detalhamento do último cálculo de preço: [rótulo, valor, soValorDoPlano?]
   // Alimenta a tela de Revisão (mostra de onde vem cada valor).
@@ -293,8 +303,14 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       if (dados.status !== 'ok') return false;
 
       if (Array.isArray(dados.fichas))        mesclarFichas(dados.fichas);
-      if (Array.isArray(dados.precos))        tabelaPrecos = dados.precos;
-      if (Array.isArray(dados.cidades))       tabelaCidades = dados.cidades;
+      if (Array.isArray(dados.precos) && dados.precos.length) {
+        tabelaPrecos = dados.precos;
+        salvarCacheLocal_('venko_precos_cache', tabelaPrecos);
+      }
+      if (Array.isArray(dados.cidades) && dados.cidades.length) {
+        tabelaCidades = dados.cidades;
+        salvarCacheLocal_('venko_cidades_cache', tabelaCidades);
+      }
       if (Array.isArray(dados.usuarios)) {
         usuariosCache = dados.usuarios;
         localStorage.setItem('venko_usuarios_cache', JSON.stringify(usuariosCache));
@@ -714,6 +730,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       let v = this.value.replace(/\D/g,'').slice(0,11);
       v = v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
       this.value = v;
+      avisarCPFDuplicado();
     });
     // Máscara do CNPJ — mesmo padrão do CPF acima (00.000.000/0000-00).
     document.getElementById('cnpj').addEventListener('input', function() {
@@ -788,6 +805,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     if (aba === 'usuarios')   renderUsuarios();
     if (aba === 'logins')     renderLogins();
     if (aba === 'agenda')     renderAgenda();
+    if (aba === 'painel')     renderPainel();
 
     window.scrollTo({top:0, behavior:'smooth'});
   }
@@ -860,6 +878,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 
   const CAMPOS_PROG = ['vendedor','nome','celular','cep','rua','mensalidade'];
   function atualizarProgresso() {
+    avisarCPFDuplicado(); // mantém o aviso de CPF repetido em dia (some ao limpar/trocar ficha)
     // A barra de % antiga foi substituída pelo indicador de etapas do
     // wizard — os elementos abaixo podem não existir mais no HTML.
     // Mantido com checagem defensiva caso voltem a existir no futuro.
@@ -1637,11 +1656,10 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   function selecionarPeriodo(periodo) {
     filtroPeriodo = periodo;
     document.querySelectorAll('.periodo-btn').forEach(b => b.classList.toggle('ativo', b.dataset.periodo === periodo));
-    document.getElementById('periodo-custom').classList.toggle('show', periodo === 'custom');
-    if (periodo !== 'custom') {
+    document.querySelectorAll('.periodo-custom').forEach(el => el.classList.toggle('show', periodo === 'custom'));
+    if (periodo !== 'custom' || (periodoCustomDe && periodoCustomAte)) {
       renderDashboard();
-    } else if (periodoCustomDe && periodoCustomAte) {
-      renderDashboard();
+      if (document.getElementById('page-painel')?.classList.contains('active')) renderPainel();
     }
   }
 
@@ -1717,6 +1735,241 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     });
 
     box.innerHTML = html;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // PAINEL GERENCIAL (admin) — visão profissional da operação.
+  // Usa o MESMO filtro de período do Desempenho (filtroPeriodo e
+  // datas personalizadas): mudar em um muda no outro. Só lê dados
+  // que o app já tem; não grava nada.
+  // ══════════════════════════════════════════════════════════════
+  const PAINEL_DIAS_PENDENTE_ALERTA = 7;   // pendente há mais de N dias entra nos alertas
+  const PAINEL_DIAS_CANCELADA_RECENTE = 7; // cancelada nos últimos N dias entra nos alertas
+
+  function pnMoeda(v) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0); }
+  function pnRec(f) { return normalizarMoedaNum(f.mensalidade); }
+  function pnSoma(lista) { return lista.reduce((s, f) => s + pnRec(f), 0); }
+  function pnPct(a, b) { return b > 0 ? Math.round((a / b) * 100) : 0; }
+  function pnBarras(itens, cor) {
+    const max = Math.max(...itens.map(i => i.valor), 1);
+    return itens.map(i => `
+      <div class="bar-wrap">
+        <div class="bar-label" title="${agEsc(i.rotulo)}">${agEsc(i.rotulo)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(i.valor / max) * 100}%;background:${i.cor || cor || 'var(--grad)'}"></div></div>
+        <div class="bar-val">${agEsc(i.texto != null ? i.texto : i.valor)}</div>
+      </div>`).join('');
+  }
+
+  function selecionarPeriodoPainel(periodo) { selecionarPeriodo(periodo); }
+
+  function aplicarPeriodoCustomPainel() {
+    const de  = parseDataBR(document.getElementById('painel-de').value);
+    const ate = parseDataBR(document.getElementById('painel-ate').value);
+    if (!de || !ate) { showToast('⚠️ Informe as duas datas (DD/MM/AAAA)', 'warning'); return; }
+    if (de > ate) { showToast('⚠️ A data inicial deve ser antes da final', 'warning'); return; }
+    periodoCustomDe = de;
+    periodoCustomAte = ate;
+    // mantém o Desempenho em sincronia
+    const d1 = document.getElementById('periodo-de'), d2 = document.getElementById('periodo-ate');
+    if (d1) d1.value = document.getElementById('painel-de').value;
+    if (d2) d2.value = document.getElementById('painel-ate').value;
+    renderDashboard();
+    renderPainel();
+  }
+
+  function renderPainel() {
+    const root = document.getElementById('painel-conteudo');
+    if (!root || !session || session.role !== 'admin') return;
+
+    const range = getRangePeriodoAtual();
+    const todas = fichas;
+    const lista = filtrarFichasPorRange(todas, range);
+    const anterior = range ? filtrarFichasPorRange(todas, getRangeAnterior(range)) : [];
+    const comp = !!range;
+
+    const lblEl = document.getElementById('painel-label');
+    if (lblEl) lblEl.textContent = range
+      ? `📊 Mostrando: ${formatarDataCurta(range.inicio)} até ${formatarDataCurta(range.fim)}`
+      : '📊 Mostrando: todo o histórico';
+
+    const por = (arr, st) => arr.filter(f => f.status === st);
+    const inst = por(lista, 'Instalada'), agen = por(lista, 'Agendada'), pend = por(lista, 'Pendente'), canc = por(lista, 'Cancelada');
+    const instA = por(anterior, 'Instalada'), cancA = por(anterior, 'Cancelada');
+    const recInst = pnSoma(inst), recAnd = pnSoma(agen) + pnSoma(pend);
+    const recInstA = pnSoma(instA);
+    const ticket = lista.length ? pnSoma(lista) / lista.length : 0;
+    const ticketA = anterior.length ? pnSoma(anterior) / anterior.length : 0;
+    const conv = pnPct(inst.length, lista.length);
+    const convA = pnPct(instA.length, anterior.length);
+    const taxaCanc = pnPct(canc.length, lista.length);
+
+    // Meta da equipe (planilha META — mês corrente, não depende do filtro)
+    let metaEq = 0, atingEq = 0, projEq = 0, diasU = 0, diasT = 0;
+    metas.forEach(m => {
+      metaEq  += normalizarMoedaNum(m.meta_receita ?? m['META RECEITA'] ?? m.META_RECEITA);
+      atingEq += normalizarMoedaNum(m.atingimento ?? m.ATINGIMENTO);
+      projEq  += normalizarMoedaNum(m.projecao ?? m.PROJECAO);
+      diasU = Math.max(diasU, parseInt(m.dias_uteis ?? m['DIAS UTEIS'] ?? m.DIAS_UTEIS ?? 0, 10) || 0);
+      diasT = Math.max(diasT, parseInt(m.dias_trabalhados ?? m['DIAS TRABALHADOS'] ?? m.DIAS_TRABALHADOS ?? 0, 10) || 0);
+    });
+
+    let html = '';
+
+    // 1) CARTÕES
+    html += `<div class="dash-grid">
+      <div class="kpi-card verde"><div class="kpi-label">✅ Receita Instalada</div>
+        <div class="kpi-value" style="font-size:1.3rem;">${pnMoeda(recInst)}</div>
+        <div class="kpi-sub">${inst.length} instalada(s) no período</div>${trendHtml(recInst, recInstA, comp)}</div>
+      <div class="kpi-card azul"><div class="kpi-label">⏳ Receita em Andamento</div>
+        <div class="kpi-value" style="font-size:1.3rem;">${pnMoeda(recAnd)}</div>
+        <div class="kpi-sub">${pend.length} pendente(s) + ${agen.length} agendada(s)</div></div>
+      <div class="kpi-card"><div class="kpi-label">🧾 Vendas</div>
+        <div class="kpi-value">${lista.length}</div>
+        <div class="kpi-sub">fichas no período</div>${trendHtml(lista.length, anterior.length, comp)}</div>
+      <div class="kpi-card rosa"><div class="kpi-label">🎫 Ticket Médio</div>
+        <div class="kpi-value" style="font-size:1.3rem;">${pnMoeda(ticket)}</div>
+        <div class="kpi-sub">receita por venda</div>${trendHtml(ticket, ticketA, comp)}</div>
+      <div class="kpi-card verde"><div class="kpi-label">🔁 Conversão</div>
+        <div class="kpi-value">${conv}%</div>
+        <div class="kpi-sub">instaladas ÷ vendas</div>${trendHtml(conv, convA, comp)}</div>
+      <div class="kpi-card vermelho"><div class="kpi-label">🚫 Cancelamento</div>
+        <div class="kpi-value">${taxaCanc}%</div>
+        <div class="kpi-sub">${canc.length} cancelada(s)</div>${trendHtml(canc.length, cancA.length, comp)}</div>
+    </div>`;
+
+    // Meta da equipe
+    if (metaEq > 0) {
+      const p1 = pnPct(atingEq, metaEq), p2 = pnPct(atingEq + recAndMes_(todas), metaEq);
+      html += `<div class="pn-box"><h3>🎯 Meta da Equipe <small>(mês, planilha META)</small></h3>
+        <div class="pn-meta-linha"><span>Atingimento <b>${pnMoeda(atingEq)}</b> de <b>${pnMoeda(metaEq)}</b></span><b>${p1}%</b></div>
+        <div class="bar-track" style="height:14px;"><div class="bar-fill" style="width:${Math.min(p1,100)}%;background:${p1>=100?'#16a34a':'var(--grad)'}"></div></div>
+        <div class="pn-meta-sub">Projeção da planilha: <b>${pnMoeda(projEq)}</b> (${pnPct(projEq, metaEq)}%) · Dias úteis: ${diasT}/${diasU} · Com pendentes + agendadas do mês: <b>${pnMoeda(atingEq + recAndMes_(todas))}</b> (${p2}%)</div>
+      </div>`;
+    }
+
+    // 2) FUNIL
+    const stat = [
+      ['Pendentes', pend, '#2563eb'], ['Agendadas', agen, '#e67e22'], ['Instaladas', inst, '#16a34a'], ['Canceladas', canc, '#ef4444']
+    ];
+    html += `<div class="pn-box"><h3>🔽 Funil por Status</h3>` +
+      pnBarras(stat.map(([r, arr, cor]) => ({ rotulo: r, valor: arr.length, cor, texto: `${arr.length} · ${pnMoeda(pnSoma(arr))}` }))) +
+      `</div>`;
+
+    // 3) RANKING DE VENDEDORES
+    const mapaV = new Map();
+    lista.forEach(f => {
+      const nome = f.vendedor || f.username_vendedor || '—';
+      if (!mapaV.has(nome)) mapaV.set(nome, { nome, vendas: 0, inst: 0, canc: 0, recInst: 0, recTotal: 0 });
+      const o = mapaV.get(nome);
+      o.vendas++; o.recTotal += pnRec(f);
+      if (f.status === 'Instalada') { o.inst++; o.recInst += pnRec(f); }
+      if (f.status === 'Cancelada') o.canc++;
+    });
+    const rank = Array.from(mapaV.values()).sort((a, b) => b.recInst - a.recInst || b.recTotal - a.recTotal);
+    const metaDe = (nome) => {
+      const m = metas.find(x => normalizar(x.vendedor || x.VENDEDOR || '') === normalizar(nome));
+      return m ? normalizarMoedaNum(m.meta_receita ?? m['META RECEITA'] ?? m.META_RECEITA) : 0;
+    };
+    html += `<div class="pn-box"><h3>🏆 Ranking de Vendedores</h3>`;
+    if (!rank.length) html += `<div class="ag-vazio">Sem vendas no período.</div>`;
+    else html += `<div class="tabela-wrap"><table>
+      <thead><tr><th>#</th><th>Vendedor</th><th>Vendas</th><th>Instaladas</th><th>Receita Inst.</th><th>Receita Total</th><th>Conv.</th><th>Canc.</th></tr></thead>
+      <tbody>${rank.map((r, i) => `<tr>
+        <td>${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</td>
+        <td class="td-nome">${agEsc(r.nome)}</td><td>${r.vendas}</td><td>${r.inst}</td>
+        <td class="td-valor">${pnMoeda(r.recInst)}</td><td class="td-valor">${pnMoeda(r.recTotal)}</td>
+        <td>${pnPct(r.inst, r.vendas)}%</td><td>${pnPct(r.canc, r.vendas)}%</td></tr>`).join('')}</tbody></table></div>`;
+    html += `</div>`;
+
+    // 4) EVOLUÇÃO DIÁRIA
+    const diasMap = new Map();
+    let ini, fim;
+    if (range) { ini = range.inicio; fim = range.fim; }
+    else {
+      fim = fimDoDia(new Date()); ini = inicioDoDia(new Date(fim.getTime() - 29 * 86400000));
+    }
+    const nDias = Math.min(Math.round((inicioDoDia(fim) - inicioDoDia(ini)) / 86400000) + 1, 62);
+    const iniEf = inicioDoDia(new Date(fim.getTime() - (nDias - 1) * 86400000));
+    for (let i = 0; i < nDias; i++) { const d = new Date(iniEf.getTime() + i * 86400000); diasMap.set(inicioDoDia(d).getTime(), { d, rec: 0, qtd: 0 }); }
+    lista.forEach(f => {
+      const d = parseDataCadastro(f.data_cadastro); if (!d) return;
+      const o = diasMap.get(inicioDoDia(d).getTime()); if (!o) return;
+      o.rec += pnRec(f); o.qtd++;
+    });
+    const dias = Array.from(diasMap.values());
+    const maxRec = Math.max(...dias.map(x => x.rec), 1);
+    const media = dias.length ? dias.reduce((s, x) => s + x.rec, 0) / dias.length : 0;
+    const metaDia = (filtroPeriodo === 'mes' && metaEq > 0 && diasU > 0) ? metaEq / diasU : 0;
+    const escala = Math.max(maxRec, metaDia, 1);
+    html += `<div class="pn-box"><h3>📈 Evolução Diária <small>(receita vendida por dia${range ? '' : ' · últimos 30 dias'})</small></h3>
+      <div class="pn-chart">
+        ${media > 0 ? `<div class="pn-linha media" style="bottom:${(media / escala) * 100}%"><span>média ${pnMoeda(media)}</span></div>` : ''}
+        ${metaDia > 0 ? `<div class="pn-linha meta" style="bottom:${(metaDia / escala) * 100}%"><span>ritmo da meta ${pnMoeda(metaDia)}/dia</span></div>` : ''}
+        ${dias.map(x => `<div class="pn-col" title="${formatarDataCurta(x.d)} — ${x.qtd} venda(s) · ${pnMoeda(x.rec)}"><div class="pn-bar" style="height:${(x.rec / escala) * 100}%"></div></div>`).join('')}
+      </div>
+      <div class="pn-eixo"><span>${formatarDataCurta(dias[0].d)}</span><span>${formatarDataCurta(dias[dias.length - 1].d)}</span></div>
+    </div>`;
+
+    // 5) PONTOS DE ATENÇÃO (estado atual, não depende do filtro)
+    const hoje0 = inicioDoDia(new Date());
+    const idade = (f) => { const d = parseDataCadastro(f.data_cadastro); return d ? Math.floor((hoje0 - inicioDoDia(d)) / 86400000) : 0; };
+    const pendVelhas = todas.filter(f => f.status === 'Pendente' && idade(f) > PAINEL_DIAS_PENDENTE_ALERTA).sort((a, b) => idade(b) - idade(a));
+    const agAtras = todas.filter(f => { if (f.status !== 'Agendada') return false; const d = parseDataBR(f.data_instalacao); return d && d < hoje0; });
+    const agSem = todas.filter(f => f.status === 'Agendada' && !parseDataBR(f.data_instalacao));
+    const cancRec = todas.filter(f => f.status === 'Cancelada' && idade(f) <= PAINEL_DIAS_CANCELADA_RECENTE);
+    const bloco = (titulo, arr, detalhe) => `<div class="pn-alerta"><div class="pn-alerta-t">${titulo} <span class="ag-tag ${arr.length ? 'atraso' : ''}">${arr.length}</span></div>` +
+      (arr.length ? arr.slice(0, 8).map(f => `<div class="pn-alerta-i"><span>${agEsc(f.nome)} <small>${agEsc(f.vendedor || '')} · ${agEsc(detalhe(f))}</small></span>
+        <button class="btn-regerar" onclick="editarFichaAdmin(${Number(f.id) || `'${agEsc(f.id)}'`})" title="Abrir ficha">✏️</button></div>`).join('') + (arr.length > 8 ? `<div class="pn-mais">+ ${arr.length - 8} outras</div>` : '')
+        : `<div class="pn-ok">Tudo em dia ✅</div>`) + `</div>`;
+    html += `<div class="pn-box"><h3>🚨 Pontos de Atenção <small>(situação atual)</small></h3><div class="pn-alertas">` +
+      bloco(`Pendentes há mais de ${PAINEL_DIAS_PENDENTE_ALERTA} dias`, pendVelhas, f => idade(f) + ' dias') +
+      bloco('Agendadas com data atrasada', agAtras, f => f.data_instalacao) +
+      bloco('Agendadas sem data', agSem, f => 'definir data') +
+      bloco(`Canceladas nos últimos ${PAINEL_DIAS_CANCELADA_RECENTE} dias`, cancRec, f => f.data_cadastro) +
+      `</div></div>`;
+
+    // 6) MIX DE PRODUTOS E CIDADES
+    const prod = {};
+    lista.forEach(f => {
+      ['plano_banda', 'plano_controle', 'plano_pos', 'plano_tv', 'plano_fixo'].forEach(k => { if (f[k]) prod[f[k]] = (prod[f[k]] || 0) + 1; });
+      if (f.plano_mesh) prod['Mesh ' + f.plano_mesh] = (prod['Mesh ' + f.plano_mesh] || 0) + 1;
+    });
+    const topProd = Object.entries(prod).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([r, v]) => ({ rotulo: r, valor: v }));
+    const cid = {};
+    lista.forEach(f => { const c = String(f.cidade || '').trim(); if (c) cid[c] = (cid[c] || 0) + 1; });
+    const topCid = Object.entries(cid).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([r, v]) => ({ rotulo: r, valor: v }));
+    html += `<div class="pn-duas">
+      <div class="pn-box"><h3>📦 Mix de Produtos</h3>${topProd.length ? pnBarras(topProd, '#2563eb') : '<div class="ag-vazio">Sem dados.</div>'}</div>
+      <div class="pn-box"><h3>📍 Cidades que Mais Vendem</h3>${topCid.length ? pnBarras(topCid, '#e67e22') : '<div class="ag-vazio">Sem dados.</div>'}</div>
+    </div>`;
+
+    // 7) INSTALAÇÕES DA SEMANA (próximos 7 dias)
+    const sem = [];
+    for (let i = 0; i < 7; i++) sem.push(new Date(hoje0.getTime() + i * 86400000));
+    const agendadasTodas = todas.filter(f => f.status === 'Agendada');
+    const linhas = sem.map(d => {
+      const doDia = agendadasTodas.filter(f => { const x = parseDataBR(f.data_instalacao); return x && x.getTime() === d.getTime(); });
+      const cel = (p) => doDia.filter(f => f.periodo === p).length;
+      const outros = doDia.filter(f => !AGENDA_PERIODOS.includes(f.periodo)).length;
+      return `<tr><td class="td-nome">${agEsc(d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }))}</td>
+        ${AGENDA_PERIODOS.map(p => `<td>${cel(p) || '·'}</td>`).join('')}<td>${outros || '·'}</td><td><b>${doDia.length}</b></td></tr>`;
+    }).join('');
+    html += `<div class="pn-box"><h3>🗓️ Instalações da Semana <small>(próximos 7 dias)</small></h3><div class="tabela-wrap"><table>
+      <thead><tr><th>Dia</th><th>08-12</th><th>12-15</th><th>15-18</th><th>Integral</th><th>Sem período</th><th>Total</th></tr></thead>
+      <tbody>${linhas}</tbody></table></div></div>`;
+
+    root.innerHTML = html;
+  }
+
+  // Receita Pendente + Agendada cadastrada no mês corrente (toda a equipe)
+  function recAndMes_(lista) {
+    const agora = new Date();
+    return lista.reduce((s, f) => {
+      if (f.status !== 'Pendente' && f.status !== 'Agendada') return s;
+      const d = parseDataBR(String(f.data_cadastro || '').split(/[ ,T]/)[0]);
+      if (!d || d.getMonth() !== agora.getMonth() || d.getFullYear() !== agora.getFullYear()) return s;
+      return s + normalizarMoedaNum(f.mensalidade);
+    }, 0);
   }
 
   function parseDataBR(str) {
@@ -2363,6 +2616,25 @@ function renderDashboardFaltasAdiantamentos() {
     });
   }
 
+  // Receita ainda "em andamento" (Pendente + Agendada) de um vendedor no mês
+  // atual. Usada no Ritmo com potencial: Atingimento (instaladas, vindo da
+  // planilha META) + o que ainda pode virar instalação.
+  function receitaEmAndamento(nomeOuUser, usernameOpcional) {
+    const alvos = [nomeOuUser, usernameOpcional].filter(Boolean).map(normalizar);
+    const agora = new Date();
+    let total = 0, qtd = 0;
+    fichas.forEach(f => {
+      if (f.status !== 'Pendente' && f.status !== 'Agendada') return;
+      const v = normalizar(f.vendedor), u = normalizar(f.username_vendedor);
+      if (!alvos.some(x => x && (x === v || x === u))) return;
+      const d = parseDataBR(String(f.data_cadastro || '').split(/[ ,T]/)[0]);
+      if (!d || d.getMonth() !== agora.getMonth() || d.getFullYear() !== agora.getFullYear()) return;
+      total += normalizarMoedaNum(f.mensalidade);
+      qtd++;
+    });
+    return { total, qtd };
+  }
+
   function renderMetas() {
     document.getElementById('metas-sub').textContent = session.role === 'admin'
       ? 'Acompanhamento de metas de toda a equipe'
@@ -2410,6 +2682,42 @@ function renderDashboardFaltasAdiantamentos() {
           </div>`;
       }
 
+      // ── RITMO COM POTENCIAL: considera também Pendentes + Agendadas ──
+      const emAnd = receitaEmAndamento(session.name, session.username);
+      const potencial = atingimento + emAnd.total;
+      const pctPot = meta > 0 ? Math.round((potencial / meta) * 100) : 0;
+      const faltaPot = meta - potencial;
+      let ritmoPotHtml;
+      if (emAnd.qtd === 0) {
+        ritmoPotHtml = `
+          <div class="kpi-card azul">
+            <div class="kpi-label">🚀 Ritmo c/ Pend. + Agend.</div>
+            <div class="kpi-value" style="font-size:1.3rem;">—</div>
+            <div class="kpi-sub">nenhuma ficha pendente ou agendada no mês</div>
+          </div>`;
+      } else if (faltaPot <= 0) {
+        ritmoPotHtml = `
+          <div class="kpi-card verde">
+            <div class="kpi-label">🚀 Ritmo c/ Pend. + Agend.</div>
+            <div class="kpi-value" style="font-size:1.3rem;">Meta garantida 🎉</div>
+            <div class="kpi-sub">se as ${emAnd.qtd} ficha(s) em andamento instalarem: ${formatarMoedaMetas(potencial)} (${pctPot}%)</div>
+          </div>`;
+      } else if (diasRestantes <= 0) {
+        ritmoPotHtml = `
+          <div class="kpi-card vermelho">
+            <div class="kpi-label">🚀 Ritmo c/ Pend. + Agend.</div>
+            <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(faltaPot)}</div>
+            <div class="kpi-sub">sem dias úteis restantes — potencial ${formatarMoedaMetas(potencial)} (${pctPot}%)</div>
+          </div>`;
+      } else {
+        ritmoPotHtml = `
+          <div class="kpi-card azul">
+            <div class="kpi-label">🚀 Ritmo c/ Pend. + Agend.</div>
+            <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(faltaPot / diasRestantes)}</div>
+            <div class="kpi-sub">por dia útil · potencial ${formatarMoedaMetas(potencial)} (${pctPot}%) com ${emAnd.qtd} ficha(s) em andamento</div>
+          </div>`;
+      }
+
       kpisWrap.innerHTML = `
         <div class="kpi-card roxo">
           <div class="kpi-label">🎯 Meta de Receita</div>
@@ -2426,12 +2734,18 @@ function renderDashboardFaltasAdiantamentos() {
           <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(projecao)}</div>
           <div class="kpi-sub">${pctProj}% da meta projetado</div>
         </div>
+        <div class="kpi-card azul">
+          <div class="kpi-label">📈 Projeção c/ Pend. + Agend.</div>
+          <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(projecao + emAnd.total)}</div>
+          <div class="kpi-sub">${meta > 0 ? Math.round(((projecao + emAnd.total) / meta) * 100) : 0}% da meta · projeção + ${formatarMoedaMetas(emAnd.total)} em andamento</div>
+        </div>
         <div class="kpi-card laranja">
           <div class="kpi-label">📅 Dias Trabalhados</div>
           <div class="kpi-value">${diasTrab}/${diasUteis}</div>
           <div class="kpi-sub">dias úteis no período</div>
         </div>
         ${ritmoHtml}
+        ${ritmoPotHtml}
         <div style="grid-column:1/-1;background:var(--white);padding:18px 20px;border-radius:var(--radius);box-shadow:var(--shadow);">
           <div class="bar-wrap" style="margin-bottom:0;">
             <div class="bar-label">Meta</div>
@@ -2462,6 +2776,12 @@ function renderDashboardFaltasAdiantamentos() {
         const ritmo = faltaVender <= 0 ? '✅ Batida'
           : diasRestantes <= 0 ? '⚠️ Sem dias'
           : formatarMoedaMetas(faltaVender / diasRestantes) + '/dia';
+        const andM = receitaEmAndamento(nome);
+        const faltaPotM = meta - (atingimento + andM.total);
+        const ritmoPot = andM.qtd === 0 ? '—'
+          : faltaPotM <= 0 ? '✅ Garantida'
+          : diasRestantes <= 0 ? '⚠️ Sem dias'
+          : formatarMoedaMetas(faltaPotM / diasRestantes) + '/dia';
         return `<tr>
           <td class="td-nome">${nome}</td>
           <td class="td-valor">${formatarMoedaMetas(meta)}</td>
@@ -2469,11 +2789,13 @@ function renderDashboardFaltasAdiantamentos() {
           <td>${pct}%</td>
           <td>${diasTrab}/${diasUteis}</td>
           <td class="td-valor">${formatarMoedaMetas(projecao)}</td>
+          <td class="td-valor">${andM.qtd ? formatarMoedaMetas(projecao + andM.total) : '—'}</td>
           <td class="td-valor">${ritmo}</td>
+          <td class="td-valor">${ritmoPot} <span style="color:var(--muted);font-size:.7rem;">(${andM.qtd})</span></td>
         </tr>`;
       }).join('');
       wrap.innerHTML = `<div class="tabela-wrap"><table>
-        <thead><tr><th>Vendedor</th><th>Meta</th><th>Atingimento</th><th>%</th><th>Dias</th><th>Projeção</th><th>Ritmo/dia</th></tr></thead>
+        <thead><tr><th>Vendedor</th><th>Meta</th><th>Atingimento</th><th>%</th><th>Dias</th><th>Projeção</th><th>Proj. c/ Pend.+Agend.</th><th>Ritmo/dia</th><th>Ritmo c/ Pend.+Agend.</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>`;
     }
@@ -2705,6 +3027,24 @@ function renderDashboardFaltasAdiantamentos() {
 
   function removerBannerEdicao() {
     document.getElementById('banner-edicao')?.remove();
+  }
+
+  // Aviso (não bloqueia): mostra se já existe ficha com o mesmo CPF.
+  // Vendedor só enxerga as fichas dele; admin enxerga todas.
+  function avisarCPFDuplicado() {
+    const box = document.getElementById('cpf-aviso');
+    if (!box) return;
+    const digitos = String(document.getElementById('cpf')?.value || '').replace(/\D/g, '');
+    box.style.display = 'none';
+    if (digitos.length !== 11) return;
+    const achadas = fichas.filter(f =>
+      String(f.cpf || '').replace(/\D/g, '') === digitos &&
+      !(modoEdicao && String(f.id) === String(idEmEdicao)));
+    if (!achadas.length) return;
+    const f = achadas[achadas.length - 1];
+    const detalhe = [f.nome, f.data_cadastro, f.status, session.role === 'admin' ? f.vendedor : ''].filter(Boolean).join(' • ');
+    box.textContent = '⚠️ Já existe ' + (achadas.length > 1 ? achadas.length + ' fichas' : 'uma ficha') + ' com este CPF (' + detalhe + '). Pode continuar se for outra venda.';
+    box.style.display = 'block';
   }
 
   function editarFichaAdmin(id) {
