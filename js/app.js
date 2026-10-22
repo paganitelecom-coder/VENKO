@@ -1652,7 +1652,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
   // mesmo salvarDataInstalacao da lista); vendedor vê só as dele,
   // sem editar. Fichas Agendadas sem data aparecem no topo.
   // ─────────────────────────────────────────────────────────────
-  const AGENDA_PERIODOS = ['08:00-12:00', '12:00-15:00', '15:00-18:00'];
+  const AGENDA_PERIODOS = ['08:00-12:00', '12:00-15:00', '15:00-18:00', 'INTEGRAL'];
 
   function agEsc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1712,7 +1712,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       if (outros.length) grupos.push(['Sem período definido', outros]);
       grupos.forEach(([p, arr]) => {
         if (!arr.length) return;
-        html += `<div class="ag-periodo">${agEsc(p)} (${arr.length})</div>` + arr.map(f => agCard(f, isAdmin)).join('');
+        html += `<div class="ag-periodo">${agEsc(p === 'INTEGRAL' ? 'Integral' : p)} (${arr.length})</div>` + arr.map(f => agCard(f, isAdmin)).join('');
       });
     });
 
