@@ -1760,6 +1760,18 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       </div>`).join('');
   }
 
+  let painelVendedor = '';   // '' = equipe toda; senão, username do vendedor escolhido
+
+  function painelTrocarVendedor(username) {
+    painelVendedor = username || '';
+    renderPainel();
+  }
+
+  function painelFichaDoVendedor(f, u, nome) {
+    return String(f.username_vendedor || '').toLowerCase() === u ||
+           (nome && normalizar(f.vendedor) === nome);
+  }
+
   function selecionarPeriodoPainel(periodo) { selecionarPeriodo(periodo); }
 
   function aplicarPeriodoCustomPainel() {
@@ -1781,8 +1793,26 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     const root = document.getElementById('painel-conteudo');
     if (!root || !session || session.role !== 'admin') return;
 
+    // Seletor de vendedor (equipe toda ou individual)
+    const usuarios = getAllUsers().filter(u => u && u.username);
+    const wrapSel = document.getElementById('painel-vendedor-wrap');
+    if (wrapSel) {
+      wrapSel.innerHTML = `<label for="painel-vendedor">Vendedor</label>
+        <select id="painel-vendedor" onchange="painelTrocarVendedor(this.value)">
+          <option value="">👥 Equipe toda</option>
+          ${usuarios.map(u => `<option value="${agEsc(u.username)}" ${u.username === painelVendedor ? 'selected' : ''}>${agEsc(u.name || u.username)}</option>`).join('')}
+        </select>`;
+    }
+    const uSel = usuarios.find(u => u.username === painelVendedor);
+    if (painelVendedor && !uSel) painelVendedor = '';
+    const selUser = painelVendedor ? painelVendedor.toLowerCase() : '';
+    const selNome = uSel ? normalizar(uSel.name) : '';
+    const individual = !!selUser;
+    const nomeSel = uSel ? (uSel.name || uSel.username) : '';
+
     const range = getRangePeriodoAtual();
-    const todas = fichas;
+    const todasEquipe = fichas;
+    const todas = individual ? fichas.filter(f => painelFichaDoVendedor(f, selUser, selNome)) : fichas;
     const lista = filtrarFichasPorRange(todas, range);
     const anterior = range ? filtrarFichasPorRange(todas, getRangeAnterior(range)) : [];
     const comp = !!range;
@@ -1805,7 +1835,10 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
 
     // Meta da equipe (planilha META — mês corrente, não depende do filtro)
     let metaEq = 0, atingEq = 0, projEq = 0, diasU = 0, diasT = 0;
-    metas.forEach(m => {
+    const metasUsadas = individual
+      ? metas.filter(m => { const v = normalizar(m.vendedor || m.VENDEDOR || ''); return v === selNome || v === normalizar(selUser); })
+      : metas;
+    metasUsadas.forEach(m => {
       // A planilha META tem uma linha "TOTAL" que já soma os vendedores —
       // ignorar aqui para não contar tudo em dobro.
       if (/^TOTAL/.test(normalizar(m.vendedor || m.VENDEDOR || ''))) return;
@@ -1843,7 +1876,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     // Meta da equipe
     if (metaEq > 0) {
       const p1 = pnPct(atingEq, metaEq), p2 = pnPct(atingEq + recAndMes_(todas), metaEq);
-      html += `<div class="pn-box"><h3>🎯 Meta da Equipe <small>(mês, planilha META)</small></h3>
+      html += `<div class="pn-box"><h3>🎯 ${individual ? 'Meta de ' + agEsc(nomeSel) : 'Meta da Equipe'} <small>(mês, planilha META)</small></h3>
         <div class="pn-meta-linha"><span>Atingimento <b>${pnMoeda(atingEq)}</b> de <b>${pnMoeda(metaEq)}</b></span><b>${p1}%</b></div>
         <div class="bar-track" style="height:14px;"><div class="bar-fill" style="width:${Math.min(p1,100)}%;background:${p1>=100?'#16a34a':'var(--grad)'}"></div></div>
         <div class="pn-meta-sub">Projeção da planilha: <b>${pnMoeda(projEq)}</b> (${pnPct(projEq, metaEq)}%) · Dias úteis: ${diasT}/${diasU} · Com pendentes + agendadas do mês: <b>${pnMoeda(atingEq + recAndMes_(todas))}</b> (${p2}%)</div>
@@ -1860,7 +1893,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
 
     // 3) RANKING DE VENDEDORES
     const mapaV = new Map();
-    lista.forEach(f => {
+    filtrarFichasPorRange(todasEquipe, range).forEach(f => {
       const nome = f.vendedor || f.username_vendedor || '—';
       if (!mapaV.has(nome)) mapaV.set(nome, { nome, vendas: 0, inst: 0, canc: 0, recInst: 0, recTotal: 0 });
       const o = mapaV.get(nome);
@@ -1873,11 +1906,11 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       const m = metas.find(x => normalizar(x.vendedor || x.VENDEDOR || '') === normalizar(nome));
       return m ? normalizarMoedaNum(m.meta_receita ?? m['META RECEITA'] ?? m.META_RECEITA) : 0;
     };
-    html += `<div class="pn-box"><h3>🏆 Ranking de Vendedores</h3>`;
+    html += `<div class="pn-box"><h3>🏆 ${individual ? 'Posição na Equipe' : 'Ranking de Vendedores'}</h3>`;
     if (!rank.length) html += `<div class="ag-vazio">Sem vendas no período.</div>`;
     else html += `<div class="tabela-wrap"><table>
       <thead><tr><th>#</th><th>Vendedor</th><th>Vendas</th><th>Instaladas</th><th>Receita Inst.</th><th>Receita Total</th><th>Conv.</th><th>Canc.</th></tr></thead>
-      <tbody>${rank.map((r, i) => `<tr>
+      <tbody>${rank.map((r, i) => `<tr ${individual && normalizar(r.nome) === selNome ? 'style="background:#fffbeb;font-weight:700;"' : ''}>
         <td>${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</td>
         <td class="td-nome">${agEsc(r.nome)}</td><td>${r.vendas}</td><td>${r.inst}</td>
         <td class="td-valor">${pnMoeda(r.recInst)}</td><td class="td-valor">${pnMoeda(r.recTotal)}</td>
@@ -1941,8 +1974,21 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     const cid = {};
     lista.forEach(f => { const c = String(f.cidade || '').trim(); if (c) cid[c] = (cid[c] || 0) + 1; });
     const topCid = Object.entries(cid).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([r, v]) => ({ rotulo: r, valor: v }));
+    const nBanda = lista.filter(f => f.plano_banda).length;
+    const nControle = lista.filter(f => f.plano_controle).length;
+    const nPos = lista.filter(f => f.plano_pos).length;
+    const nMovel = nControle + nPos;
+    const nTv = lista.filter(f => f.plano_tv).length;
+    const tileProd = (ico, nome, n, sub) => `<div class="pn-prod"><div class="pn-prod-ico">${ico}</div><div class="pn-prod-n">${n}</div><div class="pn-prod-nome">${nome}</div>${sub ? `<div class="pn-prod-sub">${sub}</div>` : ''}</div>`;
     html += `<div class="pn-duas">
       <div class="pn-box"><h3>📦 Mix de Produtos</h3>${topProd.length ? pnBarras(topProd, '#2563eb') : '<div class="ag-vazio">Sem dados.</div>'}</div>
+      <div class="pn-box"><h3>🧩 Produtos <small>(total vendido no período)</small></h3>
+        <div class="pn-prods">
+          ${tileProd('🌐', 'Banda Larga', nBanda, '')}
+          ${tileProd('📱', 'Móvel', nMovel, `Controle ${nControle} · Pós ${nPos}`)}
+          ${tileProd('📺', 'TV', nTv, '')}
+        </div>
+      </div>
       <div class="pn-box"><h3>📍 Cidades que Mais Vendem</h3>${topCid.length ? pnBarras(topCid, '#e67e22') : '<div class="ag-vazio">Sem dados.</div>'}</div>
     </div>`;
 
