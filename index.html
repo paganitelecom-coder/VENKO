@@ -297,6 +297,15 @@
     .pn-alerta-i small { color:#737373; display:block; }
     .pn-mais { font-size:.72rem; color:#737373; padding-top:4px; }
     .pn-ok { font-size:.78rem; color:#16a34a; font-weight:600; }
+    .pn-vendedor { display:flex; align-items:center; gap:10px; margin:10px 0 2px; }
+    .pn-vendedor label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#737373; margin:0; }
+    .pn-vendedor select { flex:1; max-width:320px; padding:10px 12px; border:1.5px solid #e5e5e5; border-radius:10px; font-size:.9rem; font-family:inherit; background:#fff; }
+    .pn-prods { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    .pn-prod { text-align:center; background:#fafafa; border:1px solid #eee; border-radius:12px; padding:14px 6px; }
+    .pn-prod-ico { font-size:1.4rem; }
+    .pn-prod-n { font-size:1.8rem; font-weight:800; line-height:1.1; margin-top:2px; }
+    .pn-prod-nome { font-size:.78rem; font-weight:700; color:#525252; }
+    .pn-prod-sub { font-size:.68rem; color:#737373; margin-top:2px; }
     .pn-duas { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:0 16px; }
     .input-data-inst {
       width: 112px;
@@ -1024,6 +1033,7 @@
     <button class="btn-add-user" onclick="aplicarPeriodoCustomPainel()">Aplicar</button>
   </div>
   <div class="periodo-label-atual" id="painel-label"></div>
+  <div class="pn-vendedor" id="painel-vendedor-wrap"></div>
   <div id="painel-conteudo"></div>
 </div>
 
