@@ -1007,8 +1007,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     const cnpjLine     = fichaAtual.cnpj ? `\nCNPJ: ${fichaAtual.cnpj}` : '';
 
     const txt =
-`FICHA CADASTRAL - CARRERA TELECOM
-Vendedor: ${fichaAtual.vendedor}
+`FICHA CADASTRAL VENKO
 Status: ${fichaAtual.status}
 Criar HP: ${fichaAtual.criar_hp || '—'}${instLine}
 
