@@ -3,7 +3,7 @@
 // IMPORTANTE: sempre que alterar index.html, login.html, css/styles.css,
 // js/app.js, js/draft.js ou js/init.js, SUBA o número da versão abaixo
 // (v10 -> v11...) pra forçar o navegador a descartar o cache antigo.
-const CACHE_NAME = 'venko-cache-v18';
+const CACHE_NAME = 'venko-cache-v19';
 
 // App shell: casca do app, raramente muda de estrutura — cache-first
 // (responde na hora, sem esperar rede) e atualiza em segundo plano.
@@ -22,7 +22,12 @@ const ARQUIVOS_CACHE = [
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ARQUIVOS_CACHE))
+    caches.open(CACHE_NAME).then(cache =>
+      // cache:'reload' ignora o cache HTTP do navegador: garante que a
+      // versão nova de js/app.js seja baixada de verdade do servidor,
+      // e não uma cópia velha guardada pelo navegador.
+      cache.addAll(ARQUIVOS_CACHE.map(u => new Request(u, { cache: 'reload' })))
+    )
   );
   self.skipWaiting();
 });
