@@ -176,60 +176,97 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
   // sinal de celular fraco / proxies de operadora podiam ser truncadas ou
   // rejeitadas antes de chegar no Apps Script — perdendo a ficha de forma
   // silenciosa. POST com corpo elimina esse limite de tamanho de vez.
-  async function enviarParaSheets(ficha) {
-    const params = new URLSearchParams();
-    Object.entries(ficha).forEach(([k, v]) => params.append(k, v || ''));
-    params.append('token', session?.token || '');
+  //
+  // CORREÇÃO (fila): 2 tentativas na hora e timeout de 25s (Apps Script
+  // com cold start passava de 15s e a ficha era dada como falha mesmo
+  // chegando na planilha). Reenvio é seguro: o Code.gs trata ficha
+  // repetida como "success". A mensagem de erro do servidor fica em
+  // ultimoErroEnvio para aparecer na tela.
+  let ultimoErroEnvio = '';
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    try {
-      const resp = await fetch(SHEETS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString(),
-        signal: controller.signal,
-        cache: 'no-store'
-      });
-      clearTimeout(timeout);
-      const dados = await resp.json();
-      if (dados && dados.erro === 'AUTH') { tratarSessaoExpirada(); return false; }
-      // success:true cobre inserção nova E reenvio de duplicata (já estava salva) —
-      // ambos os casos significam "está garantido na planilha".
-      return !!(dados && dados.success);
-    } catch (err) {
-      clearTimeout(timeout);
-      // Rede falhou de verdade (timeout, sem sinal, CORS bloqueado etc.):
-      // a ficha já está salva localmente (garantido em enviarFicha) e cai
-      // na fila de reenvio — sem fallback via iframe, que não funciona com
-      // POST e mascarava falhas reais como sucesso incerto.
-      return false;
+  async function enviarParaSheets(ficha) {
+    for (let tentativa = 1; tentativa <= 2; tentativa++) {
+      const params = new URLSearchParams();
+      Object.entries(ficha).forEach(([k, v]) => params.append(k, v || ''));
+      params.append('token', session?.token || '');
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 25000);
+      try {
+        const resp = await fetch(SHEETS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString(),
+          signal: controller.signal,
+          cache: 'no-store'
+        });
+        clearTimeout(timeout);
+        const dados = await resp.json();
+        if (dados && dados.erro === 'AUTH') { tratarSessaoExpirada(); return false; }
+        // success:true cobre inserção nova E reenvio de duplicata (já estava salva) —
+        // ambos os casos significam "está garantido na planilha".
+        if (dados && dados.success) { ultimoErroEnvio = ''; return true; }
+        // O servidor respondeu mas recusou: tentar de novo agora não resolve.
+        ultimoErroEnvio = (dados && (dados.msg || dados.erro)) || 'Resposta inesperada do servidor.';
+        return false;
+      } catch (err) {
+        clearTimeout(timeout);
+        // Rede falhou (timeout, sem sinal, CORS bloqueado etc.): tenta mais
+        // uma vez; se falhar de novo a ficha fica na fila de reenvio
+        // automático (já salva localmente em enviarFicha).
+        ultimoErroEnvio = 'Falha de conexão.';
+      }
     }
+    return false;
   }
 
-  // Reenviar todas as fichas da fila
-  async function reenviarFila() {
-    if (!filaReenvio.length) { showToast('Nenhuma ficha pendente.', 'info'); return; }
-    setSyncStatus('loading', `⏳ Reenviando ${filaReenvio.length} ficha(s) pendente(s)...`);
-    let enviadas = 0;
-    const novaFila = [];
-    for (const ficha of filaReenvio) {
-      const ok = await enviarParaSheets(ficha);
-      if (ok) { enviadas++; } else { novaFila.push(ficha); }
+  // ─────────────────────────────────────────────────────────────
+  // Reenviar todas as fichas da fila.
+  // CORREÇÃO: antes terminava com "filaReenvio = novaFila". Se uma ficha
+  // nova entrasse na fila DURANTE o loop (ou duas execuções rodassem
+  // juntas: init + Atualizar + botão), ela era apagada da fila — e como
+  // mesclarFichas descarta fichas locais que não estão na planilha nem
+  // na fila, ela sumia do aparelho. Agora: só uma execução por vez
+  // (trava) e, no fim, saem da fila APENAS os ids realmente enviados.
+  // ─────────────────────────────────────────────────────────────
+  let reenviandoFila = false;
+
+  async function reenviarFila(manual) {
+    if (reenviandoFila) return;
+    if (!filaReenvio.length) { if (manual === true) showToast('Nenhuma ficha pendente.', 'info'); return; }
+    if (!session?.token) return;
+
+    reenviandoFila = true;
+    const enviados = new Set();
+    const mostrar = (manual === true);
+    if (mostrar) setSyncStatus('loading', `⏳ Reenviando ${filaReenvio.length} ficha(s) pendente(s)...`);
+
+    try {
+      for (const ficha of filaReenvio.slice()) {
+        const ok = await enviarParaSheets(ficha);
+        if (ok) enviados.add(String(ficha.id));
+        else if (sessaoExpiradaAvisada) break;   // sessão caiu: para e deixa o login refazer
+      }
+    } finally {
+      filaReenvio = filaReenvio.filter(f => !enviados.has(String(f.id)));
+      salvarFila();
+      reenviandoFila = false;
     }
-    filaReenvio = novaFila;
-    salvarFila();
-    if (novaFila.length === 0) {
-      setSyncStatus('ok', `✅ ${enviadas} ficha(s) reenviada(s) com sucesso!`);
-      showToast(`✅ ${enviadas} ficha(s) enviada(s)!`);
-    } else {
-      setSyncStatus('erro', `⚠️ ${enviadas} enviada(s). ${novaFila.length} ainda com falha. <button onclick="reenviarFila()" style="background:none;border:none;color:#991b1b;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit">Tentar novamente</button>`);
+
+    if (enviados.size) showToast(`✅ ${enviados.size} ficha(s) enviada(s)!`);
+    if (mostrar || enviados.size) {
+      if (!filaReenvio.length) {
+        setSyncStatus('ok', `✅ ${enviados.size} ficha(s) reenviada(s) com sucesso!`);
+      } else {
+        const motivo = ultimoErroEnvio ? ` (${ultimoErroEnvio})` : '';
+        setSyncStatus('erro', `⚠️ ${enviados.size} enviada(s). ${filaReenvio.length} ainda com falha${motivo}. Nova tentativa automática em instantes.`);
+      }
+      setTimeout(() => hideSyncStatus(), 8000);
     }
-    setTimeout(() => hideSyncStatus(), 8000);
   }
 
   // Alias para compatibilidade
-  async function reenviarPendentes() { return reenviarFila(); }
+  async function reenviarPendentes() { return reenviarFila(true); }
 
   // ══════════════════════════════════════════════════════════════
   // SISTEMA DE PREÇOS AUTOMÁTICO (NOVA LÓGICA — por serviço)
@@ -775,10 +812,9 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       if (document.getElementById('page-usuarios')?.classList.contains('active')) renderUsuarios();
     });
 
-    // Tenta reenviar fila automaticamente ao carregar
-    if (filaReenvio.length > 0) {
-      setTimeout(() => reenviarFila(), 3000);
-    }
+    // (O reenvio automático das filas agora é feito por
+    // tentarReenvioAutomatico(), definida no fim do arquivo — roda ao
+    // abrir, a cada 30s, ao voltar a internet e ao reabrir o app.)
   }
 
   // Usada pelos botões de atalho (Fatura / Visita) e por qualquer
@@ -1070,16 +1106,16 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
       atualizarMiniResumo();
       if (typeof window.limparRascunho === 'function') window.limparRascunho();
     } else {
-      // Adiciona à fila de reenvio
+      // Adiciona à fila de reenvio (reenviada automaticamente em seguida)
       if (!filaReenvio.find(f => String(f.id) === String(fichaAtual.id))) {
         filaReenvio.push(fichaAtual);
         salvarFila();
       }
       setSyncStatus('erro',
-        '⚠️ Salvo localmente. Falha ao enviar ao Sheets. ' +
-        '<button onclick="reenviarFila()" style="background:none;border:none;color:#991b1b;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit">Tentar reenviar</button>'
+        '⚠️ Salva no aparelho. Falha ao enviar ao Sheets' + (ultimoErroEnvio ? ' (' + ultimoErroEnvio + ')' : '') + ' — será reenviada automaticamente. ' +
+        '<button onclick="reenviarFila(true)" style="background:none;border:none;color:#991b1b;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit">Reenviar agora</button>'
       );
-      showToast('⚠️ Ficha salva localmente — sem conexão com o Sheets.', 'warning', 5000);
+      showToast('⚠️ Ficha salva — será reenviada automaticamente.', 'warning', 5000);
     }
 
     setTimeout(() => { btn.innerHTML = '📤 ENVIAR'; btn.disabled = false; }, 3000);
@@ -2455,7 +2491,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     enviarRegistroSheets('addFalta', registro).then(ok => {
       if (!ok && !filaFaltas.find(f => String(f.id) === String(registro.id))) {
         filaFaltas.push(registro); salvarFilaFaltas();
-        showToast('⚠️ Falta salva localmente — sem conexão com o Sheets.', 'warning');
+        showToast('⚠️ Falta salva — será reenviada automaticamente.', 'warning');
       }
     });
   }
@@ -2485,22 +2521,43 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     enviarRegistroSheets('addAdiantamento', registro).then(ok => {
       if (!ok && !filaAdiantamentos.find(f => String(f.id) === String(registro.id))) {
         filaAdiantamentos.push(registro); salvarFilaAdiantamentos();
-        showToast('⚠️ Adiantamento salvo localmente — sem conexão com o Sheets.', 'warning');
+        showToast('⚠️ Adiantamento salvo — será reenviado automaticamente.', 'warning');
       }
     });
   }
 
+  // Mesma correção da fila de fichas: trava contra execuções simultâneas
+  // e remoção apenas dos ids realmente enviados (nunca "fila = nova").
+  let reenviandoFaltas = false;
   async function reenviarFilaFaltas() {
-    if (!filaFaltas.length) return;
-    const nova = [];
-    for (const r of filaFaltas) { const ok = await enviarRegistroSheets('addFalta', r); if (!ok) nova.push(r); }
-    filaFaltas = nova; salvarFilaFaltas();
+    if (reenviandoFaltas || !filaFaltas.length) return;
+    reenviandoFaltas = true;
+    const enviados = new Set();
+    try {
+      for (const r of filaFaltas.slice()) {
+        if (await enviarRegistroSheets('addFalta', r)) enviados.add(String(r.id));
+      }
+    } finally {
+      filaFaltas = filaFaltas.filter(r => !enviados.has(String(r.id)));
+      salvarFilaFaltas();
+      reenviandoFaltas = false;
+    }
   }
+
+  let reenviandoAdiant = false;
   async function reenviarFilaAdiantamentos() {
-    if (!filaAdiantamentos.length) return;
-    const nova = [];
-    for (const r of filaAdiantamentos) { const ok = await enviarRegistroSheets('addAdiantamento', r); if (!ok) nova.push(r); }
-    filaAdiantamentos = nova; salvarFilaAdiantamentos();
+    if (reenviandoAdiant || !filaAdiantamentos.length) return;
+    reenviandoAdiant = true;
+    const enviados = new Set();
+    try {
+      for (const r of filaAdiantamentos.slice()) {
+        if (await enviarRegistroSheets('addAdiantamento', r)) enviados.add(String(r.id));
+      }
+    } finally {
+      filaAdiantamentos = filaAdiantamentos.filter(r => !enviados.has(String(r.id)));
+      salvarFilaAdiantamentos();
+      reenviandoAdiant = false;
+    }
   }
 
   function mesclarFaltas(remotas) {
@@ -3186,5 +3243,32 @@ function renderDashboardFaltasAdiantamentos() {
 
     setTimeout(() => hideSyncStatus(), 8000);
   }
+
+  // ══════════════════════════════════════════════════════════════
+  // REENVIO AUTOMÁTICO DAS FILAS (fichas, faltas, adiantamentos)
+  //
+  // Antes a fila só era reenviada ao abrir o app (3s depois) ou ao
+  // tocar em "Atualizar"/"Tentar reenviar" — com o app aberto o dia
+  // todo, a ficha ficava parada até alguém lembrar. Agora tenta
+  // sozinho, para qualquer usuário (vendedor ou admin):
+  //   • logo ao abrir o app e após o login
+  //   • a cada 30 segundos
+  //   • quando a internet volta ("online")
+  //   • quando o app volta para a tela (PWA reaberto do 2º plano)
+  // ══════════════════════════════════════════════════════════════
+  function tentarReenvioAutomatico() {
+    if (!session || !session.token) return;
+    if (navigator.onLine === false) return;
+    if (filaReenvio.length)       reenviarFila();
+    if (filaFaltas.length)        reenviarFilaFaltas();
+    if (filaAdiantamentos.length) reenviarFilaAdiantamentos();
+  }
+  setInterval(tentarReenvioAutomatico, 30000);
+  window.addEventListener('online', tentarReenvioAutomatico);
+  window.addEventListener('pageshow', tentarReenvioAutomatico);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') tentarReenvioAutomatico();
+  });
+  setTimeout(tentarReenvioAutomatico, 500);   // logo ao abrir (init() já terá rodado)
 
   init();
