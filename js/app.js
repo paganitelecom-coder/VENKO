@@ -243,6 +243,13 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 
     try {
       for (const ficha of filaReenvio.slice()) {
+        // O servidor grava a ficha em nome de QUEM ESTÁ LOGADO (pelo token).
+        // Se a fila tiver ficha de outro vendedor (mesmo aparelho, outro
+        // login), enviar agora a registraria no nome errado — então ela
+        // espera o dono entrar neste aparelho.
+        if (ficha.username_vendedor && session.username &&
+            String(ficha.username_vendedor).toLowerCase() !== String(session.username).toLowerCase()) continue;
+
         const ok = await enviarParaSheets(ficha);
         if (ok) enviados.add(String(ficha.id));
         else if (sessaoExpiradaAvisada) break;   // sessão caiu: para e deixa o login refazer
