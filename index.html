@@ -582,6 +582,18 @@
       <div class="card-header">📡 Plano Contratado</div>
       <div class="card-body">
 
+        <!-- 🔥 PROMOÇÃO BLACK FRIDAY 1 (só aparece em cidades dos grupos MD e MD2) -->
+        <div class="servico-row" id="row-bf1" style="display:none;">
+          <div class="servico-label">🔥 Promo</div>
+          <div>
+            <div class="plano-pills">
+              <button type="button" class="pill-btn" id="btn-bf1" onclick="selecionarPromoBF1()">BLACK FRIDAY 1</button>
+            </div>
+            <div style="font-size:.68rem;color:var(--muted);margin-top:4px;">Banda Larga 600 MB + Pós 60 GB por R$ 99,90 fixo</div>
+          </div>
+          <input class="plano-hidden" type="text" id="plano_promo">
+        </div>
+
         <!-- 🌐 BANDA LARGA -->
         <div class="servico-row">
           <div class="servico-label">🌐 Banda Larga</div>
@@ -1098,6 +1110,7 @@
 
   // [campo, rótulo, formatador opcional]
   const SERVICOS = [
+    ['plano_promo',    '🔥 Black Friday 1', v => ''],
     ['plano_banda',    'Banda Larga'],
     ['plano_mesh',     'Mesh',        v => v + ' un'],
     ['plano_controle', 'Controle'],
