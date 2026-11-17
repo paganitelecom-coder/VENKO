@@ -2046,4 +2046,1301 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     html += `<div class="pn-box"><h3>📈 Evolução Diária <small>(receita vendida por dia${range ? '' : ' · últimos 30 dias'})</small></h3>
       <div class="pn-chart">
         ${media > 0 ? `<div class="pn-linha media" style="bottom:${(media / escala) * 100}%"><span>média ${pnMoeda(media)}</span></div>` : ''}
-        ${metaDia > 0 ? `<div class="pn-linha meta" style="bottom:${(metaDia / escala) * 100}%"><span>ritmo da meta $
+        ${metaDia > 0 ? `<div class="pn-linha meta" style="bottom:${(metaDia / escala) * 100}%"><span>ritmo da meta ${pnMoeda(metaDia)}/dia</span></div>` : ''}
+        ${dias.map(x => `<div class="pn-col" title="${formatarDataCurta(x.d)} — ${x.qtd} venda(s) · ${pnMoeda(x.rec)}"><div class="pn-bar" style="height:${(x.rec / escala) * 100}%"></div></div>`).join('')}
+      </div>
+      <div class="pn-eixo"><span>${formatarDataCurta(dias[0].d)}</span><span>${formatarDataCurta(dias[dias.length - 1].d)}</span></div>
+    </div>`;
+
+    // 5) PONTOS DE ATENÇÃO (estado atual, não depende do filtro)
+    const hoje0 = inicioDoDia(new Date());
+    const idade = (f) => { const d = parseDataCadastro(f.data_cadastro); return d ? Math.floor((hoje0 - inicioDoDia(d)) / 86400000) : 0; };
+    const pendVelhas = todas.filter(f => f.status === 'Pendente' && idade(f) > PAINEL_DIAS_PENDENTE_ALERTA).sort((a, b) => idade(b) - idade(a));
+    const agAtras = todas.filter(f => { if (f.status !== 'Agendada') return false; const d = parseDataBR(f.data_instalacao); return d && d < hoje0; });
+    const agSem = todas.filter(f => f.status === 'Agendada' && !parseDataBR(f.data_instalacao));
+    const cancRec = todas.filter(f => f.status === 'Cancelada' && idade(f) <= PAINEL_DIAS_CANCELADA_RECENTE);
+    const bloco = (titulo, arr, detalhe) => `<div class="pn-alerta"><div class="pn-alerta-t">${titulo} <span class="ag-tag ${arr.length ? 'atraso' : ''}">${arr.length}</span></div>` +
+      (arr.length ? arr.slice(0, 8).map(f => `<div class="pn-alerta-i"><span>${agEsc(f.nome)} <small>${agEsc(f.vendedor || '')} · ${agEsc(detalhe(f))}</small></span>
+        <button class="btn-regerar" onclick="editarFichaAdmin(${Number(f.id) || `'${agEsc(f.id)}'`})" title="Abrir ficha">✏️</button></div>`).join('') + (arr.length > 8 ? `<div class="pn-mais">+ ${arr.length - 8} outras</div>` : '')
+        : `<div class="pn-ok">Tudo em dia ✅</div>`) + `</div>`;
+    html += `<div class="pn-box"><h3>🚨 Pontos de Atenção <small>(situação atual)</small></h3><div class="pn-alertas">` +
+      bloco(`Pendentes há mais de ${PAINEL_DIAS_PENDENTE_ALERTA} dias`, pendVelhas, f => idade(f) + ' dias') +
+      bloco('Agendadas com data atrasada', agAtras, f => f.data_instalacao) +
+      bloco('Agendadas sem data', agSem, f => 'definir data') +
+      bloco(`Canceladas nos últimos ${PAINEL_DIAS_CANCELADA_RECENTE} dias`, cancRec, f => f.data_cadastro) +
+      `</div></div>`;
+
+    // 6) MIX DE PRODUTOS E CIDADES
+    const prod = {};
+    lista.forEach(f => {
+      ['plano_banda', 'plano_controle', 'plano_pos', 'plano_tv', 'plano_fixo'].forEach(k => { if (f[k]) prod[f[k]] = (prod[f[k]] || 0) + 1; });
+      if (f.plano_mesh) prod['Mesh ' + f.plano_mesh] = (prod['Mesh ' + f.plano_mesh] || 0) + 1;
+    });
+    const topProd = Object.entries(prod).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([r, v]) => ({ rotulo: r, valor: v }));
+    const cid = {};
+    lista.forEach(f => { const c = String(f.cidade || '').trim(); if (c) cid[c] = (cid[c] || 0) + 1; });
+    const topCid = Object.entries(cid).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([r, v]) => ({ rotulo: r, valor: v }));
+    const nBanda = lista.filter(f => f.plano_banda).length;
+    const nControle = lista.filter(f => f.plano_controle).length;
+    const nPos = lista.filter(f => f.plano_pos).length;
+    const nMovel = nControle + nPos;
+    const nTv = lista.filter(f => f.plano_tv).length;
+    const tileProd = (ico, nome, n, sub) => `<div class="pn-prod"><div class="pn-prod-ico">${ico}</div><div class="pn-prod-n">${n}</div><div class="pn-prod-nome">${nome}</div>${sub ? `<div class="pn-prod-sub">${sub}</div>` : ''}</div>`;
+    html += `<div class="pn-duas">
+      <div class="pn-box"><h3>📦 Mix de Produtos</h3>${topProd.length ? pnBarras(topProd, '#2563eb') : '<div class="ag-vazio">Sem dados.</div>'}</div>
+      <div class="pn-box"><h3>🧩 Produtos <small>(total vendido no período)</small></h3>
+        <div class="pn-prods">
+          ${tileProd('🌐', 'Banda Larga', nBanda, '')}
+          ${tileProd('📱', 'Móvel', nMovel, `Controle ${nControle} · Pós ${nPos}`)}
+          ${tileProd('📺', 'TV', nTv, '')}
+        </div>
+      </div>
+      <div class="pn-box"><h3>📍 Cidades que Mais Vendem</h3>${topCid.length ? pnBarras(topCid, '#e67e22') : '<div class="ag-vazio">Sem dados.</div>'}</div>
+    </div>`;
+
+    // 7) INSTALAÇÕES DA SEMANA (próximos 7 dias)
+    const sem = [];
+    for (let i = 0; i < 7; i++) sem.push(new Date(hoje0.getTime() + i * 86400000));
+    const agendadasTodas = todas.filter(f => f.status === 'Agendada');
+    const linhas = sem.map(d => {
+      const doDia = agendadasTodas.filter(f => { const x = parseDataBR(f.data_instalacao); return x && x.getTime() === d.getTime(); });
+      const cel = (p) => doDia.filter(f => f.periodo === p).length;
+      const outros = doDia.filter(f => !AGENDA_PERIODOS.includes(f.periodo)).length;
+      return `<tr><td class="td-nome">${agEsc(d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }))}</td>
+        ${AGENDA_PERIODOS.map(p => `<td>${cel(p) || '·'}</td>`).join('')}<td>${outros || '·'}</td><td><b>${doDia.length}</b></td></tr>`;
+    }).join('');
+    html += `<div class="pn-box"><h3>🗓️ Instalações da Semana <small>(próximos 7 dias)</small></h3><div class="tabela-wrap"><table>
+      <thead><tr><th>Dia</th><th>08-12</th><th>12-15</th><th>15-18</th><th>Integral</th><th>Sem período</th><th>Total</th></tr></thead>
+      <tbody>${linhas}</tbody></table></div></div>`;
+
+    root.innerHTML = html;
+  }
+
+  // Receita Pendente + Agendada cadastrada no mês corrente (toda a equipe)
+  function recAndMes_(lista) {
+    const agora = new Date();
+    return lista.reduce((s, f) => {
+      if (f.status !== 'Pendente' && f.status !== 'Agendada') return s;
+      const d = parseDataBR(String(f.data_cadastro || '').split(/[ ,T]/)[0]);
+      if (!d || d.getMonth() !== agora.getMonth() || d.getFullYear() !== agora.getFullYear()) return s;
+      return s + normalizarMoedaNum(f.mensalidade);
+    }, 0);
+  }
+
+  function parseDataBR(str) {
+    const p = String(str||'').split('/');
+    if (p.length !== 3) return null;
+    const d = parseInt(p[0],10), m = parseInt(p[1],10), y = parseInt(p[2],10);
+    if (!d || !m || !y) return null;
+    return new Date(y, m-1, d);
+  }
+
+  function aplicarPeriodoCustom() {
+    const de  = parseDataBR(document.getElementById('periodo-de').value);
+    const ate = parseDataBR(document.getElementById('periodo-ate').value);
+    if (!de || !ate) { showToast('⚠️ Informe as duas datas (DD/MM/AAAA)','warning'); return; }
+    if (de > ate) { showToast('⚠️ A data inicial deve ser antes da final','warning'); return; }
+    periodoCustomDe = de;
+    periodoCustomAte = ate;
+    renderDashboard();
+  }
+
+  function formatarDataCurta(d) {
+    return d.toLocaleDateString('pt-BR');
+  }
+
+  function atualizarLabelPeriodo(range) {
+    const el = document.getElementById('periodo-label-atual');
+    if (!el) return;
+    if (!range) { el.textContent = '📊 Mostrando: todo o histórico'; return; }
+    el.textContent = `📊 Mostrando: ${formatarDataCurta(range.inicio)} até ${formatarDataCurta(range.fim)}`;
+  }
+
+  // Monta o HTML de tendência (↑/↓/=) comparando valor atual vs anterior.
+  // Se não há período de comparação (filtro = total) ou o anterior é 0
+  // e o atual também é 0, não mostra nada.
+  function trendHtml(atual, anterior, temComparacao) {
+    if (!temComparacao) return '';
+    if (anterior === 0) {
+      if (atual === 0) return '';
+      return `<div class="kpi-trend up">↑ novo (sem base no período anterior)</div>`;
+    }
+    const variacao = ((atual - anterior) / anterior) * 100;
+    const arred = Math.round(variacao);
+    if (arred === 0) return `<div class="kpi-trend flat">— igual ao período anterior</div>`;
+    const cls = arred > 0 ? 'up' : 'down';
+    const seta = arred > 0 ? '↑' : '↓';
+    return `<div class="kpi-trend ${cls}">${seta} ${Math.abs(arred)}% vs período anterior</div>`;
+  }
+
+  function renderDashboard() {
+    const minhasTodas = fichas.filter(f =>
+      session.role==='admin' || f.username_vendedor===session.username
+    );
+
+    const range = getRangePeriodoAtual();
+    const temComparacao = !!range; // só compara quando há um período definido (não em "Total")
+    const minhas = filtrarFichasPorRange(minhasTodas, range);
+
+    let minhasAnterior = [];
+    if (temComparacao) {
+      const rangeAnterior = getRangeAnterior(range);
+      minhasAnterior = filtrarFichasPorRange(minhasTodas, rangeAnterior);
+    }
+
+    atualizarLabelPeriodo(range);
+
+    document.getElementById('dash-sub').textContent =
+      session.role === 'admin'
+        ? `Visão geral de toda a equipe — ${minhas.length} ficha(s) no período`
+        : `Olá, ${session.name.split(' ')[0]}! Aqui está seu resumo.`;
+
+    const total      = minhas.length;
+    const concluidas = minhas.filter(f => f.status==='Instalada').length;
+    const agendadas  = minhas.filter(f => f.status==='Agendada').length;
+    const canceladas = minhas.filter(f => f.status==='Cancelada').length;
+    const pendentes  = minhas.filter(f => f.status==='Pendente').length;
+
+    const totalAnt      = minhasAnterior.length;
+    const concluidasAnt = minhasAnterior.filter(f => f.status==='Instalada').length;
+    const agendadasAnt  = minhasAnterior.filter(f => f.status==='Agendada').length;
+    const canceladasAnt = minhasAnterior.filter(f => f.status==='Cancelada').length;
+    const pendentesAnt  = minhasAnterior.filter(f => f.status==='Pendente').length;
+
+    const somarValor = (lista) => lista.reduce((sum, f) => {
+      const valor = parseFloat(String(f.mensalidade || '0').replace(/[^\d.,]/g, '').replace(',','.'));
+      return sum + (isNaN(valor) ? 0 : valor);
+    }, 0);
+
+    const valorTotal = somarValor(minhas);
+    const valorConcluido = somarValor(minhas.filter(f => f.status==='Instalada'));
+    const valorTotalAnt = somarValor(minhasAnterior);
+    const valorConcluidoAnt = somarValor(minhasAnterior.filter(f => f.status==='Instalada'));
+
+    const formatarMoeda = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+    document.getElementById('kpis-vendedor').innerHTML = `
+      <div class="kpi-card">
+        <div class="kpi-label">Total</div>
+        <div class="kpi-value">${total}</div>
+        <div class="kpi-sub">fichas cadastradas</div>
+        ${trendHtml(total, totalAnt, temComparacao)}
+      </div>
+      <div class="kpi-card rosa">
+        <div class="kpi-label">💰 Receita</div>
+        <div class="kpi-value" style="font-size:1.3rem;">${formatarMoeda(valorTotal)}</div>
+        <div class="kpi-sub">todas as vendas</div>
+        ${trendHtml(valorTotal, valorTotalAnt, temComparacao)}
+      </div>
+      <div class="kpi-card verde">
+        <div class="kpi-label">✅ Receita Instalada</div>
+        <div class="kpi-value" style="font-size:1.3rem;">${formatarMoeda(valorConcluido)}</div>
+        <div class="kpi-sub">${concluidas} fichas instaladas</div>
+        ${trendHtml(valorConcluido, valorConcluidoAnt, temComparacao)}
+      </div>
+      <div class="kpi-card verde">
+        <div class="kpi-label">Instaladas</div>
+        <div class="kpi-value">${concluidas}</div>
+        <div class="kpi-sub">${total ? Math.round(concluidas/total*100) : 0}% do total</div>
+        ${trendHtml(concluidas, concluidasAnt, temComparacao)}
+      </div>
+      <div class="kpi-card laranja">
+        <div class="kpi-label">Agendadas</div>
+        <div class="kpi-value">${agendadas}</div>
+        <div class="kpi-sub">aguardando instalação</div>
+        ${trendHtml(agendadas, agendadasAnt, temComparacao)}
+      </div>
+      <div class="kpi-card azul">
+        <div class="kpi-label">Pendentes</div>
+        <div class="kpi-value">${pendentes}</div>
+        <div class="kpi-sub">em análise</div>
+        ${trendHtml(pendentes, pendentesAnt, temComparacao)}
+      </div>
+      <div class="kpi-card vermelho">
+        <div class="kpi-label">Canceladas</div>
+        <div class="kpi-value">${canceladas}</div>
+        <div class="kpi-sub">não efetivadas</div>
+        ${trendHtml(canceladas, canceladasAnt, temComparacao)}
+      </div>
+    `;
+
+    const statusData = [
+      { label:'Instaladas', count: concluidas, color:'#16a34a' },
+      { label:'Agendadas',  count: agendadas,  color:'#e67e22' },
+      { label:'Pendentes',  count: pendentes,  color:'#2563eb' },
+      { label:'Canceladas', count: canceladas, color:'#ef4444' },
+    ];
+    const maxStatus = Math.max(...statusData.map(d=>d.count), 1);
+    document.getElementById('bars-status').innerHTML = statusData.map(d => `
+      <div class="bar-wrap">
+        <div class="bar-label">${d.label}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${d.count/maxStatus*100}%;background:${d.color}"></div></div>
+        <div class="bar-val">${d.count}</div>
+      </div>`).join('');
+
+    const prodCount = {};
+    minhas.forEach(f => {
+      ['plano_banda','plano_controle','plano_pos','plano_tv','plano_fixo'].forEach(k => {
+        if (f[k]) { prodCount[f[k]] = (prodCount[f[k]]||0) + 1; }
+      });
+      if (f.plano_mesh) { prodCount['Mesh ' + f.plano_mesh] = (prodCount['Mesh ' + f.plano_mesh]||0) + 1; }
+    });
+    const prods = Object.entries(prodCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    const maxProd = prods.length ? prods[0][1] : 1;
+    document.getElementById('bars-produtos').innerHTML = prods.length
+      ? prods.map(([nome, cnt]) => `
+        <div class="bar-wrap">
+          <div class="bar-label">${nome}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${cnt/maxProd*100}%"></div></div>
+          <div class="bar-val">${cnt}</div>
+        </div>`).join('')
+      : '<p style="color:var(--muted);font-size:.82rem;text-align:center;padding:20px 0">Nenhum produto registrado ainda.</p>';
+
+    if (session.role === 'admin') renderRankingAdmin(minhas);
+    renderDashboardFaltasAdiantamentos();
+  }
+
+  function renderRankingAdmin(minhasNoPeriodo) {
+    const porVendedor = {};
+    minhasNoPeriodo.forEach(f => {
+      const key = f.username_vendedor || f.vendedor || '?';
+      if (!porVendedor[key]) porVendedor[key] = { name: f.vendedor||key, total:0, concluidas:0 };
+      porVendedor[key].total++;
+      if (f.status === 'Instalada') porVendedor[key].concluidas++;
+    });
+    const ranking = Object.values(porVendedor).sort((a,b) => b.total - a.total);
+    const posClasses = ['gold','silver','bronze'];
+    const posEmojis  = ['🥇','🥈','🥉'];
+    const existing = document.getElementById('ranking-admin');
+    const section = existing || document.createElement('div');
+    section.id = 'ranking-admin';
+    section.className = 'dash-section';
+    if (!ranking.length) {
+      section.innerHTML = `<h3>🏆 Ranking da Equipe</h3><p style="color:var(--muted);font-size:.82rem;text-align:center;padding:20px 0">Nenhuma ficha no período selecionado.</p>`;
+    } else {
+      section.innerHTML = `
+        <h3>🏆 Ranking da Equipe</h3>
+        <div class="rank-list">
+          ${ranking.map((v, i) => `
+            <div class="rank-item">
+              <div class="rank-pos ${posClasses[i]||'other'}">${posEmojis[i]||i+1}</div>
+              <div class="rank-name">${v.name}</div>
+              <div class="rank-meta">${v.concluidas} instalada(s)</div>
+              <div class="rank-val">${v.total} fichas</div>
+            </div>`).join('')}
+        </div>`;
+    }
+    if (!existing) document.getElementById('page-dashboard').insertBefore(section, document.querySelector('#page-dashboard .dash-divider'));
+  }
+
+  function renderUsuarios() {
+    const users = getAllUsers();
+    const grid = document.getElementById('usuarios-grid');
+    if (!users.length) {
+      grid.innerHTML = `<div class="empty-state"><div class="icon">👥</div><p>Carregando usuários da planilha...</p></div>`;
+      return;
+    }
+    grid.innerHTML = users.map(u => {
+      const fichasU = fichas.filter(f => f.username_vendedor === u.username);
+      const avatarBg = u.role === 'admin' ? 'linear-gradient(135deg,#7c3aed,#a855f7)' : 'linear-gradient(135deg,#000000,#D4AF37)';
+      return `
+        <div class="user-card">
+          <div class="user-card-top">
+            <div class="user-card-avatar" style="background:${avatarBg}">${(u.name||u.username).charAt(0).toUpperCase()}</div>
+            <div>
+              <div class="user-card-name">${u.name||u.username}</div>
+              <div class="user-card-user">@${u.username}</div>
+            </div>
+          </div>
+          <span class="role-badge ${u.role}" style="align-self:flex-start">${u.role === 'admin' ? 'Administrador' : 'Vendedor'}</span>
+          <div class="user-card-stats">
+            <div class="user-stat"><div class="user-stat-val">${fichasU.length}</div><div class="user-stat-lbl">Fichas</div></div>
+            <div class="user-stat"><div class="user-stat-val">${fichasU.filter(f=>f.status==='Instalada').length}</div><div class="user-stat-lbl">Instaladas</div></div>
+          </div>
+          <button class="btn-del-user" onclick="removerUsuario('${u.username}')">🗑 Remover</button>
+        </div>`;
+    }).join('');
+  }
+
+  async function adicionarUsuario() {
+    const name     = document.getElementById('new-name').value.trim();
+    const username = document.getElementById('new-user').value.trim().toLowerCase();
+    const password = document.getElementById('new-pass').value;
+    const role     = document.getElementById('new-role').value;
+    if (!name || !username || !password) { showToast('⚠️ Preencha todos os campos','warning'); return; }
+    if (getAllUsers().some(u => u.username === username)) { showToast('⚠️ Usuário já existe','warning'); return; }
+
+    const btn = document.querySelector('.btn-add-user');
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+
+    try {
+      // POST: a senha não aparece mais na URL.
+      const dados = await apiPost('addUsuario', { username, password, name, role });
+
+      if (dados.status === 'ok') {
+        ['new-name','new-user','new-pass'].forEach(id => document.getElementById(id).value = '');
+        showToast('✅ Usuário ' + name + ' adicionado na planilha!');
+        await carregarUsuarios();
+        renderUsuarios();
+        preencherSelectsVendedor();
+      } else {
+        showToast('❌ ' + (dados.msg || 'Não foi possível criar o usuário.'), 'error');
+      }
+    } catch (e) {
+      showToast('❌ Falha de conexão ao criar usuário.', 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '➕ Adicionar Usuário'; }
+    }
+  }
+
+  async function removerUsuario(username) {
+    if (!confirm(`Remover o usuário @${username} da planilha? Esta ação não pode ser desfeita.`)) return;
+    try {
+      const dados = await apiPost('deletarUsuario', { username });
+      if (dados.status === 'ok') {
+        showToast('🗑 Usuário removido da planilha');
+        await carregarUsuarios();
+        renderUsuarios();
+        preencherSelectsVendedor();
+      } else {
+        showToast('❌ ' + (dados.msg || 'Não foi possível remover.'), 'error');
+      }
+    } catch (e) {
+      showToast('❌ Falha de conexão ao remover usuário.', 'error');
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // LOGINS — tela admin-only com local/horário de login da equipe.
+  // Busca sob demanda (não vem no bootstrap) e o servidor confere
+  // se quem está pedindo é admin de verdade — ver handleListarLogins
+  // no Code.gs. Se um vendedor tentar acessar direto pela URL, o
+  // servidor devolve lista vazia mesmo assim.
+  // ══════════════════════════════════════════════════════════════
+  async function renderLogins() {
+    const container = document.getElementById('tabela-logins');
+    const badge = document.getElementById('badge-logins');
+    if (!container) return;
+
+    if (session.role !== 'admin') {
+      container.innerHTML = `<div class="empty-state"><div class="icon">🔒</div><p>Acesso restrito.</p></div>`;
+      return;
+    }
+
+    container.innerHTML = `<div class="empty-state"><div class="icon">📍</div><p>Carregando...</p></div>`;
+
+    try {
+      const dados = await apiPost('logins');
+
+      if (dados.status !== 'ok' || !Array.isArray(dados.logins)) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>${dados.msg || 'Não foi possível carregar.'}</p></div>`;
+        return;
+      }
+
+      const logins = dados.logins;
+      if (badge) badge.textContent = logins.length;
+
+      if (!logins.length) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">📍</div><p>Nenhum login com localização registrado ainda.</p></div>`;
+        return;
+      }
+
+      container.innerHTML = `<div class="tabela-wrap"><table>
+          <thead>
+            <tr><th>Vendedor</th><th>Usuário</th><th>Data/Hora</th><th>Local</th></tr>
+          </thead>
+          <tbody>
+            ${logins.map(l => {
+              const mapUrl = `https://maps.google.com/maps?q=${l.lat},${l.lng}&z=16`;
+              return `
+                <tr>
+                  <td>${l.vendedor || '—'}</td>
+                  <td>@${l.username || '—'}</td>
+                  <td>${l.data_hora || '—'}</td>
+                  <td><a href="${mapUrl}" target="_blank" rel="noopener">🗺 Ver no mapa</a></td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>`;
+    } catch (e) {
+      container.innerHTML = `<div class="empty-state"><div class="icon">❌</div><p>Falha de conexão ao carregar os logins.</p></div>`;
+    }
+  }
+
+  function exportarExcel(ctx) {
+    const lista = ctx === 'todas' ? fichas
+      : fichas.filter(f => session.role==='admin' || f.username_vendedor===session.username);
+    if (!lista.length) { showToast('⚠️ Nenhuma ficha para exportar','warning'); return; }
+    const cols = ['data_cadastro','vendedor','status','criar_hp','data_instalacao','nome','cpf','cnpj','rg','nascimento','mae','celular','sms','email',
+      'rua','numero','complemento','bairro','cidade','cep',
+      'plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo',
+      'mensalidade','debito','taxa','vencimento','periodo','obs','checkin_url'];
+    const headers = ['Data','Vendedor','Status','Criar HP','Data de Instalação','Nome','CPF','CNPJ','RG','Nascimento','Mãe','WhatsApp','SMS','E-mail',
+      'Rua','Número','Complemento','Bairro','Cidade','CEP',
+      'Banda Larga','Mesh','Controle','Pós','Dep. Grátis','Dep. Pago','Portabilidade','TV','Ponto Adicional','Fixo',
+      'Receita','Valor do Plano','Taxa Inst.','Vencimento','Período','Observações','Localização'];
+    const data = [headers, ...lista.map(f => cols.map(c => f[c]||''))];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = headers.map(() => ({ wch: 18 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Fichas');
+    XLSX.writeFile(wb, `carrera_${ctx}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    showToast('📥 Excel baixado!');
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // FALTAS / ADIANTAMENTOS
+  // ══════════════════════════════════════════════════════════════
+  function preencherSelectsVendedor() {
+    const users = getAllUsers();
+    const opts = users.map(u => `<option value="${u.username}">${u.name}</option>`).join('');
+    const selF = document.getElementById('falta-vendedor');
+    const selA = document.getElementById('adiant-vendedor');
+    if (selF) selF.innerHTML = opts;
+    if (selA) selA.innerHTML = opts;
+  }
+  function getVendedorSelecionado(selectId) {
+    const sel = document.getElementById(selectId);
+    const username = sel ? sel.value : session.username;
+    const users = getAllUsers();
+    const user = users.find(u => u.username === username);
+    return { username: username || session.username, nome: user ? user.name : session.name };
+  }
+
+  function salvarFaltasLocal() { localStorage.setItem('venko_faltas', JSON.stringify(faltas)); }
+  function salvarAdiantamentosLocal() { localStorage.setItem('venko_adiantamentos', JSON.stringify(adiantamentos)); }
+  function salvarFilaFaltas() { localStorage.setItem('venko_fila_faltas', JSON.stringify(filaFaltas)); }
+  function salvarFilaAdiantamentos() { localStorage.setItem('venko_fila_adiantamentos', JSON.stringify(filaAdiantamentos)); }
+
+  // CORREÇÃO: GET (querystring) → POST (body) — mesmo motivo do
+  // enviarParaSheets acima (URLs longas podiam falhar em sinal fraco).
+  async function enviarRegistroSheets(action, registro) {
+    const params = new URLSearchParams();
+    params.append('action', action);
+    params.append('token', session?.token || '');
+    params.append('editor_username', session?.username || '');
+    Object.entries(registro).forEach(([k, v]) => params.append(k, v || ''));
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const resp = await fetch(SHEETS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      clearTimeout(timeout);
+      const dados = await resp.json();
+      return !!(dados && dados.status === 'ok');
+    } catch (err) {
+      clearTimeout(timeout);
+      return false;
+    }
+  }
+
+  function adicionarFalta() {
+    if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem registrar faltas.', 'warning'); return; }
+    const data   = vl('falta-data');
+    const motivo = up(vl('falta-motivo'));
+    if (!data) { showToast('⚠️ Informe a data da falta', 'warning'); return; }
+    const alvo = getVendedorSelecionado('falta-vendedor');
+    const registro = {
+      id: Date.now(),
+      data_registro: new Date().toLocaleDateString('pt-BR'),
+      username: alvo.username,
+      vendedor: up(alvo.nome),
+      data, motivo
+    };
+    faltas.push(registro);
+    salvarFaltasLocal();
+    document.getElementById('falta-data').value = '';
+    document.getElementById('falta-motivo').value = '';
+    renderFaltasAdiantamentos();
+    renderDashboardFaltasAdiantamentos();
+    showToast('✅ Falta registrada!');
+    enviarRegistroSheets('addFalta', registro).then(ok => {
+      if (!ok && !filaFaltas.find(f => String(f.id) === String(registro.id))) {
+        filaFaltas.push(registro); salvarFilaFaltas();
+        showToast('⚠️ Falta salva — será reenviada automaticamente.', 'warning');
+      }
+    });
+  }
+
+  function adicionarAdiantamento() {
+    if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem registrar adiantamentos.', 'warning'); return; }
+    const data  = vl('adiant-data');
+    const valor = vl('adiant-valor');
+    const obs   = up(vl('adiant-obs'));
+    if (!data || !valor) { showToast('⚠️ Informe a data e o valor', 'warning'); return; }
+    const alvo = getVendedorSelecionado('adiant-vendedor');
+    const registro = {
+      id: Date.now(),
+      data_registro: new Date().toLocaleDateString('pt-BR'),
+      username: alvo.username,
+      vendedor: up(alvo.nome),
+      data, valor, obs
+    };
+    adiantamentos.push(registro);
+    salvarAdiantamentosLocal();
+    document.getElementById('adiant-data').value = '';
+    document.getElementById('adiant-valor').value = '';
+    document.getElementById('adiant-obs').value = '';
+    renderFaltasAdiantamentos();
+    renderDashboardFaltasAdiantamentos();
+    showToast('✅ Adiantamento registrado!');
+    enviarRegistroSheets('addAdiantamento', registro).then(ok => {
+      if (!ok && !filaAdiantamentos.find(f => String(f.id) === String(registro.id))) {
+        filaAdiantamentos.push(registro); salvarFilaAdiantamentos();
+        showToast('⚠️ Adiantamento salvo — será reenviado automaticamente.', 'warning');
+      }
+    });
+  }
+
+  // Mesma correção da fila de fichas: trava contra execuções simultâneas
+  // e remoção apenas dos ids realmente enviados (nunca "fila = nova").
+  let reenviandoFaltas = false;
+  async function reenviarFilaFaltas() {
+    if (reenviandoFaltas || !filaFaltas.length) return;
+    reenviandoFaltas = true;
+    const enviados = new Set();
+    try {
+      for (const r of filaFaltas.slice()) {
+        if (await enviarRegistroSheets('addFalta', r)) enviados.add(String(r.id));
+      }
+    } finally {
+      filaFaltas = filaFaltas.filter(r => !enviados.has(String(r.id)));
+      salvarFilaFaltas();
+      reenviandoFaltas = false;
+    }
+  }
+
+  let reenviandoAdiant = false;
+  async function reenviarFilaAdiantamentos() {
+    if (reenviandoAdiant || !filaAdiantamentos.length) return;
+    reenviandoAdiant = true;
+    const enviados = new Set();
+    try {
+      for (const r of filaAdiantamentos.slice()) {
+        if (await enviarRegistroSheets('addAdiantamento', r)) enviados.add(String(r.id));
+      }
+    } finally {
+      filaAdiantamentos = filaAdiantamentos.filter(r => !enviados.has(String(r.id)));
+      salvarFilaAdiantamentos();
+      reenviandoAdiant = false;
+    }
+  }
+
+  function mesclarFaltas(remotas) {
+    const remotoIds = new Set(remotas.map(f => String(f.id)));
+    const pendentesIds = new Set(filaFaltas.map(f => String(f.id)));
+    const mapa = new Map();
+    faltas.forEach(f => { if (remotoIds.has(String(f.id)) || pendentesIds.has(String(f.id))) mapa.set(String(f.id), f); });
+    remotas.forEach(f => mapa.set(String(f.id), { ...mapa.get(String(f.id)), ...f }));
+    faltas = Array.from(mapa.values());
+    salvarFaltasLocal();
+  }
+  function mesclarAdiantamentos(remotas) {
+    const remotoIds = new Set(remotas.map(f => String(f.id)));
+    const pendentesIds = new Set(filaAdiantamentos.map(f => String(f.id)));
+    const mapa = new Map();
+    adiantamentos.forEach(f => { if (remotoIds.has(String(f.id)) || pendentesIds.has(String(f.id))) mapa.set(String(f.id), f); });
+    remotas.forEach(f => mapa.set(String(f.id), { ...mapa.get(String(f.id)), ...f }));
+    adiantamentos = Array.from(mapa.values());
+    salvarAdiantamentosLocal();
+  }
+
+  // (atualizarFaltasAdiantamentosDoSheets removida — faltas e
+  // adiantamentos agora chegam junto no bootstrap único)
+
+  async function deletarFalta(id) {
+    if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem excluir.', 'warning'); return; }
+    if (!confirm('Excluir este registro de falta?')) return;
+    try {
+      const dados = await apiPost('deletarFalta', { id });
+      if (dados.status === 'ok') {
+        faltas = faltas.filter(f => String(f.id) !== String(id));
+        salvarFaltasLocal(); renderFaltasAdiantamentos(); renderDashboardFaltasAdiantamentos();
+        showToast('🗑 Falta excluída!');
+      } else { showToast('❌ Não foi possível excluir.', 'error'); }
+    } catch (e) { showToast('❌ Falha de conexão ao excluir.', 'error'); }
+  }
+  async function deletarAdiantamento(id) {
+    if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem excluir.', 'warning'); return; }
+    if (!confirm('Excluir este registro de adiantamento?')) return;
+    try {
+      const dados = await apiPost('deletarAdiantamento', { id });
+      if (dados.status === 'ok') {
+        adiantamentos = adiantamentos.filter(f => String(f.id) !== String(id));
+        salvarAdiantamentosLocal(); renderFaltasAdiantamentos(); renderDashboardFaltasAdiantamentos();
+        showToast('🗑 Adiantamento excluído!');
+      } else { showToast('❌ Não foi possível excluir.', 'error'); }
+    } catch (e) { showToast('❌ Falha de conexão ao excluir.', 'error'); }
+  }
+
+  function renderFaltasAdiantamentos() {
+    document.getElementById('faltas-sub').textContent = session.role === 'admin'
+      ? 'Registre e acompanhe faltas e adiantamentos de toda a equipe'
+      : `Acompanhe aqui suas faltas e adiantamentos registrados pelo administrador, ${session.name.split(' ')[0]}.`;
+
+    const minhasFaltas = faltas.filter(f => session.role==='admin' || f.username===session.username);
+    const meusAdiant    = adiantamentos.filter(f => session.role==='admin' || f.username===session.username);
+    const podeExcluir = session.role === 'admin';
+
+    document.getElementById('badge-faltas').textContent = minhasFaltas.length;
+    document.getElementById('badge-adiant').textContent = meusAdiant.length;
+
+    const wrapF = document.getElementById('tabela-faltas');
+    if (!minhasFaltas.length) {
+      wrapF.innerHTML = `<div class="empty-state"><div class="icon">📅</div><p>Nenhuma falta registrada.</p></div>`;
+    } else {
+      const rows = minhasFaltas.slice().reverse().map(f => `<tr>
+        <td>${f.data}</td>
+        ${session.role==='admin' ? `<td>${f.vendedor}</td>` : ''}
+        <td>${f.motivo || '—'}</td>
+        <td>${f.data_registro}</td>
+        ${podeExcluir ? `<td><button class="btn-del" onclick="deletarFalta(${f.id})" title="Excluir">✕</button></td>` : ''}
+      </tr>`).join('');
+      wrapF.innerHTML = `<div class="tabela-wrap"><table>
+        <thead><tr><th>Data</th>${session.role==='admin'?'<th>Vendedor</th>':''}<th>Motivo</th><th>Registrado em</th>${podeExcluir?'<th></th>':''}</tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+    }
+
+    const wrapA = document.getElementById('tabela-adiantamentos');
+    if (!meusAdiant.length) {
+      wrapA.innerHTML = `<div class="empty-state"><div class="icon">💵</div><p>Nenhum adiantamento registrado.</p></div>`;
+    } else {
+      const rows = meusAdiant.slice().reverse().map(f => `<tr>
+        <td>${f.data}</td>
+        ${session.role==='admin' ? `<td>${f.vendedor}</td>` : ''}
+        <td class="td-valor">${f.valor}</td>
+        <td>${f.obs || '—'}</td>
+        <td>${f.data_registro}</td>
+        ${podeExcluir ? `<td><button class="btn-del" onclick="deletarAdiantamento(${f.id})" title="Excluir">✕</button></td>` : ''}
+      </tr>`).join('');
+      wrapA.innerHTML = `<div class="tabela-wrap"><table>
+        <thead><tr><th>Data</th>${session.role==='admin'?'<th>Vendedor</th>':''}<th>Valor</th><th>Obs.</th><th>Registrado em</th>${podeExcluir?'<th></th>':''}</tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+    }
+  }
+
+  // Segundo dashboard: resumo de faltas/adiantamentos dentro da aba Desempenho
+function renderDashboardFaltasAdiantamentos() {
+  const minhasFaltas = faltas.filter(f => session.role==='admin' || f.username===session.username);
+  const meusAdiant    = adiantamentos.filter(f => session.role==='admin' || f.username===session.username);
+  const formatarMoeda = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+  const hoje = new Date();
+  const mesAtual = hoje.getMonth() + 1, anoAtual = hoje.getFullYear();
+
+  const faltasMes = minhasFaltas.filter(f => {
+    const p = (f.data||'').split('/');
+    return p.length === 3 && parseInt(p[1]) === mesAtual && parseInt(p[2]) === anoAtual;
+  }).length;
+
+  // Adiantamentos do mês corrente — mesma lógica de filtro do faltasMes acima.
+  // O detalhado (tabela-adiantamentos, renderFaltasAdiantamentos) continua
+  // mostrando TODO o período; só este card-resumo é restrito ao mês.
+  const adiantMes = meusAdiant.filter(f => {
+    const p = (f.data||'').split('/');
+    return p.length === 3 && parseInt(p[1]) === mesAtual && parseInt(p[2]) === anoAtual;
+  });
+  const totalAdiantMes = adiantMes.reduce((sum, f) => {
+    const v = parseFloat(String(f.valor||'0').replace(/[^\d.,]/g,'').replace(',','.'));
+    return sum + (isNaN(v) ? 0 : v);
+  }, 0);
+
+  const existing = document.getElementById('kpis-faltas-resumo');
+  const section = existing || document.createElement('div');
+  section.id = 'kpis-faltas-resumo';
+  section.className = 'dash-section';
+  section.innerHTML = `
+    <h3>📆 Faltas &amp; Adiantamentos</h3>
+    <div class="dash-grid">
+      <div class="kpi-card laranja">
+        <div class="kpi-label">Faltas este mês</div>
+        <div class="kpi-value">${faltasMes}</div>
+        <div class="kpi-sub">${minhasFaltas.length} no total</div>
+      </div>
+      <div class="kpi-card vermelho">
+        <div class="kpi-label">💵 Adiantamentos este mês</div>
+        <div class="kpi-value" style="font-size:1.3rem;">${formatarMoeda(totalAdiantMes)}</div>
+        <div class="kpi-sub">${adiantMes.length} registro(s) — ${meusAdiant.length} no total</div>
+      </div>
+    </div>`;
+  if (!existing) document.getElementById('page-dashboard').insertBefore(section, document.querySelector('#page-dashboard .dash-divider'));
+}
+  // ══════════════════════════════════════════════════════════════
+  // METAS
+  // ══════════════════════════════════════════════════════════════
+  function normalizarMoedaNum(v) {
+    const n = parseFloat(String(v || '0').replace(/[^\d.,\-]/g,'').replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+  }
+  function formatarMoedaMetas(val) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  }
+
+  // (carregarMetas removida — metas agora chegam junto no bootstrap único)
+
+  function getMinhaMeta() {
+    // tenta casar pelo nome de exibição (como está na planilha META),
+    // com fallback pro username, caso a coluna VENDEDOR use o login.
+    return metas.find(m => {
+      const v = m.vendedor || m.VENDEDOR || '';
+      return normalizar(v) === normalizar(session.name) || normalizar(v) === normalizar(session.username);
+    });
+  }
+
+  // Receita ainda "em andamento" (Pendente + Agendada) de um vendedor no mês
+  // atual. Usada no Ritmo com potencial: Atingimento (instaladas, vindo da
+  // planilha META) + o que ainda pode virar instalação.
+  function receitaEmAndamento(nomeOuUser, usernameOpcional) {
+    const alvos = [nomeOuUser, usernameOpcional].filter(Boolean).map(normalizar);
+    const agora = new Date();
+    let total = 0, qtd = 0;
+    fichas.forEach(f => {
+      if (f.status !== 'Pendente' && f.status !== 'Agendada') return;
+      const v = normalizar(f.vendedor), u = normalizar(f.username_vendedor);
+      if (!alvos.some(x => x && (x === v || x === u))) return;
+      const d = parseDataBR(String(f.data_cadastro || '').split(/[ ,T]/)[0]);
+      if (!d || d.getMonth() !== agora.getMonth() || d.getFullYear() !== agora.getFullYear()) return;
+      total += normalizarMoedaNum(f.mensalidade);
+      qtd++;
+    });
+    return { total, qtd };
+  }
+
+  function renderMetas() {
+    document.getElementById('metas-sub').textContent = session.role === 'admin'
+      ? 'Acompanhamento de metas de toda a equipe'
+      : `Acompanhe sua meta de receita, ${session.name.split(' ')[0]}.`;
+
+    const minha = getMinhaMeta();
+    const kpisWrap = document.getElementById('kpis-metas');
+
+    if (!minha) {
+      kpisWrap.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="icon">🎯</div><p>Nenhuma meta cadastrada ainda${session.role==='admin' ? '' : ' pro seu usuário'}.</p></div>`;
+    } else {
+      const meta        = normalizarMoedaNum(minha.meta_receita ?? minha['META RECEITA'] ?? minha.META_RECEITA);
+      const atingimento = normalizarMoedaNum(minha.atingimento ?? minha.ATINGIMENTO);
+      const diasTrab    = parseInt(minha.dias_trabalhados ?? minha['DIAS TRABALHADOS'] ?? minha.DIAS_TRABALHADOS ?? 0, 10) || 0;
+      const diasUteis   = parseInt(minha.dias_uteis ?? minha['DIAS UTEIS'] ?? minha.DIAS_UTEIS ?? 0, 10) || 0;
+      const projecao    = normalizarMoedaNum(minha.projecao ?? minha.PROJECAO);
+      const pct         = meta > 0 ? Math.round((atingimento / meta) * 100) : 0;
+      const pctProj     = meta > 0 ? Math.round((projecao / meta) * 100) : 0;
+
+      // ── RITMO DA META: quanto falta vender por dia útil restante ──
+      const diasRestantes = diasUteis - diasTrab;
+      const faltaVender = meta - atingimento;
+      let ritmoHtml;
+      if (faltaVender <= 0) {
+        ritmoHtml = `
+          <div class="kpi-card verde">
+            <div class="kpi-label">🚀 Ritmo da Meta</div>
+            <div class="kpi-value" style="font-size:1.3rem;">Meta batida! 🎉</div>
+            <div class="kpi-sub">você já atingiu ou superou a meta</div>
+          </div>`;
+      } else if (diasRestantes <= 0) {
+        ritmoHtml = `
+          <div class="kpi-card vermelho">
+            <div class="kpi-label">🚀 Ritmo da Meta</div>
+            <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(faltaVender)}</div>
+            <div class="kpi-sub">sem dias úteis restantes no período — falta bater</div>
+          </div>`;
+      } else {
+        const necessarioPorDia = faltaVender / diasRestantes;
+        ritmoHtml = `
+          <div class="kpi-card roxo">
+            <div class="kpi-label">🚀 Ritmo da Meta</div>
+            <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(necessarioPorDia)}</div>
+            <div class="kpi-sub">por dia útil, nos ${diasRestantes} dia(s) restante(s)</div>
+          </div>`;
+      }
+
+      // ── RITMO COM POTENCIAL: considera também Pendentes + Agendadas ──
+      const emAnd = receitaEmAndamento(session.name, session.username);
+      const potencial = atingimento + emAnd.total;
+      const pctPot = meta > 0 ? Math.round((potencial / meta) * 100) : 0;
+      const faltaPot = meta - potencial;
+      let ritmoPotHtml;
+      if (emAnd.qtd === 0) {
+        ritmoPotHtml = `
+          <div class="kpi-card azul">
+            <div class="kpi-label">🚀 Ritmo c/ Pend. + Agend.</div>
+            <div class="kpi-value" style="font-size:1.3rem;">—</div>
+            <div class="kpi-sub">nenhuma ficha pendente ou agendada no mês</div>
+          </div>`;
+      } else if (faltaPot <= 0) {
+        ritmoPotHtml = `
+          <div class="kpi-card verde">
+            <div class="kpi-label">🚀 Ritmo c/ Pend. + Agend.</div>
+            <div class="kpi-value" style="font-size:1.3rem;">Meta garantida 🎉</div>
+            <div class="kpi-sub">se as ${emAnd.qtd} ficha(s) em andamento instalarem: ${formatarMoedaMetas(potencial)} (${pctPot}%)</div>
+          </div>`;
+      } else if (diasRestantes <= 0) {
+        ritmoPotHtml = `
+          <div class="kpi-card vermelho">
+            <div class="kpi-label">🚀 Ritmo c/ Pend. + Agend.</div>
+            <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(faltaPot)}</div>
+            <div class="kpi-sub">sem dias úteis restantes — potencial ${formatarMoedaMetas(potencial)} (${pctPot}%)</div>
+          </div>`;
+      } else {
+        ritmoPotHtml = `
+          <div class="kpi-card azul">
+            <div class="kpi-label">🚀 Ritmo c/ Pend. + Agend.</div>
+            <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(faltaPot / diasRestantes)}</div>
+            <div class="kpi-sub">por dia útil · potencial ${formatarMoedaMetas(potencial)} (${pctPot}%) com ${emAnd.qtd} ficha(s) em andamento</div>
+          </div>`;
+      }
+
+      kpisWrap.innerHTML = `
+        <div class="kpi-card roxo">
+          <div class="kpi-label">🎯 Meta de Receita</div>
+          <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(meta)}</div>
+          <div class="kpi-sub">meta do período</div>
+        </div>
+        <div class="kpi-card verde">
+          <div class="kpi-label">✅ Atingimento</div>
+          <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(atingimento)}</div>
+          <div class="kpi-sub">${pct}% da meta</div>
+        </div>
+        <div class="kpi-card azul">
+          <div class="kpi-label">📈 Projeção</div>
+          <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(projecao)}</div>
+          <div class="kpi-sub">${pctProj}% da meta projetado</div>
+        </div>
+        <div class="kpi-card azul">
+          <div class="kpi-label">📈 Projeção c/ Pend. + Agend.</div>
+          <div class="kpi-value" style="font-size:1.3rem;">${formatarMoedaMetas(projecao + emAnd.total)}</div>
+          <div class="kpi-sub">${meta > 0 ? Math.round(((projecao + emAnd.total) / meta) * 100) : 0}% da meta · projeção + ${formatarMoedaMetas(emAnd.total)} em andamento</div>
+        </div>
+        <div class="kpi-card laranja">
+          <div class="kpi-label">📅 Dias Trabalhados</div>
+          <div class="kpi-value">${diasTrab}/${diasUteis}</div>
+          <div class="kpi-sub">dias úteis no período</div>
+        </div>
+        ${ritmoHtml}
+        ${ritmoPotHtml}
+        <div style="grid-column:1/-1;background:var(--white);padding:18px 20px;border-radius:var(--radius);box-shadow:var(--shadow);">
+          <div class="bar-wrap" style="margin-bottom:0;">
+            <div class="bar-label">Meta</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.min(pct,100)}%;background:${pct>=100?'#16a34a':'var(--grad)'}"></div></div>
+            <div class="bar-val">${pct}%</div>
+          </div>
+        </div>
+      `;
+    }
+
+    if (session.role === 'admin') {
+      document.getElementById('badge-metas').textContent = metas.length;
+      const wrap = document.getElementById('tabela-metas');
+      if (!metas.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="icon">🎯</div><p>Nenhuma meta cadastrada na planilha.</p></div>`;
+        return;
+      }
+      const rows = metas.map(m => {
+        const nome        = m.vendedor || m.VENDEDOR || '—';
+        const meta        = normalizarMoedaNum(m.meta_receita ?? m['META RECEITA'] ?? m.META_RECEITA);
+        const atingimento = normalizarMoedaNum(m.atingimento ?? m.ATINGIMENTO);
+        const diasTrab    = parseInt(m.dias_trabalhados ?? m['DIAS TRABALHADOS'] ?? m.DIAS_TRABALHADOS ?? 0, 10) || 0;
+        const diasUteis   = parseInt(m.dias_uteis ?? m['DIAS UTEIS'] ?? m.DIAS_UTEIS ?? 0, 10) || 0;
+        const projecao    = normalizarMoedaNum(m.projecao ?? m.PROJECAO);
+        const pct         = meta > 0 ? Math.round((atingimento / meta) * 100) : 0;
+        const diasRestantes = diasUteis - diasTrab;
+        const faltaVender = meta - atingimento;
+        const ritmo = faltaVender <= 0 ? '✅ Batida'
+          : diasRestantes <= 0 ? '⚠️ Sem dias'
+          : formatarMoedaMetas(faltaVender / diasRestantes) + '/dia';
+        const andM = receitaEmAndamento(nome);
+        const faltaPotM = meta - (atingimento + andM.total);
+        const ritmoPot = andM.qtd === 0 ? '—'
+          : faltaPotM <= 0 ? '✅ Garantida'
+          : diasRestantes <= 0 ? '⚠️ Sem dias'
+          : formatarMoedaMetas(faltaPotM / diasRestantes) + '/dia';
+        return `<tr>
+          <td class="td-nome">${nome}</td>
+          <td class="td-valor">${formatarMoedaMetas(meta)}</td>
+          <td class="td-valor">${formatarMoedaMetas(atingimento)}</td>
+          <td>${pct}%</td>
+          <td>${diasTrab}/${diasUteis}</td>
+          <td class="td-valor">${formatarMoedaMetas(projecao)}</td>
+          <td class="td-valor">${andM.qtd ? formatarMoedaMetas(projecao + andM.total) : '—'}</td>
+          <td class="td-valor">${ritmo}</td>
+          <td class="td-valor">${ritmoPot} <span style="color:var(--muted);font-size:.7rem;">(${andM.qtd})</span></td>
+        </tr>`;
+      }).join('');
+      wrap.innerHTML = `<div class="tabela-wrap"><table>
+        <thead><tr><th>Vendedor</th><th>Meta</th><th>Atingimento</th><th>%</th><th>Dias</th><th>Projeção</th><th>Proj. c/ Pend.+Agend.</th><th>Ritmo/dia</th><th>Ritmo c/ Pend.+Agend.</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    }
+
+    atualizarMiniResumo();
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // MINI-RESUMO — cards clicáveis no topo da Nova Ficha, dão uma
+  // prévia do Desempenho/Metas sem precisar trocar de aba.
+  // ══════════════════════════════════════════════════════════════
+  function atualizarMiniResumo() {
+    if (!session) return;
+    const minha = getMinhaMeta();
+    const elMeta = document.getElementById('mini-meta-pct');
+    if (elMeta) {
+      if (minha) {
+        const meta = normalizarMoedaNum(minha.meta_receita ?? minha['META RECEITA'] ?? minha.META_RECEITA);
+        const atingimento = normalizarMoedaNum(minha.atingimento ?? minha.ATINGIMENTO);
+        const pct = meta > 0 ? Math.round((atingimento / meta) * 100) : 0;
+        elMeta.textContent = pct + '%';
+      } else {
+        elMeta.textContent = '—';
+      }
+    }
+
+    const minhas = fichas.filter(f => session.role==='admin' || f.username_vendedor===session.username);
+    const elConcluidas = document.getElementById('mini-concluidas');
+    if (elConcluidas) elConcluidas.textContent = minhas.filter(f => f.status==='Instalada').length;
+
+    const elSemana = document.getElementById('mini-fichas-semana');
+    if (elSemana) {
+      const seteDiasAtras = Date.now() - 7*24*60*60*1000;
+      const naSemana = minhas.filter(f => (Number(f.id)||0) >= seteDiasAtras).length;
+      elSemana.textContent = naSemana;
+    }
+  }
+
+
+  // ══════════════════════════════════════════════════════════════
+  // WIZARD DE ETAPAS — Nova Ficha (Cliente → Endereço → Plano → Revisão)
+  //
+  // Não muda nenhum dado nem o formato de envio: os 4 painéis
+  // (.wizard-panel, ids wizard-panel-1..4) continuam com os MESMOS
+  // campos/IDs de sempre, só escondidos/mostrados com CSS.
+  // atualizarProgresso(), buscarPreco(), gerarTexto() e
+  // enviarFicha() seguem funcionando normalmente.
+  // ══════════════════════════════════════════════════════════════
+  const TOTAL_ETAPAS = 4;
+  let etapaAtual = 1;
+
+  function irParaEtapa(n) {
+    etapaAtual = n;
+    document.querySelectorAll('.wizard-panel').forEach(p => {
+      p.classList.toggle('ativo', p.id === 'wizard-panel-' + n);
+    });
+    document.querySelectorAll('.wizard-step-item').forEach(el => {
+      const step = Number(el.dataset.step);
+      el.classList.toggle('ativo', step === n);
+      el.classList.toggle('concluido', step < n);
+    });
+    if (n === TOTAL_ETAPAS) renderResumoRevisao();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  function marcarInvalido(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('campo-invalido');
+    return el;
+  }
+
+  // Nenhuma etapa exige mais preenchimento para avançar — o vendedor
+  // pode seguir mesmo com campos vazios. (O único bloqueio que sobra é
+  // o de CPF preenchido porém inválido, tratado no index.html.)
+  function validarEtapaAtual() {
+    return true;
+  }
+
+  function avancarEtapa() {
+    if (!validarEtapaAtual()) return;
+    irParaEtapa(Math.min(etapaAtual + 1, TOTAL_ETAPAS));
+  }
+
+  function voltarEtapa() {
+    irParaEtapa(Math.max(etapaAtual - 1, 1));
+  }
+
+  // Monta o resumo visual da etapa de Revisão, lido direto dos
+  // campos do formulário — cada bloco tem um botão "Editar" que
+  // volta pra etapa correspondente.
+  function renderResumoRevisao() {
+    const wrap = document.getElementById('resumo-revisao');
+    if (!wrap) return;
+
+    const linha = (label, valor, destaque) => `
+      <div class="resumo-linha${destaque ? ' resumo-valor' : ''}">
+        <span>${label}</span><strong>${valor || '—'}</strong>
+      </div>`;
+
+    const statusTxt = document.getElementById('status')?.selectedOptions?.[0]?.textContent || vl('status');
+
+    const blocoCliente = `
+      <div class="resumo-bloco">
+        <div class="resumo-bloco-header">
+          <span>👤 Cliente</span>
+          <button class="resumo-editar" onclick="irParaEtapa(1)">✏️ Editar</button>
+        </div>
+        ${linha('Vendedor', vl('vendedor'))}
+        ${linha('Status', statusTxt)}
+        ${vl('data_instalacao') ? linha('Data de Instalação', vl('data_instalacao')) : ''}
+        ${linha('Nome', vl('nome'))}
+        ${linha('CPF', vl('cpf'))}
+        ${vl('cnpj') ? linha('CNPJ', vl('cnpj')) : ''}
+        ${linha('WhatsApp', vl('celular'))}
+        ${linha('E-mail', vl('email'))}
+      </div>`;
+
+    const enderecoResumo = [vl('rua'), vl('numero')].filter(Boolean).join(', ');
+    const blocoEndereco = `
+      <div class="resumo-bloco">
+        <div class="resumo-bloco-header">
+          <span>📍 Endereço</span>
+          <button class="resumo-editar" onclick="irParaEtapa(2)">✏️ Editar</button>
+        </div>
+        ${linha('Endereço', enderecoResumo)}
+        ${linha('Bairro', vl('bairro'))}
+        ${linha('Cidade', vl('cidade'))}
+        ${linha('CEP', vl('cep'))}
+      </div>`;
+
+    const servicos = [
+      ['🔥 Promoção',    vl('plano_promo') ? 'BLACK FRIDAY 1' : ''],
+      ['🌐 Banda Larga', vl('plano_banda')],
+      ['🔀 Mesh',        vl('plano_mesh') ? vl('plano_mesh') + ' UN' : ''],
+      ['📱 Controle',    vl('plano_controle')],
+      ['📱 Pós',         vl('plano_pos')],
+      ['📺 TV',          vl('plano_tv')],
+      ['☎️ Fixo',        vl('plano_fixo')],
+    ].filter(([, v]) => v);
+
+    const servicosHtml = servicos.length
+      ? servicos.map(([label, val]) => linha(label, val)).join('')
+      : `<div class="resumo-vazio">Nenhum serviço selecionado ainda</div>`;
+
+    // Detalhamento do preço: de onde vem cada valor (cálculo automático
+    // pela tabela de preços — os campos não são mais editáveis à mão).
+    let detalheHtml = '';
+    if (detalhePreco.length) {
+      detalheHtml = detalhePreco.map(([rotulo, valor, soPlano]) =>
+        linha(soPlano ? rotulo + ' (só no Valor do Plano)' : rotulo, formatarValor(valor))
+      ).join('');
+    }
+
+    const blocoPlano = `
+      <div class="resumo-bloco">
+        <div class="resumo-bloco-header">
+          <span>📡 Plano</span>
+          <button class="resumo-editar" onclick="irParaEtapa(3)">✏️ Editar</button>
+        </div>
+        ${servicosHtml}
+        ${detalheHtml}
+        ${linha('Receita', vl('mensalidade'), true)}
+        ${linha('Valor do Plano', vl('debito'), true)}
+        ${vl('valor_promocional') ? linha('Valor 6 Meses', vl('valor_promocional'), true) : ''}
+        ${linha('Período de Instalação', vl('periodo'))}
+      </div>`;
+
+    const faltando = [];
+    if (!vl('nome')) faltando.push('Nome do cliente');
+    if (!vl('celular')) faltando.push('WhatsApp');
+    if (!vl('mensalidade') && !vl('debito')) faltando.push('Valor do plano');
+    const alertaHtml = faltando.length
+      ? `<div class="resumo-bloco" style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;">⚠️ Antes de enviar, confira: ${faltando.join(', ')}.</div>`
+      : '';
+
+    wrap.innerHTML = blocoCliente + blocoEndereco + blocoPlano + alertaHtml;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // EDIÇÃO DE FICHA DIRETO NO APP (admin)
+  //
+  // Até aqui, corrigir uma ficha exigia abrir a planilha do Google
+  // Sheets manualmente. Agora o admin pode abrir "Todas as Fichas",
+  // tocar em ✏️ e editar os campos no próprio app — ao salvar, a
+  // MESMA linha na planilha é atualizada (ação action=atualizarFicha
+  // no Code.gs), sem criar uma ficha duplicada.
+  //
+  // Importante: o botão ↩ (reGerarFicha) continua existindo só na
+  // aba "Minhas Vendas" do vendedor, com o comportamento antigo de
+  // reabrir os dados pra reenviar/duplicar. Já ✏️ (editarFichaAdmin)
+  // só aparece pro admin em "Todas as Fichas" e faz uma edição real.
+  // ══════════════════════════════════════════════════════════════
+  let modoEdicao = false;
+  let idEmEdicao = null;
+  let fichaEditOriginal = null;
+
+  function preencherFormularioComFicha(f) {
+    const map = ['vendedor','status','data_instalacao','nome','cpf','cnpj','celular','sms','email','mae','rua','numero','complemento','bairro','cidade','cep','plano_banda','plano_mesh','plano_controle','plano_pos','dep_gratis','dep_pago','portabilidade','plano_tv','ponto_adicional','plano_fixo','mensalidade','debito','periodo','obs'];
+    map.forEach(k => {
+      const el = document.getElementById(k);
+      if (!el) return;
+      if ((k === 'status' || k === 'data_instalacao') && session.role !== 'admin') return;
+      el.value = f[k] || '';
+    });
+    document.getElementById('criar_hp').value = f.criar_hp || '';
+    document.getElementById('hp-sim').className = 'hp-btn' + (f.criar_hp === 'Sim' ? ' ativo-sim' : '');
+    document.getElementById('hp-nao').className = 'hp-btn' + (f.criar_hp === 'Não' ? ' ativo-nao' : '');
+    restaurarPill('plano_banda',    'pills-banda');
+    restaurarMesh();
+    restaurarPill('plano_controle', 'pills-controle');
+    restaurarPill('plano_pos',      'pills-pos');
+    restaurarPill('plano_tv',       'pills-tv');
+    restaurarPill('plano_fixo',     'pills-fixo');
+    atualizarProgresso();
+    if (typeof window.atualizarBarraPlano === 'function') window.atualizarBarraPlano();
+  }
+
+  function mostrarBannerEdicao(f) {
+    removerBannerEdicao();
+    const pagina = document.getElementById('page-formulario');
+    const referencia = document.getElementById('mini-resumo');
+    if (!pagina || !referencia) return;
+    const banner = document.createElement('div');
+    banner.id = 'banner-edicao';
+    banner.style.cssText = 'background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:.78rem;display:flex;justify-content:space-between;align-items:center;gap:10px;';
+    banner.innerHTML = `<span>✏️ Editando ficha de <strong>${f.nome || '—'}</strong> — ao salvar, a mesma linha da planilha é atualizada.</span>
+      <button onclick="cancelarEdicao()" style="background:none;border:1px solid #92400e;color:#92400e;border-radius:6px;padding:4px 10px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Cancelar</button>`;
+    pagina.insertBefore(banner, referencia);
+  }
+
+  function removerBannerEdicao() {
+    document.getElementById('banner-edicao')?.remove();
+  }
+
+  // Aviso (não bloqueia): mostra se já existe ficha com o mesmo CPF.
+  // Vendedor só enxerga as fichas dele; admin enxerga todas.
+  function avisarCPFDuplicado() {
+    const box = document.getElementById('cpf-aviso');
+    if (!box) return;
+    const digitos = String(document.getElementById('cpf')?.value || '').replace(/\D/g, '');
+    box.style.display = 'none';
+    if (digitos.length !== 11) return;
+    const achadas = fichas.filter(f =>
+      String(f.cpf || '').replace(/\D/g, '') === digitos &&
+      !(modoEdicao && String(f.id) === String(idEmEdicao)));
+    if (!achadas.length) return;
+    const f = achadas[achadas.length - 1];
+    const detalhe = [f.nome, f.data_cadastro, f.status, session.role === 'admin' ? f.vendedor : ''].filter(Boolean).join(' • ');
+    box.textContent = '⚠️ Já existe ' + (achadas.length > 1 ? achadas.length + ' fichas' : 'uma ficha') + ' com este CPF (' + detalhe + '). Pode continuar se for outra venda.';
+    box.style.display = 'block';
+  }
+
+  function editarFichaAdmin(id) {
+    if (session.role !== 'admin') { showToast('⚠️ Apenas administradores podem editar fichas diretamente no app.', 'warning'); return; }
+    const f = fichas.find(x => String(x.id) === String(id));
+    if (!f) { showToast('❌ Ficha não encontrada.', 'error'); return; }
+
+    modoEdicao = true;
+    idEmEdicao = f.id;
+    fichaEditOriginal = f;
+    fichaAtual = null;
+    checkinCoords = f.checkin_lat ? { lat: f.checkin_lat, lng: f.checkin_lng } : null;
+
+    preencherFormularioComFicha(f);
+    mostrarBannerEdicao(f);
+
+    const btn = document.getElementById('btn-enviar');
+    if (btn) btn.innerHTML = '💾 SALVAR ALTERAÇÕES';
+    const btnCheckin = document.getElementById('btn-checkin');
+    if (btnCheckin) btnCheckin.style.display = 'none';
+
+    mudarAba('formulario');
+    irParaEtapa(1);
+    showToast('✏️ Editando a ficha de ' + (f.nome || '') + ' — as alterações vão para a mesma linha da planilha.', 'info', 4500);
+  }
+
+  // Cancela a edição SEM salvar — limpa o formulário por completo
+  // pra evitar que os dados da ficha antiga fiquem no ar e sejam
+  // enviados sem querer como uma ficha NOVA (duplicando o cliente).
+  function cancelarEdicao() {
+    limpar();
+    showToast('Edição cancelada.', 'info');
+  }
+
+  async function enviarEdicaoParaSheets(ficha) {
+    const params = new URLSearchParams();
+    Object.entries(ficha).forEach(([k, v]) => params.append(k, v || ''));
+    params.set('action', 'atualizarFicha');
+    params.set('token', session.token || '');
+    params.set('editor_username', session.username);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const resp = await fetch(SHEETS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      clearTimeout(timeout);
+      const dados = await resp.json();
+      return { ok: !!(dados && dados.status === 'ok'), msg: dados?.msg || '' };
+    } catch (err) {
+      clearTimeout(timeout);
+      return { ok: false, msg: 'Falha de conexão.' };
+    }
+  }
+
+  async function salvarEdicaoFicha() {
+    const btn = document.getElementById('btn-enviar');
+    gerarTexto();
+    if (!fichaAtual) return;
+
+    btn.innerHTML = '⏳ Salvando...';
+    btn.disabled = true;
+    setSyncStatus('loading', '⏳ Salvando alterações na planilha...');
+
+    const resultado = await enviarEdicaoParaSheets(fichaAtual);
+
+    if (resultado.ok) {
+      const idx = fichas.findIndex(f => String(f.id) === String(fichaAtual.id));
+      if (idx >= 0) fichas[idx] = fichaAtual; else fichas.push(fichaAtual);
+      salvarFichas();
+      setSyncStatus('ok', '✅ Ficha atualizada na planilha!');
+      showToast('✅ Ficha de ' + fichaAtual.nome + ' atualizada!');
+      renderTabelaMinhas();
+      renderTabelaTodas();
+      renderDashboard();
+      limpar(); // sai do modo edição e limpa o formulário
+    } else {
+      setSyncStatus('erro',
+        '❌ Não foi possível salvar as alterações. ' +
+        '<button onclick="salvarEdicaoFicha()" style="background:none;border:none;color:#991b1b;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit">Tentar novamente</button>'
+      );
+      showToast('❌ ' + (resultado.msg || 'Falha ao salvar a edição.'), 'error', 5000);
+      btn.innerHTML = '💾 SALVAR ALTERAÇÕES';
+      btn.disabled = false;
+    }
+
+    setTimeout(() => hideSyncStatus(), 8000);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // REENVIO AUTOMÁTICO DAS FILAS (fichas, faltas, adiantamentos)
+  //
+  // Antes a fila só era reenviada ao abrir o app (3s depois) ou ao
+  // tocar em "Atualizar"/"Tentar reenviar" — com o app aberto o dia
+  // todo, a ficha ficava parada até alguém lembrar. Agora tenta
+  // sozinho, para qualquer usuário (vendedor ou admin):
+  //   • logo ao abrir o app e após o login
+  //   • a cada 30 segundos
+  //   • quando a internet volta ("online")
+  //   • quando o app volta para a tela (PWA reaberto do 2º plano)
+  // ══════════════════════════════════════════════════════════════
+  function tentarReenvioAutomatico() {
+    if (!session || !session.token) return;
+    if (navigator.onLine === false) return;
+    if (filaReenvio.length)       reenviarFila();
+    if (filaFaltas.length)        reenviarFilaFaltas();
+    if (filaAdiantamentos.length) reenviarFilaAdiantamentos();
+  }
+  setInterval(tentarReenvioAutomatico, 30000);
+  window.addEventListener('online', tentarReenvioAutomatico);
+  window.addEventListener('pageshow', tentarReenvioAutomatico);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') tentarReenvioAutomatico();
+  });
+  setTimeout(tentarReenvioAutomatico, 500);   // logo ao abrir (init() já terá rodado)
+
+  init();
