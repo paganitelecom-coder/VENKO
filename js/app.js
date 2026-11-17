@@ -420,6 +420,60 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
   }
 
   // ══════════════════════════════════════════════════════════════
+  // PROMOÇÃO BLACK FRIDAY 1 — combo de preço fechado.
+  // Vale só para cidades cujo GRUPO (aba CIDADES) esteja em `grupos`.
+  // Banda 600MB + Pós 60GB = R$ 99,90 (entra na Receita e no Valor do Plano).
+  // ══════════════════════════════════════════════════════════════
+  const PROMO_BF1 = { id: 'BF1', nome: 'BLACK FRIDAY 1', grupos: ['MD', 'MD2'], banda: '600MB', pos: '60GB', valor: 99.90 };
+
+  // Mostra/esconde o botão conforme o grupo da cidade e desliga a promoção
+  // se ela deixou de valer. Retorna true quando a promoção está ativa.
+  function sincronizarPromoBF1(grupo, banda, pos) {
+    const input = document.getElementById('plano_promo');
+    const row   = document.getElementById('row-bf1');
+    const btn   = document.getElementById('btn-bf1');
+    const disponivel = !!grupo && PROMO_BF1.grupos.includes(grupo);
+    if (row) row.style.display = disponivel ? '' : 'none';
+    let ativa = !!input && input.value === PROMO_BF1.id;
+    if (ativa && !(disponivel && banda === normalizar(PROMO_BF1.banda) && pos === normalizar(PROMO_BF1.pos))) {
+      input.value = '';
+      ativa = false;
+    }
+    if (btn) btn.classList.toggle('ativo', ativa);
+    return ativa;
+  }
+
+  function selecionarPromoBF1() {
+    const input = document.getElementById('plano_promo');
+    const ativando = input.value !== PROMO_BF1.id;
+    const marcar = (pillsId, valor) => {
+      document.getElementById(pillsId).querySelectorAll('.pill-btn').forEach(b => {
+        b.classList.toggle('ativo', !!valor && b.textContent.replace(/\s/g, '') === valor);
+      });
+    };
+    document.getElementById('plano_controle').value = '';
+    marcar('pills-controle', '');
+    if (ativando) {
+      document.getElementById('plano_banda').value = PROMO_BF1.banda;
+      document.getElementById('plano_pos').value   = PROMO_BF1.pos;
+      input.value = PROMO_BF1.id;
+      marcar('pills-banda', PROMO_BF1.banda);
+      marcar('pills-pos',   PROMO_BF1.pos);
+    } else {
+      document.getElementById('plano_banda').value = '';
+      document.getElementById('plano_pos').value   = '';
+      input.value = '';
+      marcar('pills-banda', '');
+      marcar('pills-pos',   '');
+    }
+    camposAutoPreenchidos.delete('mensalidade_manual');
+    camposAutoPreenchidos.delete('debito_manual');
+    camposAutoPreenchidos.delete('valor_promocional_manual');
+    atualizarProgresso();
+    buscarPreco();
+  }
+
+  // ══════════════════════════════════════════════════════════════
   // CÁLCULO DE PREÇOS:
   //   • Receita (campo "mensalidade") = Banda Larga + Controle + Pós
   //                                      + Dep. Pago + TV + Fixo
@@ -453,6 +507,9 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
 
     const statusEl = document.getElementById('preco-status');
 
+    // Promoção BLACK FRIDAY 1: mostra/esconde o botão e confere se ainda vale.
+    const bf1 = sincronizarPromoBF1(getGrupoCidade(cidade), banda, pos);
+
     const temProduto = banda || controle || pos || tv || fixo;
     if (!temProduto || !cidade) {
       statusEl.className = 'preco-status';
@@ -484,9 +541,12 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       else algumFaltando = true;
     };
 
+    // ── PROMO BLACK FRIDAY 1 ── substitui o preço de Banda 600MB + Pós 60GB.
+    if (bf1) somar('BLACK FRIDAY 1 (Banda 600MB + Pós 60GB)', PROMO_BF1.valor);
+
     // ── BANDA LARGA ──
     // TV sozinho não desconta a banda; só desconta se tiver Controle/Pós junto.
-    if (temBanda) {
+    if (temBanda && !bf1) {
       const coluna = (temMovel && temTv) ? 'VALOR_COM_MOVEL_E_TV'
                    : temMovel             ? 'VALOR_COM_MOVEL'
                    :                        'VALOR_SOZINHO';
@@ -501,7 +561,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
       somar('Controle ' + controle, v);
       descontar('CONTROLE', controle);
     }
-    if (pos) {
+    if (pos && !bf1) {
       const v = getPrecoServico('POS', pos, grupo, 'VALOR_SOZINHO');
       somar('Pós ' + pos, v);
       descontar('POS', pos);
@@ -568,7 +628,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     // ── VALOR PROMOCIONAL (6 meses) ── Valor do Plano − descontos da tabela.
     const campoPromo = document.getElementById('valor_promocional');
     if (!camposAutoPreenchidos.has('valor_promocional_manual')) {
-      if (descontoTotal > 0) {
+      if (descontoTotal > 0 || bf1) {
         const baseEditada = normalizarValor(document.getElementById('debito').value);
         const base = baseEditada !== null ? baseEditada : totalValorPlano;
         campoPromo.value = formatarValor(Math.max(0, base - descontoTotal));
@@ -1042,6 +1102,9 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwRo3WixS8Lg_FycKV53
     const servicosLinhas = servicosAtivos.length
       ? servicosAtivos.map(s => `${s.label}: ${s.val}`).join('\n') : '—';
 
+    // Promoção BLACK FRIDAY 1: só aparece no texto copiado (não vai ao Sheets).
+    const promoBfLine = vl('plano_promo') ? '\n🔥 Promoção: BLACK FRIDAY 1' : '';
+
     const checkinLine = checkinCoords ? `\n📍 Check-in: https://www.google.com/maps?q=${checkinCoords.lat},${checkinCoords.lng}` : '';
     const portabLine  = fichaAtual.portabilidade ? `\nPortabilidade: ${fichaAtual.portabilidade}` : '';
     const smsLine      = fichaAtual.sms ? `\nSMS: ${fichaAtual.sms}` : '';
@@ -1071,7 +1134,7 @@ Cidade: ${fichaAtual.cidade}
 CEP: ${fichaAtual.cep}${checkinLine}
 
 PLANO CONTRATADO
-${servicosLinhas}${portabLine}
+${servicosLinhas}${promoBfLine}${portabLine}
 Receita: ${fichaAtual.mensalidade}
 Valor do Plano: ${fichaAtual.debito}${promoLine}
 Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕES\n' + fichaAtual.obs : ''}`;
@@ -1188,6 +1251,7 @@ Periodo de Instalacao: ${fichaAtual.periodo}${fichaAtual.obs ? '\n\nOBSERVAÇÕE
     document.getElementById('hp-sim').className = 'hp-btn';
     document.getElementById('hp-nao').className = 'hp-btn';
     camposAutoPreenchidos.clear();
+    sincronizarPromoBF1(null, '', '');
     detalhePreco = [];
     fichaAtual = null; checkinCoords = null;
     atualizarProgresso();
@@ -3039,6 +3103,7 @@ function renderDashboardFaltasAdiantamentos() {
       </div>`;
 
     const servicos = [
+      ['🔥 Promoção',    vl('plano_promo') ? 'BLACK FRIDAY 1' : ''],
       ['🌐 Banda Larga', vl('plano_banda')],
       ['🔀 Mesh',        vl('plano_mesh') ? vl('plano_mesh') + ' UN' : ''],
       ['📱 Controle',    vl('plano_controle')],
